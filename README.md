@@ -13,6 +13,17 @@ A private chatbot based on AI, blockchain encryption technology, and de-Chinese-
 
 </div>
 
+- IOS
+  用 Safari 直接打开https://wai.chat 直接 Add to Home Screen
+
+- Android
+  - 下载 [Apk]()
+  - 下载 [源代码](https://github.com/ptp-build/wai-chat-react-expo)```eas build --platform  android --profile prod```
+    自行编译
+  - 使用 [Expo Dev](https://snack.expo.dev/@wai.chat/waichat)
+    ![expo](./docs/images/expo.jpeg)
+
+
 ## 主要功能
 
 - 内置 海量 prompt 来自[中文](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)和[英文](https://github.com/f/awesome-chatgpt-prompts)
@@ -22,8 +33,13 @@ A private chatbot based on AI, blockchain encryption technology, and de-Chinese-
 - 基于 [Telegram](https://github.com/Ajaxy/telegram-tt) 强大的的加解密技术和流畅的前端用户体验
 - 友好支持IOS、Android、Web
 
+## 自定义部署
+
+- [在 CloudFlare 中部署](https://github.com/ptp-build/wai-chat/blob/main/docs/deploy-cloudflaure-pages.md)
+
+
 ## 开发计划 Roadmap
-- 接入跟多ai平台
+- 接入更多ai平台和模型
 - 支持多人社区群组
 - 支持sass化部署
 
