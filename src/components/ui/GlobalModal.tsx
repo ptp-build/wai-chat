@@ -56,9 +56,9 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
       hasCloseButton
       isOpen={open}
       onClose={() => {
-        if (onConfirm) {
-          onConfirm({value: ""});
-        }
+        // if (onConfirm) {
+        //   onConfirm({value: ""});
+        // }
         setValue("")
         setOpen(false)
       }}

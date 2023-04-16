@@ -1,6 +1,6 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {currentTs} from "../share/utils/utils";
-import {ApiBotInfo, ApiKeyboardButtons, ApiMessage} from "../../api/types";
+import {ApiBotInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage} from "../../api/types";
 import {GlobalState} from "../../global/types";
 import {getGlobal, setGlobal} from "../../global";
 import {selectUser} from "../../global/selectors";
@@ -12,6 +12,7 @@ import Account from "../share/Account";
 import MsgCommand from "./MsgCommand";
 import {showModalFromEvent} from "../share/utils/modal";
 import {PbAiBot_Type, PbChatGpBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import inlineButtons from "../../components/middle/message/InlineButtons";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
@@ -47,6 +48,10 @@ export default class MsgCommandChatGpt{
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/reloadCommands',"重载命令"),
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/toggleClearHistory',disableClearHistory ? "允许清除历史记录":"关闭清除历史记录"),
         ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/clearHistory',"清除历史记录")),
+      ],
+
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义api"),
       ],
     ]:[
       [
@@ -271,8 +276,55 @@ export default class MsgCommandChatGpt{
       await MsgCommand.createWsBot(chatId)
     }
   }
+  static async customApi(chatId:string,messageId:number){
+    await MsgDispatcher.newTextMessage(chatId,undefined,"自定义api",[
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',"设置api"),
+      ],
+      [
+        ...MsgCommand.buildInlineBackButton(chatId,messageId,'setting/ai/back',"< 返回"),
+      ]
+    ])
+  }
+  static async setApi(chatId:string,messageId:number){
+    // @ts-ignore
+    let botApi:string | undefined = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+    const {value} = await showModalFromEvent({
+      title:"请输入api地址",
+      initVal:botApi || ""
+    })
+    botApi = value;
+    MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+      botApi:value
+    })
+    MsgDispatcher.updateMessage(chatId,messageId,{
+      content:{
+        text:{
+          text:`地址: ${botApi}`
+        }
+      }
+    })
+  }
+  static back(global:GlobalState,chatId:string,messageId:number,data:string){
+    const btn = data.replace(`${chatId}/setting/ai/back/`,"")
+    const inlineButtons:ApiKeyboardButton[][] = JSON.parse(btn);
+    MsgDispatcher.updateMessage(chatId, messageId, {
+      inlineButtons
+    });
+  }
   static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
+    if(data.startsWith(`${chatId}/setting/ai/back`)){
+      MsgCommandChatGpt.back(global,chatId,messageId,data)
+      return
+    }
+
     switch (data){
+      case `${chatId}/setting/ai/setApi`:
+        await MsgCommandChatGpt.setApi(chatId,messageId)
+        return
+      case `${chatId}/setting/ai/customApi`:
+        await MsgCommandChatGpt.customApi(chatId,messageId)
+        return
       case `${chatId}/setting/ai/toggleClearHistory`:
         await MsgCommandChatGpt.toggleClearHistory(chatId,messageId)
         return
