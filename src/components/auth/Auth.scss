@@ -1,0 +1,258 @@
+.Auth {
+  height: 100%;
+}
+.auth-close{
+  position: absolute;
+  top:8px;
+  right:8px;
+
+  @media (min-width: 600px) and (min-height: 450px) {
+    top:44px;
+    right:44px;
+  }
+}
+.auth-form {
+  width: 100%;
+  max-width: 25.5rem;
+  margin: 0 auto;
+  padding: 6rem 1rem 1rem;
+  text-align: center;
+
+  @media (min-width: 600px) and (min-height: 450px) {
+    padding: 6.8125rem 1.5rem 1.5rem;
+
+    &.qr {
+      padding-top: 4rem;
+    }
+  }
+
+  #logo,
+  .AvatarEditable label {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 7.5rem;
+    height: 7.5rem;
+    margin-bottom: 1.75rem;
+
+    @media (min-width: 600px) and (min-height: 450px) {
+      width: 10rem;
+      height: 10rem;
+      margin-bottom: 2.5rem;
+    }
+  }
+
+  #logo {
+    background: url("../../assets/telegram-logo.svg") center no-repeat;
+    background-size: 100%;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+    line-height: 1;
+
+    @media (min-width: 600px) {
+      font-size: 2rem;
+      line-height: 1.5;
+    }
+  }
+
+  .note {
+    font-size: 0.875rem;
+    line-height: 1.35;
+    margin-bottom: 2.5rem;
+    color: var(--color-text-secondary);
+
+    @media (min-width: 600px) {
+      font-size: 1rem;
+      margin-bottom: 3rem;
+    }
+  }
+}
+
+#auth-registration-form,
+#auth-phone-number-form,
+#auth-code-form,
+#auth-password-form,
+#auth-qr-form {
+  height: 100%;
+  overflow-y: auto;
+}
+
+#auth-phone-number-form {
+  form {
+    min-height: 26.25rem;
+  }
+
+  .Button {
+    margin-top: 2.75rem;
+  }
+
+  .Button + .Button {
+    margin-top: 1rem;
+  }
+}
+
+#auth-code-form,
+#auth-password-form {
+  h1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.auth-number-edit {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover,
+  &:focus {
+    opacity: 1;
+  }
+}
+
+#auth-qr-form {
+  .qr-outer {
+    height: 280px;
+    position: relative;
+  }
+
+  .qr-inner,
+  .qr-loading {
+    height: 280px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .qr-inner {
+    opacity: 1;
+    transform: scale(1);
+    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 300ms;
+
+    &:not(.open) {
+      opacity: 0.5;
+      transform: scale(0.5);
+    }
+
+    &:not(.shown) {
+      display: none;
+    }
+  }
+
+  .qr-loading {
+    transition: opacity 1ms;
+  }
+
+  .qr-plane {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    border-radius: 50%;
+    background-color: var(--color-telegram-blue);
+  }
+
+  .qr-container {
+    background-color: white;
+    border-radius: var(--border-radius-default);
+    overflow: hidden;
+  }
+
+  h1 {
+    margin: 1.5rem 0 1rem 0;
+    font-size: 1.25rem;
+  }
+
+  ol {
+    list-style: none;
+    counter-reset: item;
+    padding: 0 1.75rem;
+
+    li {
+      counter-increment: item;
+      text-align: left;
+      margin: 0.75rem 0;
+      display: flex;
+
+      &::before {
+        content: counter(item);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 1.375rem;
+        height: 1.375rem;
+        padding: 0;
+        margin: 0 0.75rem 0 0;
+        background: var(--color-primary);
+        border-radius: 50%;
+        font-size: smaller;
+        color: white;
+      }
+    }
+  }
+}
+
+#sign-in-password {
+  word-break: normal !important;
+}
+
+.oauth-btn{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-tips{
+  color: var(--color-text);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  .auth-tips-action{
+    display: inline-flex;
+    margin-left: 8px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+}
+.auth-or-line{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 44px;
+  .auth-or{
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    background: var(--color-background);
+    padding-left: 12px;
+    padding-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .auth-line{
+    z-index: 1;
+    opacity: 0.3;
+    position: absolute;
+    width: 100%;
+    top:22px;
+    height: 1px;
+    background: var(--color-borders);
+  }
+}

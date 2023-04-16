@@ -1,0 +1,466 @@
+@import "../../styles/mixins";
+
+.MessageList {
+  flex: 1;
+  width: 100%;
+  margin-bottom: 0.5rem;
+
+  overflow: scroll;
+  overflow-x: hidden;
+  overflow-y: auto;
+  @include overflow-y-overlay();
+
+  transition: transform var(--layer-transition);
+
+  body.animation-level-0 & {
+    transition: none !important;
+  }
+
+  .mask-image-enabled & {
+    mask-image: linear-gradient(to top, transparent 0, #000 0.5rem);
+  }
+
+  @media (pointer: coarse) {
+    user-select: none;
+    -webkit-touch-callout: none;
+
+    &.select-mode-active {
+      user-select: auto;
+      -webkit-touch-callout: default;
+    }
+  }
+
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: bottom 150ms ease-out, transform var(--layer-transition);
+
+  body.keyboard-visible & {
+    position: relative;
+    bottom: calc(0px - env(safe-area-inset-bottom));
+
+    // Target: Old Firefox (Waterfox Classic)
+    @supports not (bottom: calc(0px - env(safe-area-inset-bottom))) {
+      bottom: 0;
+    }
+
+    body.keyboard-visible.animation-level-0 & {
+      transition: none !important;
+    }
+  }
+
+  &.no-avatars .Message > .Avatar {
+    display: none;
+  }
+
+  .messages-container {
+    width: 100%;
+    max-width: var(--messages-container-width);
+    min-height: 100%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    flex-direction: column;
+    padding: 1rem 1rem 0 1.125rem;
+
+    .force-messages-scroll & {
+      margin-top: 100vh !important;
+    }
+
+    @media (max-width: 600px) {
+      width: 100vw;
+      padding: 2.75rem 0.5rem 0;
+      // Patch for an issue on Android when rotating device
+      margin: 0;
+    }
+  }
+
+  &.no-composer {
+    margin-bottom: 0;
+
+    .last-in-list {
+      margin-bottom: 1rem;
+    }
+  }
+
+  &.select-mode-active,
+  &.type-pinned {
+    margin-bottom: 0;
+
+    .last-in-list {
+      margin-bottom: 5.625rem;
+
+      @media (max-width: 600px) {
+        margin-bottom: 4.25rem;
+      }
+
+      &.ActionMessage {
+        padding-bottom: 0.125rem;
+      }
+    }
+  }
+
+  @media (max-width: 600px) {
+    &.with-bottom-shift {
+      margin-bottom: 0;
+
+      .last-in-list {
+        margin-bottom: 4.25rem;
+
+        body:not(.keyboard-visible) & {
+          margin-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+        }
+      }
+    }
+  }
+
+  .Message,
+  .ActionMessage {
+    position: relative;
+
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+
+    &:not(.open) {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+
+    // Restore stacking context
+    // https://developer.mozilla.org/ru/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
+    &.open.shown {
+      transform: none;
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: -0.1875rem;
+      bottom: -0.1875rem;
+      left: -50vw;
+      right: -50vw;
+      background: black;
+      z-index: 0;
+
+      opacity: 0;
+      transition: opacity var(--select-transition);
+
+      body.animation-level-0 & {
+        transition: none !important;
+      }
+    }
+
+    &:not(.last-in-group) {
+      &::before {
+        bottom: -0.1875rem;
+      }
+    }
+
+    &:not(.first-in-group) {
+      &::before {
+        top: -0.1875rem;
+      }
+    }
+
+    &.focused::before {
+      // @optimization
+      transition: none !important;
+    }
+
+    &.focused,
+    &.is-forwarding,
+    &.is-selected,
+    &.has-menu-open {
+      &::before {
+        opacity: 0.1;
+
+        .theme-dark & {
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+
+  html.theme-light &.with-default-bg {
+    .Message,
+    .ActionMessage {
+      &::before {
+        background: var(--pattern-color);
+      }
+
+      &.focused,
+      &.is-forwarding,
+      &.is-selected,
+      &.has-menu-open {
+        &::before {
+          opacity: 0.55;
+        }
+      }
+    }
+  }
+
+  > .empty {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    & > span {
+      max-width: 80%;
+      text-align: left;
+    }
+
+    & > .bot-info {
+      max-width: 80%;
+      display: flex;
+      flex-direction: column;
+
+      background: var(--pattern-color);
+      color: white;
+      font-size: calc(var(--message-text-size, 1rem) - 0.0625rem);
+      line-height: 1.75;
+      border-radius: var(--border-radius-messages);
+      overflow: hidden;
+      text-align: initial;
+
+      & > .bot-info-description {
+        padding: 0.5rem 1rem;
+      }
+
+      .bot-info-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+      }
+    }
+
+    .text-entity-link {
+      color: inherit !important;
+      text-decoration: underline;
+
+      &:hover,
+      &:focus {
+        text-decoration: none;
+      }
+    }
+  }
+
+  .sticky-date,
+  .local-action-message,
+  .ActionMessage,
+  .empty {
+    text-align: center;
+    user-select: none;
+
+    > span {
+      display: inline-block;
+      background: var(--pattern-color);
+      color: white;
+      font-size: calc(var(--message-text-size, 1rem) - 0.0625rem);
+      font-weight: 500;
+      line-height: 1.75;
+      padding: 0 0.5rem;
+      border-radius: var(--border-radius-messages);
+      word-break: break-word;
+      position: relative;
+      z-index: 0;
+
+      body.is-ios &,
+      body.is-macos & {
+        font-size: calc(var(--message-text-size, 1rem) - 0.125rem);
+        line-height: calc(var(--message-text-size, 1rem) + 0.5rem);
+      }
+
+      .emoji-small {
+        vertical-align: text-bottom;
+        width: calc(1.25 * var(--message-text-size, 1rem));
+        height: calc(1.25 * var(--message-text-size, 1rem));
+        background-size: calc(1.25 * var(--message-text-size, 1rem));
+      }
+    }
+  }
+
+  .action-message-content {
+    max-width: 100%;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ActionMessage.centered-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .action-message-gift {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1rem !important;
+    padding-bottom: 0.75rem !important;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .action-message-suggested-avatar {
+    max-width: 16rem;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1rem !important;
+    padding-bottom: 0.75rem !important;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    outline: none;
+
+    .Avatar {
+      width: 6.5rem;
+      height: 6.5rem;
+      margin: 1rem;
+    }
+  }
+
+  .action-message-button {
+    display: inline-block;
+    border-radius: var(--border-radius-default);
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    background-color: var(--pattern-color);
+  }
+
+  .sticky-date {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    z-index: var(--z-sticky-date);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+
+    @media (max-width: 600px) {
+      margin-top: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    body:not(.is-scrolling-messages) &.stuck {
+      opacity: 0;
+
+      span {
+        pointer-events: none;
+      }
+    }
+
+    body.animation-level-0 & {
+      transition: none;
+    }
+
+    &.interactive {
+      cursor: pointer;
+    }
+
+    span {
+      pointer-events: auto;
+    }
+  }
+
+  &.scrolled:not(.is-animating) .sticky-date {
+    position: sticky;
+    top: 0.625rem;
+  }
+
+  &.is-animating {
+    overflow: hidden;
+  }
+
+  &.is-animating .message-select-control {
+    display: none !important;
+  }
+
+  .has-header-tools & .sticky-date {
+    top: 3.75rem !important;
+  }
+
+  .local-action-message,
+  .ActionMessage {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .local-action-message,
+  .ActionMessage.in-one-row {
+    height: 1.5625rem;
+  }
+
+  .ActionMessage {
+    .action-link {
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .underlined-link {
+      text-decoration: underline;
+
+      &:hover {
+        text-decoration: none;
+      }
+    }
+  }
+
+  .sticky-date + .ActionMessage {
+    margin-top: -0.375rem;
+  }
+
+  @media (min-width: 1276px) {
+    width: 100%;
+    transform: translate3d(0, 0, 0);
+    transition: transform var(--layer-transition);
+
+    .messages-container {
+      width: calc(100% - var(--right-column-width));
+    }
+
+    body.animation-level-0 & {
+      transition: none;
+    }
+
+    #Main.right-column-open & {
+      transform: translate3d(calc(var(--right-column-width) / -2), 0, 0);
+    }
+
+    #Main.narrow-message-list & {
+      width: calc(100% - var(--right-column-width));
+
+      .messages-container {
+        width: 100%;
+      }
+    }
+  }
+
+  @media (max-width: 600px) {
+    transition: transform var(--layer-transition);
+
+    body.enable-symbol-menu-transforms & {
+      transform: translate3d(0, 0, 0);
+    }
+
+    body.is-symbol-menu-open & {
+      transform: translate3d(0, calc(-1 * (var(--symbol-menu-height) + var(--symbol-menu-footer-height))), 0);
+    }
+  }
+
+  .animating > div > & {
+    &::-webkit-scrollbar {
+      width: 0;
+    }
+
+    /* Styles for Firefox */
+    @supports (scrollbar-width: none) {
+      padding-right: 0.6875rem;
+      scrollbar-width: none;
+    }
+  }
+}

@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[5204],{62437:e=>{e.exports=function(e){return{name:"Plain text",aliases:["text","txt"],disableAutodetect:!0}}}}]);
+//# sourceMappingURL=5204.a3d9cd1438d602a17164.js.map

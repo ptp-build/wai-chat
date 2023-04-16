@@ -1,0 +1,107 @@
+syntax = "proto2";
+package PTP.Msg;
+import "PTP.Common.proto";
+option java_package = "chat.wai.protobuf";
+
+option optimize_for = LITE_RUNTIME;
+
+message SendReq{
+  required string chatId = 1;
+  optional string text = 2;
+  optional Common.PbMsg msg = 3;
+}
+
+message SendRes{
+  required string chatId = 1;
+  required string action = 2;
+  optional Common.PbMsg msg = 3;
+  optional string text = 4;
+  optional uint32 localId = 5;
+  optional Common.ERR err = 100;
+}
+
+message MsgUpdateReq{
+  required string user_id = 1;
+  required string chat_id = 2;
+  required uint32 msg_id = 3;
+  required string text = 4;
+}
+
+message MsgUpdateRes{
+  required Common.ERR err = 100;
+}
+
+message MsgDeleteReq{
+  required string user_id = 1;
+  required string chat_id = 2;
+  repeated uint32 msg_ids = 3;
+  optional bool revoke = 4;
+}
+
+message MsgDeleteRes{
+  required Common.ERR err = 100;
+}
+
+message MsgListReq{
+  required string chatId = 1;
+  required uint32 lastMessageId = 2;
+  required uint32 limit = 3;
+  optional bool isUp = 4;
+}
+
+message MsgListRes{
+  required string payload = 1;
+  required Common.ERR err = 100;
+}
+
+message AnswerCallbackButtonReq{
+  required string chatId = 1;
+  optional string accessHash = 4;
+  required uint32 messageId = 2;
+  optional string data = 3;
+  optional bool isGame = 5;
+}
+
+message AnswerCallbackButtonRes{
+  optional string message = 1;
+  optional string url = 2;
+  optional string alert = 3;
+  required Common.ERR err = 100;
+}
+
+
+message RemoveMessagesReq{
+  repeated uint32 messageIds = 1;
+}
+
+message RemoveMessagesRes{
+  required Common.ERR err = 100;
+}
+
+message GenMsgIdReq{
+  required bool isLocal = 1;
+}
+
+message GenMsgIdRes{
+  required uint64 messageId =1;
+  optional Common.ERR err = 100;
+}
+
+message UploadMsgReq{
+  repeated Common.MessageStoreRow messages = 1;
+  required string chatId = 2;
+  required uint32 time = 3;
+}
+
+message UploadMsgRes{
+  optional Common.ERR err = 100;
+}
+
+message DownloadMsgReq{
+  required string chatId = 1;
+}
+
+message DownloadMsgRes{
+  repeated Common.MessageStoreRow messages = 1;
+  optional Common.ERR err = 100;
+}

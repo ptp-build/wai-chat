@@ -1,0 +1,46 @@
+{
+  "extends": [
+    "stylelint-config-recommended-scss"
+  ],
+  "ignoreFiles": [
+    "dist/*.css"
+  ],
+  "plugins": [
+    "stylelint-declaration-block-no-ignored-properties",
+    "stylelint-high-performance-animation",
+    "stylelint-group-selectors",
+    "stylelint-selector-tag-no-without-class",
+    "./dev/wholePixel.js"
+  ],
+  "rules": {
+    "property-no-unknown": [
+      true,
+      {
+        "ignoreProperties": [
+          "composes",
+          "compose-with"
+        ]
+      }
+    ],
+    "number-leading-zero": "always",
+    "selector-attribute-quotes": "always",
+    "scss/operator-no-unspaced": null,
+    "no-descending-specificity": null,
+    "plugin/declaration-block-no-ignored-properties": true,
+    "plugin/no-low-performance-animation-properties": [
+      true,
+      {
+        "ignore": "paint-properties"
+      }
+    ],
+    "plugin/stylelint-group-selectors": [true, { "severity": "warning" }],
+    "plugin/whole-pixel": [true, { "ignoreList": ["letter-spacing"] }],
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": ["global"]
+      }
+    ],
+    "plugin/selector-tag-no-without-class": ["/^(?!body|html)([^_-]*)$/", { "severity": "warning" }]
+  }
+}

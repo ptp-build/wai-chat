@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[5297],{3722:a=>{a.exports=function(a){return{aliases:["pycon"],contains:[{className:"meta.prompt",starts:{end:/ |$/,starts:{end:"$",subLanguage:"python"}},variants:[{begin:/^>>>(?=[ ]|$)/},{begin:/^\.\.\.(?=[ ]|$)/}]}]}}}}]);
+//# sourceMappingURL=5297.21665c28a7451d9d2131.js.map

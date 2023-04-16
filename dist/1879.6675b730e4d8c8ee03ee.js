@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[1879],{57604:a=>{a.exports=function(a){return{name:"LDIF",contains:[{className:"attribute",match:"^dn(?=:)",relevance:10},{className:"attribute",match:"^\\w+(?=:)"},{className:"literal",match:"^-"},a.HASH_COMMENT_MODE]}}}}]);
+//# sourceMappingURL=1879.6675b730e4d8c8ee03ee.js.map

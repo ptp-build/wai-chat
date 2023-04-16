@@ -1,0 +1,40 @@
+.SenderInfo {
+  display: flex;
+  align-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: 0.15s color;
+
+  &:hover {
+    color: white;
+  }
+
+  .Avatar {
+    margin-inline-end: 1rem;
+
+    @media (max-width: 600px) {
+      display: none;
+    }
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: calc(100% - 3.75rem);
+  }
+
+  .title {
+    line-height: 1.4375rem;
+    font-weight: 500;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .date {
+    line-height: 1.25rem;
+    font-size: 0.875rem;
+    letter-spacing: -0.01rem;
+  }
+}

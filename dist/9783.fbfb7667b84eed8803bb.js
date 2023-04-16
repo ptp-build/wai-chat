@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[9783],{13039:a=>{a.exports=function(a){const e=a.COMMENT(/\(\*/,/\*\)/);return{name:"Extended Backus-Naur Form",illegal:/\S/,contains:[e,{className:"attribute",begin:/^[ ]*[a-zA-Z]+([\s_-]+[a-zA-Z]+)*/},{begin:/=/,end:/[.;]/,contains:[e,{className:"meta",begin:/\?.*\?/},{className:"string",variants:[a.APOS_STRING_MODE,a.QUOTE_STRING_MODE,{begin:"`",end:"`"}]}]}]}}}}]);
+//# sourceMappingURL=9783.fbfb7667b84eed8803bb.js.map

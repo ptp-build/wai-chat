@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[5699],{25850:a=>{a.exports=function(a){return{name:"Julia REPL",contains:[{className:"meta.prompt",begin:/^julia>/,relevance:10,starts:{end:/^(?![ ]{6})/,subLanguage:"julia"}}],aliases:["jldoctest"]}}}}]);
+//# sourceMappingURL=5699.1486697bea6e57f9b5e6.js.map

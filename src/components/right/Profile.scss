@@ -1,0 +1,142 @@
+@import "../../styles/mixins";
+
+.Profile {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  overflow-x: hidden;
+  overflow-y: scroll;
+  @include overflow-y-overlay();
+
+  > .profile-info > .ChatInfo {
+    grid-area: chat_info;
+
+    .status.online {
+      color: var(--color-primary);
+    }
+  }
+
+  > .profile-info > .ChatExtra {
+    padding: 0.875rem 0.5rem 0.5rem;
+    box-shadow: inset 0 -0.0625rem 0 0 var(--color-background-secondary-accent);
+    border-bottom: 0.625rem solid var(--color-background-secondary);
+
+    .narrow {
+      margin-bottom: 0;
+    }
+
+    .inactive.no-selection {
+      user-select: auto;
+      -webkit-user-select: auto !important;
+    }
+
+    [dir="rtl"] {
+      .Switcher {
+        margin-left: 0;
+        margin-right: auto;
+      }
+    }
+  }
+
+  .FloatingActionButton {
+    z-index: 1;
+  }
+}
+
+.shared-media {
+  display: flex;
+  flex-direction: column-reverse;
+
+  .TabList {
+    background: var(--color-background);
+    top: -1px;
+    z-index: 1;
+
+    .Tab {
+      padding: 1rem 0.75rem;
+
+      span {
+        white-space: nowrap;
+      }
+
+      i {
+        bottom: -1rem;
+      }
+    }
+  }
+
+  .Transition {
+    flex: 1;
+  }
+
+  .content {
+    &.empty-list {
+      height: 100%;
+      padding-top: 5rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+
+      .Spinner {
+        --spinner-size: 2.75rem;
+      }
+    }
+
+    &.media-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 1fr;
+      grid-gap: 0.0625rem;
+    }
+
+    &.documents-list {
+      padding: 1.25rem;
+
+      & .File + .File {
+        margin-top: 1.25rem;
+      }
+    }
+
+    &.links-list {
+      padding: 1.25rem;
+
+      .ProgressSpinner,
+      .message-transfer-progress {
+        display: none;
+      }
+    }
+
+    &.audio-list,
+    &.voice-list {
+      padding: 1.25rem;
+
+      & .Audio {
+        .media-loading {
+          top: 0;
+          left: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        & + .Audio {
+          margin-top: 1.6875rem;
+        }
+      }
+    }
+
+    &.commonChats-list,
+    &.members-list {
+      padding: 0.5rem;
+
+      @media (max-width: 600px) {
+        padding: 0.5rem 0;
+
+        .ListItem.chat-item-clickable {
+          margin: 0;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkwai=self.webpackChunkwai||[]).push([[3472],{23472:(a,e,s)=>{s.r(e),s.d(e,{default:()=>c});var u=s(35099);const c=s.n(u)()}}]);
+//# sourceMappingURL=3472.cfcca6e9bd6561a7de7d.js.map

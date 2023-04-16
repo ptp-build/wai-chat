@@ -1,0 +1,60 @@
+.MentionTooltip {
+  width: calc(100% - 4rem);
+  max-width: 20rem;
+  flex-direction: column;
+
+  z-index: -1;
+
+  @media (max-width: 600px) {
+    width: calc(100% - 3rem);
+  }
+
+  .ListItem.chat-item-clickable {
+    margin: 0;
+
+    .ListItem-button {
+      border-radius: 0;
+    }
+
+    .info {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+    }
+
+    .title {
+      margin-inline-end: 0.625rem;
+      max-width: 70%;
+    }
+
+    .handle {
+      font-size: 1rem;
+    }
+
+    &[dir="rtl"] {
+      .status {
+        width: auto;
+      }
+    }
+  }
+
+  .ChatInfo {
+    .title h3 {
+      line-height: 1.25;
+    }
+
+    .Avatar {
+      margin-right: 0.7em;
+    }
+
+    .handle {
+      &::before {
+        content: "@";
+      }
+    }
+
+    .user-status {
+      display: none !important;
+    }
+  }
+}

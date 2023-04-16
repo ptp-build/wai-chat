@@ -1,0 +1,66 @@
+#MobileSearch > .header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z-mobile-search);
+  width: 100%;
+  height: 3.5rem;
+  background: var(--color-background);
+  display: flex;
+  align-items: center;
+  padding-left: max(0.25rem, env(safe-area-inset-left));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+
+  > .SearchInput {
+    margin-left: 0.25rem;
+    flex: 1;
+  }
+
+  // Target: Old Firefox (Waterfox Classic)
+  @supports not (padding-left: max(0.25rem, env(safe-area-inset-left))) {
+    padding-left: 0.25rem;
+    padding-right: 0.5rem;
+  }
+}
+
+#MobileSearch > .footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-mobile-search);
+  width: 100%;
+  height: 3.5rem;
+  background: var(--color-background);
+  display: flex;
+  align-items: center;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+
+  body:not(.keyboard-visible) & {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+
+  // Target: Old Firefox (Waterfox Classic)
+  @supports not (padding-left: max(1rem, env(safe-area-inset-left))) {
+    padding-left: 1rem;
+    padding-right: 0.5rem;
+
+    body:not(.keyboard-visible) & {
+      padding-bottom: 0;
+      height: 3.5rem;
+    }
+  }
+
+  > .counter {
+    flex: 1;
+    color: var(--color-text-secondary);
+  }
+}
+
+#MobileSearch:not(.active) {
+  .header, .footer {
+    // `display: none` will prevent synchronous focus on iOS
+    transform: translateX(-999rem);
+  }
+}

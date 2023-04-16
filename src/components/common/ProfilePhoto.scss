@@ -1,0 +1,56 @@
+.ProfilePhoto {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  position: relative;
+
+  .avatar-media {
+    width: 100%;
+    object-fit: cover;
+  }
+
+  .spinner-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+
+  .spinner-wrapper,
+  &.deleted-account,
+  &.replies-bot-account,
+  &.no-photo,
+  &.saved-messages {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white);
+    background: linear-gradient(var(--color-white) -125%, var(--color-user));
+    cursor: default;
+  }
+
+  &.no-photo {
+    font-size: 14rem;
+    white-space: nowrap;
+  }
+
+  &.replies-bot-account,
+  &.deleted-account,
+  &.saved-messages {
+    font-size: 10rem;
+  }
+
+  .thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .thumb, .avatar-media {
+    // @optimization
+    &:not(.shown) {
+      display: block !important;
+    }
+  }
+}

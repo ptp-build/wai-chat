@@ -1,0 +1,15 @@
+.EmojiTooltip {
+  display: flex;
+  padding: 0;
+
+  overflow-x: auto;
+  @supports (overflow-x: overlay) {
+    overflow-x: overlay;
+  }
+  overflow-y: hidden;
+
+  .EmojiButton {
+    flex: 0 0 2.5rem;
+    margin-right: 0;
+  }
+}

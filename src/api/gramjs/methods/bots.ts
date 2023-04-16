@@ -1,0 +1,454 @@
+import BigInt from 'big-integer';
+import { Api as GramJs } from '../../../lib/gramjs';
+
+import type {
+  ApiChat, ApiThemeParameters, ApiUser, OnApiUpdate,
+} from '../../types';
+
+import localDb from '../localDb';
+import { invokeRequest } from './client';
+import { buildInputPeer, buildInputThemeParams, generateRandomBigInt } from '../gramjsBuilders';
+import { buildApiUser } from '../apiBuilders/users';
+import {
+  buildApiAttachBot, buildApiBotInlineMediaResult, buildApiBotInlineResult, buildBotSwitchPm,
+} from '../apiBuilders/bots';
+import { buildApiChatFromPreview } from '../apiBuilders/chats';
+import { addEntitiesWithPhotosToLocalDb, addUserToLocalDb, deserializeBytes } from '../helpers';
+import { omitVirtualClassFields } from '../apiBuilders/helpers';
+import { buildCollectionByKey } from '../../../util/iteratees';
+import { buildApiUrlAuthResult } from '../apiBuilders/misc';
+import Account from "../../../worker/share/Account";
+import AnswerCallbackButtonRes from '../../../lib/ptp/protobuf/PTPMsg/AnswerCallbackButtonRes';
+import {AnswerCallbackButtonReq} from "../../../lib/ptp/protobuf/PTPMsg";
+
+let onUpdate: OnApiUpdate;
+
+export function init(_onUpdate: OnApiUpdate) {
+  onUpdate = _onUpdate;
+}
+
+export async function answerCallbackButton({
+  chatId, accessHash, messageId, data, isGame,
+}: {
+  chatId: string; accessHash?: string; messageId: number; data?: string; isGame?: boolean;
+}) {
+  const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new AnswerCallbackButtonReq({
+    chatId,accessHash,messageId,data,isGame
+  }).pack())
+  if(!pdu){
+    return undefined
+  }
+  const result = AnswerCallbackButtonRes.parseMsg(pdu)
+  return result
+}
+
+export async function fetchTopInlineBots() {
+  const topPeers = await invokeRequest(new GramJs.contacts.GetTopPeers({
+    botsInline: true,
+  }));
+
+  if (!(topPeers instanceof GramJs.contacts.TopPeers)) {
+    return undefined;
+  }
+
+  const users = topPeers.users.map(buildApiUser).filter(Boolean);
+  const ids = users.map(({ id }) => id);
+
+  return {
+    ids,
+    users,
+  };
+}
+
+export async function fetchInlineBot({ username }: { username: string }) {
+  const resolvedPeer = await invokeRequest(new GramJs.contacts.ResolveUsername({ username }));
+
+  if (
+    !resolvedPeer
+    || !(
+      resolvedPeer.users[0] instanceof GramJs.User
+      && resolvedPeer.users[0].bot
+      && resolvedPeer.users[0].botInlinePlaceholder
+    )
+  ) {
+    return undefined;
+  }
+
+  addUserToLocalDb(resolvedPeer.users[0]);
+
+  return {
+    user: buildApiUser(resolvedPeer.users[0]),
+    chat: buildApiChatFromPreview(resolvedPeer.users[0]),
+  };
+}
+
+export async function fetchInlineBotResults({
+  bot, chat, query, offset = '',
+}: {
+  bot: ApiUser; chat: ApiChat; query: string; offset?: string;
+}) {
+  const result = await invokeRequest(new GramJs.messages.GetInlineBotResults({
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    peer: buildInputPeer(chat.id, chat.accessHash),
+    query,
+    offset,
+  }));
+
+  if (!result) {
+    return undefined;
+  }
+
+  addEntitiesWithPhotosToLocalDb(result.users);
+
+  return {
+    isGallery: Boolean(result.gallery),
+    help: bot.botPlaceholder,
+    nextOffset: getInlineBotResultsNextOffset(bot.usernames![0].username, result.nextOffset),
+    switchPm: buildBotSwitchPm(result.switchPm),
+    users: result.users.map(buildApiUser).filter(Boolean),
+    results: processInlineBotResult(String(result.queryId), result.results),
+    cacheTime: result.cacheTime,
+  };
+}
+
+export async function sendInlineBotResult({
+  chat, replyingToTopId, resultId, queryId, replyingTo, sendAs, isSilent, scheduleDate,
+}: {
+  chat: ApiChat;
+  replyingToTopId?: number;
+  resultId: string;
+  queryId: string;
+  replyingTo?: number;
+  sendAs?: ApiUser | ApiChat;
+  isSilent?: boolean;
+  scheduleDate?: number;
+}) {
+  const randomId = generateRandomBigInt();
+
+  await invokeRequest(new GramJs.messages.SendInlineBotResult({
+    clearDraft: true,
+    randomId,
+    queryId: BigInt(queryId),
+    peer: buildInputPeer(chat.id, chat.accessHash),
+    id: resultId,
+    scheduleDate,
+    ...(replyingToTopId && { topMsgId: replyingToTopId }),
+    ...(isSilent && { silent: true }),
+    ...(replyingTo && { replyToMsgId: replyingTo }),
+    ...(sendAs && { sendAs: buildInputPeer(sendAs.id, sendAs.accessHash) }),
+  }), true);
+}
+
+export async function startBot({
+  bot, startParam,
+}: {
+  bot: ApiUser;
+  startParam?: string;
+}) {
+  const randomId = generateRandomBigInt();
+
+  await invokeRequest(new GramJs.messages.StartBot({
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    peer: buildInputPeer(bot.id, bot.accessHash),
+    randomId,
+    startParam,
+  }), true);
+}
+
+export async function requestWebView({
+  isSilent,
+  peer,
+  bot,
+  url,
+  startParam,
+  replyToMessageId,
+  threadId,
+  theme,
+  sendAs,
+  isFromBotMenu,
+}: {
+  isSilent?: boolean;
+  peer: ApiChat | ApiUser;
+  bot: ApiUser;
+  url?: string;
+  startParam?: string;
+  replyToMessageId?: number;
+  threadId?: number;
+  theme?: ApiThemeParameters;
+  sendAs?: ApiUser | ApiChat;
+  isFromBotMenu?: boolean;
+}) {
+  // const result = await invokeRequest(new GramJs.messages.RequestWebView({
+  //   silent: isSilent || undefined,
+  //   peer: buildInputPeer(peer.id, peer.accessHash),
+  //   bot: buildInputPeer(bot.id, bot.accessHash),
+  //   replyToMsgId: replyToMessageId,
+  //   url,
+  //   startParam,
+  //   themeParams: theme ? buildInputThemeParams(theme) : undefined,
+  //   fromBotMenu: isFromBotMenu || undefined,
+  //   platform: 'webz',
+  //   ...(threadId && { topMsgId: threadId }),
+  //   ...(sendAs && { sendAs: buildInputPeer(sendAs.id, sendAs.accessHash) }),
+  // }));
+  //
+  // if (result instanceof GramJs.WebViewResultUrl) {
+  //   return {
+  //     url: result.url,
+  //     queryId: result.queryId.toString(),
+  //   };
+  // }
+  return {
+      url: `https://webappcontent.telegram.org/cafe/?mode=menu#tgWebAppData=query_id%3DAAHFY2V2AgAAAMVjZXb0KFJb%26user%3D%257B%2522id%2522%253A6281323461%252C%2522first_name%2522%253A%2522Wai%2522%252C%2522last_name%2522%253A%2522Chat%2522%252C%2522username%2522%253A%2522wai_chat%2522%252C%2522language_code%2522%253A%2522en%2522%257D%26auth_date%3D1680293757%26hash%3D513a7167671bc1e80c1d95c168231a1a4f32511942a2bfae25c2640e1c925a7f&tgWebAppVersion=6.4&tgWebAppPlatform=webz&tgWebAppThemeParams=%7B"bg_color"%3A"%23212121"%2C"text_color"%3A"%23ffffff"%2C"hint_color"%3A"%23aaaaaa"%2C"link_color"%3A"%238774e1"%2C"button_color"%3A"%238774e1"%2C"button_text_color"%3A"%23ffffff"%2C"secondary_bg_color"%3A"%230f0f0f"%7D`,
+      queryId: "sss",
+    };
+  return undefined;
+}
+
+export async function requestSimpleWebView({
+  bot, url, theme,
+}: {
+  bot: ApiUser;
+  url: string;
+  theme?: ApiThemeParameters;
+}) {
+  const result = await invokeRequest(new GramJs.messages.RequestSimpleWebView({
+    url,
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    themeParams: theme ? buildInputThemeParams(theme) : undefined,
+    platform: 'webz',
+  }));
+
+  return result?.url;
+}
+
+export function prolongWebView({
+  isSilent,
+  peer,
+  bot,
+  queryId,
+  replyToMessageId,
+  threadId,
+  sendAs,
+}: {
+  isSilent?: boolean;
+  peer: ApiChat | ApiUser;
+  bot: ApiUser;
+  queryId: string;
+  replyToMessageId?: number;
+  threadId?: number;
+  sendAs?: ApiUser | ApiChat;
+}) {
+  return invokeRequest(new GramJs.messages.ProlongWebView({
+    silent: isSilent || undefined,
+    peer: buildInputPeer(peer.id, peer.accessHash),
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    queryId: BigInt(queryId),
+    replyToMsgId: replyToMessageId,
+    ...(threadId && { topMsgId: threadId }),
+    ...(sendAs && { sendAs: buildInputPeer(sendAs.id, sendAs.accessHash) }),
+  }));
+}
+
+export async function sendWebViewData({
+  bot, buttonText, data,
+}: {
+  bot: ApiUser;
+  buttonText: string;
+  data: string;
+}) {
+  const randomId = generateRandomBigInt();
+  await invokeRequest(new GramJs.messages.SendWebViewData({
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    buttonText,
+    data,
+    randomId,
+  }), true);
+}
+
+export async function loadAttachBots({
+  hash,
+}: {
+  hash?: string;
+}) {
+  const result = await invokeRequest(new GramJs.messages.GetAttachMenuBots({
+    hash: hash ? BigInt(hash) : undefined,
+  }));
+
+  if (result instanceof GramJs.AttachMenuBots) {
+    addEntitiesWithPhotosToLocalDb(result.users);
+    return {
+      hash: result.hash.toString(),
+      bots: buildCollectionByKey(result.bots.map(buildApiAttachBot), 'id'),
+      users: result.users.map(buildApiUser).filter(Boolean),
+    };
+  }
+  return undefined;
+}
+
+export async function loadAttachBot({
+  bot,
+}: {
+  bot: ApiUser;
+}) {
+  const result = await invokeRequest(new GramJs.messages.GetAttachMenuBot({
+    bot: buildInputPeer(bot.id, bot.accessHash),
+  }));
+
+  if (result instanceof GramJs.AttachMenuBotsBot) {
+    addEntitiesWithPhotosToLocalDb(result.users);
+    return {
+      bot: buildApiAttachBot(result.bot),
+      users: result.users.map(buildApiUser).filter(Boolean),
+    };
+  }
+  return undefined;
+}
+
+export function toggleAttachBot({
+  bot,
+  isWriteAllowed,
+  isEnabled,
+}: {
+  bot: ApiUser;
+  isWriteAllowed?: boolean;
+  isEnabled: boolean;
+}) {
+  return invokeRequest(new GramJs.messages.ToggleBotInAttachMenu({
+    bot: buildInputPeer(bot.id, bot.accessHash),
+    writeAllowed: isWriteAllowed || undefined,
+    enabled: isEnabled,
+  }));
+}
+
+export async function requestBotUrlAuth({
+  chat, buttonId, messageId,
+}: {
+  chat: ApiChat;
+  buttonId: number;
+  messageId: number;
+}) {
+  const result = await invokeRequest(new GramJs.messages.RequestUrlAuth({
+    peer: buildInputPeer(chat.id, chat.accessHash),
+    buttonId,
+    msgId: messageId,
+  }));
+
+  if (!result) return undefined;
+
+  const authResult = buildApiUrlAuthResult(result);
+  if (authResult?.type === 'request') {
+    onUpdate({
+      '@type': 'updateUser',
+      id: authResult.bot.id,
+      user: authResult.bot,
+    });
+  }
+  return authResult;
+}
+
+export async function acceptBotUrlAuth({
+  chat,
+  messageId,
+  buttonId,
+  isWriteAllowed,
+}: {
+  chat: ApiChat;
+  messageId: number;
+  buttonId: number;
+  isWriteAllowed?: boolean;
+}) {
+  const result = await invokeRequest(new GramJs.messages.AcceptUrlAuth({
+    peer: buildInputPeer(chat.id, chat.accessHash),
+    msgId: messageId,
+    buttonId,
+    writeAllowed: isWriteAllowed || undefined,
+  }));
+
+  if (!result) return undefined;
+
+  const authResult = buildApiUrlAuthResult(result);
+  if (authResult?.type === 'request') {
+    onUpdate({
+      '@type': 'updateUser',
+      id: authResult.bot.id,
+      user: authResult.bot,
+    });
+  }
+  return authResult;
+}
+
+export async function requestLinkUrlAuth({ url }: { url: string }) {
+  const result = await invokeRequest(new GramJs.messages.RequestUrlAuth({
+    url,
+  }));
+
+  if (!result) return undefined;
+
+  const authResult = buildApiUrlAuthResult(result);
+  if (authResult?.type === 'request') {
+    onUpdate({
+      '@type': 'updateUser',
+      id: authResult.bot.id,
+      user: authResult.bot,
+    });
+  }
+  return authResult;
+}
+
+export async function acceptLinkUrlAuth({ url, isWriteAllowed }: { url: string; isWriteAllowed?: boolean }) {
+  const result = await invokeRequest(new GramJs.messages.AcceptUrlAuth({
+    url,
+    writeAllowed: isWriteAllowed || undefined,
+  }));
+
+  if (!result) return undefined;
+
+  const authResult = buildApiUrlAuthResult(result);
+  if (authResult?.type === 'request') {
+    onUpdate({
+      '@type': 'updateUser',
+      id: authResult.bot.id,
+      user: authResult.bot,
+    });
+  }
+  return authResult;
+}
+
+function processInlineBotResult(queryId: string, results: GramJs.TypeBotInlineResult[]) {
+  return results.map((result) => {
+    if (result instanceof GramJs.BotInlineMediaResult) {
+      if (result.document instanceof GramJs.Document) {
+        addDocumentToLocalDb(result.document);
+      }
+
+      if (result.photo instanceof GramJs.Photo) {
+        addPhotoToLocalDb(result.photo);
+      }
+
+      return buildApiBotInlineMediaResult(result, queryId);
+    }
+
+    if (result.thumb) {
+      addWebDocumentToLocalDb(result.thumb);
+    }
+
+    return buildApiBotInlineResult(result, queryId);
+  });
+}
+
+function getInlineBotResultsNextOffset(username: string, nextOffset?: string) {
+  return username === 'gif' && nextOffset === '0' ? '' : nextOffset;
+}
+
+function addDocumentToLocalDb(document: GramJs.Document) {
+  localDb.documents[String(document.id)] = document;
+}
+
+function addPhotoToLocalDb(photo: GramJs.Photo) {
+  localDb.photos[String(photo.id)] = photo;
+}
+
+function addWebDocumentToLocalDb(webDocument: GramJs.TypeWebDocument) {
+  localDb.webDocuments[webDocument.url] = webDocument;
+}

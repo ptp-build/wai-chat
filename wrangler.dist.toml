@@ -1,0 +1,30 @@
+name = "wai-worker"
+main = "src/worker/index.ts"
+compatibility_date = "2022-05-03"
+node_compat = true
+
+[dev]
+ip = "localhost"
+
+[[r2_buckets]]
+# binding 的值 需要跟 [vars] / R2_STORAGE_BINGDING_KEY 一致
+binding = 'STORAGE'
+# 在 https://dash.cloudflare.com/ > R2 > Overview : Create bucket
+bucket_name = 'wai-r2-prod'
+preview_bucket_name="wai-r2-preview"
+
+[[kv_namespaces]]
+# binding 的值 需要跟 [vars] / KV_NAMESPACE_BINDING_KEY 一致
+# 在 https://dash.cloudflare.com/ > Workers > KV : Create a namespace
+binding = "DATABASE"
+id = ""
+preview_id = ""
+
+[vars]
+KV_NAMESPACE_BINDING_KEY="DATABASE"
+R2_STORAGE_BINGDING_KEY="STORAGE"
+
+IS_PROD = true
+USER_ID_START = "10000"
+WAI_WORKER_API_TOKEN = ""
+Access_Control_Allow_Origin = "*"

@@ -1,0 +1,24 @@
+syntax = "proto2";
+package PTP.File;
+import "PTP.Common.proto";
+option java_package = "chat.wai.protobuf";
+
+option optimize_for = LITE_RUNTIME;
+
+message UploadReq{
+  required Common.FileInfo file = 1;
+}
+
+message UploadRes{
+  required Common.ERR err = 100;
+}
+
+message DownloadReq{
+  required string id = 1;
+  optional uint32 part = 2;
+}
+
+message DownloadRes{
+  optional Common.FileInfo file = 1;
+  required Common.ERR err = 100;
+}

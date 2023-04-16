@@ -1,0 +1,2 @@
+(self.webpackChunkwai=self.webpackChunkwai||[]).push([[3936],{15460:e=>{e.exports=function(e){return{name:"Tagger Script",contains:[{className:"comment",begin:/\$noop\(/,end:/\)/,contains:[{begin:/\\[()]/},{begin:/\(/,end:/\)/,contains:[{begin:/\\[()]/},"self"]}],relevance:10},{className:"keyword",begin:/\$[_a-zA-Z0-9]+(?=\()/},{className:"variable",begin:/%[_a-zA-Z0-9:]+%/},{className:"symbol",begin:/\\[\\nt$%,()]/},{className:"symbol",begin:/\\u[a-fA-F0-9]{4}/}]}}}}]);
+//# sourceMappingURL=3936.bd1cbe093f1f5a318e92.js.map

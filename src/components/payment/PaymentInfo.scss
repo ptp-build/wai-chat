@@ -1,0 +1,27 @@
+.PaymentInfo {
+  padding: 0.5rem 1rem;
+
+  h5 {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 1rem 0 1.25rem;
+  }
+
+  .inline-inputs {
+    display: flex;
+    justify-content: space-between;
+
+    .input-group {
+      flex: 1 10rem;
+      max-width: 45%;
+      display: flex;
+    }
+  }
+
+  .description {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-top: -0.75rem;
+    margin-bottom: 1.25rem;
+  }
+}

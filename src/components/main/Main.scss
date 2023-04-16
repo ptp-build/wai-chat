@@ -1,0 +1,245 @@
+#Main {
+  height: 100%;
+  text-align: left;
+  overflow: hidden;
+
+  @media (min-width: 1276px) {
+    position: relative;
+  }
+
+  @media (max-width: 600px) {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  @media (min-width: 926px) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 100%;
+  }
+}
+
+.has-call-header {
+  --call-header-height: 2rem;
+
+  #LeftColumn, #MiddleColumn, #RightColumn-wrapper {
+    height: calc(100% - 2rem);
+    margin-top: 2rem;
+  }
+}
+
+#LeftColumn {
+  width: 33vw;
+
+  --left-column-min-width: 16rem;
+  --left-column-max-width: 26.5rem;
+
+  min-width: var(--left-column-min-width);
+  max-width: var(--left-column-max-width);
+
+  height: 100%;
+  position: relative;
+  background-color: var(--color-background);
+
+  & > div {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  @media (max-width: 600px) {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  @media (min-width: 926px) {
+    --left-column-max-width: 40vw;
+  }
+
+  @media (min-width: 1276px) {
+    width: 25vw;
+    --left-column-max-width: 33vw;
+  }
+
+  @media (max-width: 925px) {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: calc(var(--vh, 1vh) * 100);
+    width: 26.5rem !important;
+
+    transform: translate3d(-5rem, 0, 0);
+    transition: transform var(--layer-transition);
+
+    body.animation-level-0 & {
+      transition: none;
+    }
+
+    &::after {
+      content: '';
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      background: black;
+      opacity: 0;
+      transition: opacity var(--layer-transition);
+      z-index: 1;
+      pointer-events: none;
+
+      body.animation-level-0 & {
+        transition: none;
+      }
+
+      // @optimization
+      body.is-android & {
+        display: none;
+      }
+
+      body.is-android #Main.left-column-animating &, body.is-android #Main:not(.left-column-open) & {
+        display: block;
+      }
+
+      body:not(.is-android) #Main:not(.left-column-open) &,
+      body.android-left-blackout-open & {
+        opacity: var(--layer-blackout-opacity);
+      }
+    }
+
+    #Main.left-column-open & {
+      transform: translate3d(0, 0, 0);
+    }
+
+    #Main.history-animation-disabled & {
+      transition: none;
+
+      &:after {
+        transition: none;
+      }
+    }
+  }
+
+  @media (max-width: 600px) {
+    max-width: none;
+    --left-column-max-width: calc(100vw - env(safe-area-inset-left));
+    transform: translate3d(-20vw, 0, 0);
+    left: env(safe-area-inset-left) !important;
+    width: calc(100vw - env(safe-area-inset-left)) !important;
+
+    // Target: Old Firefox (Waterfox Classic)
+    @supports not (left: env(safe-area-inset-left)) {
+      left: 0 !important;
+      width: 100vw !important;
+    }
+  }
+}
+
+#RightColumn {
+  @media (max-width: 600px) {
+    height: calc(var(--vh, 1vh) * 100 + 1px);
+  }
+
+  #Main.history-animation-disabled & {
+    transition: none;
+
+    .overlay-backdrop {
+      transition: none;
+    }
+  }
+}
+
+#Main.history-animation-disabled .overlay-backdrop {
+  transition: none;
+}
+
+#MiddleColumn {
+  border-left: 1px solid var(--color-borders);
+
+  @media (max-width: 925px) {
+    max-width: none;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+
+    transform: translate3d(0, 0, 0);
+    transition: transform var(--layer-transition);
+
+    body.animation-level-0 & {
+      transition: none;
+    }
+
+    #Main.left-column-open & {
+      transform: translate3d(26.5rem, 0, 0);
+    }
+  }
+
+  @media (max-width: 600px) {
+    border-left: none;
+
+    #Main.left-column-open & {
+      transform: translate3d(100vw, 0, 0);
+    }
+
+    #Main.right-column-open & {
+      transform: translate3d(-20vw, 0, 0);
+    }
+  }
+
+  #Main.history-animation-disabled & {
+    transition: none;
+
+    &:after {
+      transition: none;
+    }
+  }
+}
+
+body.is-android.animation-level-1 {
+  --layer-transition: 250ms ease-in-out;
+
+  #LeftColumn, #MiddleColumn, #RightColumn {
+    transition: transform var(--layer-transition), opacity var(--layer-transition);
+  }
+
+  #Main.left-column-open:not(.left-column-animating) {
+    #MiddleColumn {
+      display: none;
+    }
+  }
+
+  #Main.left-column-open {
+    #MiddleColumn {
+      transform: translate3d(10vw, 0, 0);
+      opacity: 0;
+    }
+  }
+
+  #Main:not(.left-column-open) {
+    #LeftColumn {
+      transform: translate3d(0, 0, 0);
+      opacity: 0;
+    }
+  }
+
+  // @optimization
+  #Main:not(.right-column-open):not(.right-column-animating) {
+    #RightColumn {
+      display: none;
+    }
+  }
+
+  #Main:not(.right-column-open) {
+    #RightColumn {
+      transform: translate3d(10vw, 0, 0);
+      opacity: 0;
+    }
+  }
+
+  #Main.right-column-open {
+    #MiddleColumn {
+      transform: translate3d(0, 0, 0);
+      opacity: 0;
+    }
+  }
+}

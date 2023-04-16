@@ -1,0 +1,449 @@
+.ListItem {
+  position: relative;
+
+  body.is-ios &,
+  body.is-android & {
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 4.5rem;
+      right: 0;
+      height: 0.0625rem;
+      /* stylelint-disable-next-line plugin/whole-pixel */
+      box-shadow: inset 0 -0.03125rem 0 0 var(--color-dividers);
+    }
+
+    &:last-of-type::after {
+      display: none;
+    }
+
+    &.small-icon::after {
+      left: 3.875rem;
+    }
+
+    &.no-icon::after {
+      left: 0;
+    }
+  }
+
+  body.is-android &::after {
+    /* stylelint-disable-next-line plugin/whole-pixel */
+    box-shadow: inset 0 -0.03125rem 0 0 var(--color-dividers-android);
+  }
+
+  .ListItem-button {
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-color);
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--color-text);
+    border-radius: var(--border-radius-default);
+    --ripple-color: rgba(0, 0, 0, 0.08);
+
+    text-decoration: none;
+
+    > i {
+      font-size: 1.5rem;
+      margin-right: 2rem;
+      color: var(--color-text-secondary);
+    }
+
+    > .Switcher {
+      margin-left: auto;
+    }
+  }
+
+  .title, .subtitle {
+    line-height: 1.5rem;
+  }
+
+  .user-status,
+  .group-status,
+  .title,
+  .other-usernames,
+  .subtitle {
+    text-align: initial;
+    unicode-bidi: plaintext;
+  }
+
+  .other-usernames {
+    display: block;
+    white-space: normal;
+    line-height: 1.25rem;
+  }
+
+  .username-link {
+    position: relative;
+    z-index: 2;
+  }
+
+  &.multiline {
+    .ListItem-button > i {
+      position: relative;
+      top: 0.25rem;
+    }
+  }
+
+  &.disabled:not(.click-allowed) {
+    pointer-events: none;
+  }
+
+  &.disabled .ListItem-button {
+    opacity: 0.5;
+  }
+
+  &:not(.disabled):not(.is-static) {
+    .ListItem-button {
+      cursor: pointer;
+
+      body.cursor-ew-resize & {
+        cursor: ew-resize !important;
+      }
+
+      @media (hover: hover) {
+        &:hover,
+        &:focus {
+          --background-color: var(--color-chat-hover);
+        }
+      }
+
+      @media (max-width: 600px) {
+        &.active {
+          --background-color: var(--color-chat-hover);
+        }
+      }
+    }
+  }
+
+  @media (min-width: 600px) {
+    &:not(.has-ripple):not(.is-static),
+    body.animation-level-0 & {
+      .ListItem-button:active {
+        --background-color: var(--color-item-active) !important;
+      }
+    }
+  }
+
+  &.has-menu-open .ListItem-button {
+    --background-color: var(--color-chat-hover);
+  }
+
+  &.narrow {
+    margin-bottom: 0.75rem;
+
+    .ListItem-button {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  &.inactive {
+    pointer-events: none;
+  }
+
+  &.focus {
+    --background-color: var(--color-chat-hover);
+  }
+
+  &.destructive {
+    .ListItem-button {
+      color: var(--color-error);
+
+      i {
+        color: inherit;
+      }
+    }
+  }
+
+  &-context-menu {
+    position: absolute;
+
+    .bubble {
+      width: auto;
+
+      .MenuItem button {
+        padding-left: 1rem !important;
+        padding-right: 2rem !important;
+      }
+    }
+  }
+
+  &.chat-item-clickable {
+    body.is-ios &,
+    body.is-macos & {
+      --color-text-secondary: var(--color-text-secondary-apple);
+    }
+
+    .ListItem-button {
+      padding: 0.5625rem;
+    }
+
+    .Avatar {
+      margin-right: 0.5rem;
+    }
+
+    .info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .info-name-title {
+      display: flex;
+      align-items: center;
+    }
+
+    .info-row,
+    .title,
+    .subtitle {
+      overflow: hidden;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+
+    .separator {
+      flex-grow: 1;
+      min-width: 0.5rem;
+    }
+
+    h3,
+    .last-message,
+    .status,
+    .typing-status {
+      font-size: 1rem;
+      margin: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: initial;
+    }
+
+    .title {
+      h3 {
+        font-weight: 500;
+      }
+    }
+
+    .contact-phone,
+    .contact-username {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      color: var(--color-text-secondary);
+    }
+
+    .ChatInfo {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      overflow: hidden;
+
+      .info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .custom-title {
+        padding-inline-start: 1rem;
+        font-size: 0.875rem;
+        color: var(--color-text-secondary);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        margin-inline-start: auto;
+        flex-shrink: 0;
+      }
+
+      .status,
+      .typing-status {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: var(--color-text-secondary);
+        display: inline-block;
+
+        &.online {
+          color: var(--color-primary);
+        }
+
+        &[dir="rtl"],
+        &[dir="auto"] {
+          text-align: initial;
+          width: 100%;
+        }
+
+        .group-status:only-child,
+        .user-status:only-child {
+          display: flow-root;
+        }
+      }
+    }
+
+    .contact-phone,
+    .contact-username,
+    h3,
+    .last-message,
+    .status,
+    .typing-status {
+      text-align: initial;
+      unicode-bidi: plaintext;
+    }
+
+    .last-message,
+    .status,
+    .typing-status {
+      body.is-ios &,
+      body.is-macos & {
+        font-size: 0.9375rem;
+      }
+    }
+
+    &[dir="rtl"] {
+      .ListItem-button {
+        padding: 0.5625rem 0.5625rem 0.5625rem 0.6875rem;
+      }
+
+      .Avatar {
+        margin-left: 0.5rem;
+        margin-right: 0;
+      }
+
+      .info > .status {
+        width: 100%;
+      }
+    }
+  }
+
+  &.search-result-message {
+    .title {
+      flex-grow: 1;
+      padding-right: 0.125rem;
+    }
+
+    .search-result-message-top {
+      display: flex;
+    }
+
+    h3 {
+      max-width: 80%;
+    }
+
+    h3,
+    .subtitle {
+      font-size: 1rem;
+      line-height: 1.5rem;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: left;
+      display: block;
+    }
+
+    .subtitle {
+      color: var(--color-text-secondary);
+
+      .matching-text-highlight {
+        color: var(--color-text);
+        background: #cae3f7;
+        border-radius: 0.25rem;
+        padding: 0 0.125rem;
+        display: inline-block;
+
+        .theme-dark & {
+          --color-text: #000;
+        }
+      }
+    }
+
+    &[dir="rtl"] {
+      .LastMessageMeta {
+        margin-left: 0;
+        margin-right: auto;
+      }
+
+      .subtitle {
+        margin-right: 0;
+        display: block;
+      }
+    }
+  }
+
+  &.picker-list-item {
+    margin: 0;
+
+    .ListItem-button {
+      padding-left: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .Avatar {
+      width: 3rem;
+      height: 3rem;
+    }
+
+    .Checkbox {
+      flex-shrink: 0;
+      height: 1.5rem;
+      margin: 0;
+      padding-left: 4rem;
+    }
+
+    &[dir="rtl"] {
+      .Checkbox {
+        padding-left: 0;
+        padding-right: 4rem;
+      }
+    }
+  }
+
+  .multiline-item {
+    flex-grow: 1;
+    white-space: initial;
+    overflow: hidden;
+
+    .word-break {
+      overflow-wrap: break-word;
+    }
+
+    .title,
+    .subtitle {
+      display: block;
+      text-align: initial;
+    }
+
+    .title {
+      line-height: 1.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      line-height: 1.5rem;
+      color: var(--color-text-secondary);
+
+      & + .subtitle {
+        margin-top: -0.25rem;
+      }
+
+      &.black {
+        color: var(--color-text);
+      }
+    }
+  }
+
+  &[dir="rtl"] {
+    .ListItem-button > i {
+      margin-left: 2rem;
+      margin-right: 0;
+    }
+  }
+}
