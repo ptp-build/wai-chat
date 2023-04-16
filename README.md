@@ -17,7 +17,7 @@ A private chatbot based on AI, blockchain encryption technology, and de-Chinese-
   用 Safari 直接打开https://wai.chat 直接 Add to Home Screen
 
 - Android
-  - 下载 [Apk]()
+  - 下载 [Apk](https://github.com/ptp-build/wai-chat-react-expo/releases/tag/v1.0.1)
   - 下载 [源代码](https://github.com/ptp-build/wai-chat-react-expo)```eas build --platform  android --profile prod```
     自行编译
   - 使用 [Expo Dev](https://snack.expo.dev/@wai.chat/waichat)
