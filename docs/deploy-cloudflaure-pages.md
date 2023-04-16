@@ -10,7 +10,7 @@
 - 填写项目名称,CloudFlare会按你的项目名称生成一个 .pages.dev 子域名
 - 构建输出目录 只需要:**dist**
 - 填写完成,直接进入下一步，等待部署完成
-
+<img src="./images/cf-pages-step2.jpeg" alt="自定义域"/>
 
 ### 6.如果你有自己的域名直接 自定义域
 
