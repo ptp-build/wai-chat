@@ -1,4 +1,4 @@
-import {ApiBotInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessageEntityTypes} from "../../api/types";
+import {ApiBotInfo,ApiKeyboardButtons, ApiMessage, ApiMessageEntityTypes} from "../../api/types";
 import {PbChatGptBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {DEBUG} from "../../config";
 import {Message} from "../../../functions/api/types";
