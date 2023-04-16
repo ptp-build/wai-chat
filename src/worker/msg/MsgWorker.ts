@@ -1,4 +1,12 @@
-import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
+import {
+  ApiAttachment,
+  ApiBotInfo,
+  ApiChat,
+  ApiMessage,
+  ApiMessageEntityTypes,
+  ApiUpdate,
+  OnApiUpdate
+} from "../../api/types";
 import {LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
@@ -21,7 +29,7 @@ import {sleep} from "../../lib/gramjs/Helpers";
 import {Api as GramJs} from "../../lib/gramjs";
 import {blobToDataUri, fetchBlob} from "../../util/files";
 import {parseCodeBlock, parseEntities} from "../share/utils/stringParse";
-import MsgChatGptWorker from "./MsgChatGpWorker";
+import MsgChatGptWorker, {AiHistoryType} from "./MsgChatGpWorker";
 import * as cacheApi from "../../util/cacheApi";
 import {Type} from "../../util/cacheApi";
 import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
@@ -35,21 +43,25 @@ export default class MsgWorker {
   private msgSend: ApiMessage;
   private media: GramJs.TypeInputMedia | undefined;
   private attachment?: ApiAttachment;
-  private static onUpdate: (update: ApiUpdate) => void;
+  public static onUpdate: (update: ApiUpdate) => void;
+  private aiHistoryList:AiHistoryType[];
   constructor({
       chat,
       msgSend,
       attachment,
       media,
       botInfo,
+      aiHistoryList,
     }:{
     chat:ApiChat;
     media: GramJs.TypeInputMedia | undefined;
     msgSend:ApiMessage;
     attachment?:ApiAttachment;
     botInfo?:ApiBotInfo;
+    aiHistoryList?:AiHistoryType[]
   },onUpdate:OnApiUpdate) {
     MsgWorker.onUpdate = onUpdate;
+    this.aiHistoryList = aiHistoryList||[]
     this.botInfo = botInfo;
     this.chat = chat;
     this.media = media;
@@ -347,6 +359,11 @@ export default class MsgWorker {
       localId:msgSend.id,
       message,
     });
+    this.msgSend = message
+  }
+
+  isMsgCipher(){
+    return this.msgSend.content.text?.entities?.some((e) => e.type === ApiMessageEntityTypes.Spoiler);
   }
   async processBotMsg(){
     const {botInfo,msgSend} =this;
@@ -354,7 +371,7 @@ export default class MsgWorker {
       msgSend.content.text && msgSend.content.text.text &&
       botInfo?.aiBot && botInfo?.aiBot.enableAi && botInfo?.aiBot.chatGptConfig
     ){
-      return await new MsgChatGptWorker(this.msgSend,botInfo).process()
+      return await new MsgChatGptWorker(this.msgSend,botInfo,this.aiHistoryList).process()
     }
   }
   async process(){
@@ -366,6 +383,9 @@ export default class MsgWorker {
         this.msgSend = MsgWorker.handleBotCmdText(this.msgSend,botInfo);
       }
       await this.processOutGoing();
+      if(this.isMsgCipher()){
+        return
+      }
       if(this.botInfo){
         await this.processBotMsg();
       }

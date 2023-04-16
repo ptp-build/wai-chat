@@ -8,8 +8,8 @@ window.fetch = fetch;
 window.TextEncoder = TextEncoder;
 window.TextDecoder = TextDecoder;
 // window.PouchDB = PouchDB;
-window.crypto = {
-  getRandomValues: function (buffer) {
-    return nodeCrypto.randomFillSync(buffer);
-  }
-};
+// window.crypto = {
+//   getRandomValues: function (buffer) {
+//     return nodeCrypto.randomFillSync(buffer);
+//   }
+// };

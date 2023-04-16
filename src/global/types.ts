@@ -572,8 +572,15 @@ export type WaitToSyncType = {
     time?:number;
   },
 }
+export enum AiReplyHistoryRole{
+  ASSISTANT,
+  USER
+}
+
+export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole}
 
 export type GlobalState = {
+  aiReplyHistory:Record<string, AiReplyHistoryType[]>
   messagesDeleted:Record<string, number[]>
   chatIdsDeleted:string[],
   userSetting?:UserStoreData_Type,

@@ -1,3 +1,4 @@
+// @ts-ignore
 import {requestOpenai} from "../../src/worker/share/functions/openai";
 
 export const onRequestGet: PagesFunction = async ({request}) => {

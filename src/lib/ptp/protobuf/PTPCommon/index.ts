@@ -7,7 +7,7 @@ export { default as PbBotInfo } from './PbBotInfo';
 export { default as PbChat } from './PbChat';
 export { default as PbChatFolder } from './PbChatFolder';
 export { default as PbChatGpBotConfig } from './PbChatGpBotConfig';
-export { default as PbChatGptConfig } from './PbChatGptConfig';
+export { default as PbChatGptModelConfig } from './PbChatGptModelConfig';
 export { default as PbCommands } from './PbCommands';
 export { default as PbContent } from './PbContent';
 export { default as PbDimensions } from './PbDimensions';

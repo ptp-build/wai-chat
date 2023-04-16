@@ -11,11 +11,8 @@ import {CLOUD_MESSAGE_API, DEBUG, MEDIA_CACHE_NAME_WAI} from "../../../config";
 import localDb from "../../../api/gramjs/localDb";
 import Account from "../../../worker/share/Account";
 import * as cacheApi from '../../../util/cacheApi';
-import {Type} from '../../../util/cacheApi';
 import {fileToBuffer} from "../../../worker/share/utils/utils";
 import {ERR, FileInfo_Type} from "../../ptp/protobuf/PTPCommon/types";
-import {Pdu} from "../../ptp/protobuf/BaseMsg";
-import {blobToBuffer} from "../../../util/files";
 
 interface OnProgress {
     isCanceled?: boolean;
@@ -40,13 +37,19 @@ const MAX_WORKERS_PER_CONNECTION = 10;
 const foremans = Array(MAX_CONCURRENT_CONNECTIONS_PREMIUM).fill(undefined)
     .map(() => new Foreman(MAX_WORKERS_PER_CONNECTION));
 
+export const getFileId = ()=>{
+    let fileId1 = readBigIntFromBuffer(generateRandomBytes(8), true, true);
+    return fileId1.toString()
+        .replace("-", "")
+        .replace("n", "")
+}
+
 export async function uploadFileV1(
     fileParams: UploadFileParams,
 ): Promise<Api.InputFile | Api.InputFileBig> {
     const { file, onProgress } = fileParams;
     const { name, size } = file;
-    let fileId1 = readBigIntFromBuffer(generateRandomBytes(8), true, true);
-    let fileIdStr = fileId1.toString().replace("-","").replace("n","")
+    let fileIdStr = getFileId();
     const fileId = Number(fileIdStr)
     fileIdStr = String(fileId)
     localDb.cache[fileIdStr] = file;

@@ -13,6 +13,9 @@ type OwnProps = {
   className?: string;
   type?: string;
   value?: string;
+  max?: number;
+  min?: number;
+  step?: number;
   label?: string;
   error?: string;
   success?: string;
@@ -35,6 +38,9 @@ type OwnProps = {
 
 const InputText: FC<OwnProps> = ({
   ref,
+  min,
+  max,
+  step,
   id,
   type,
   onFocus,
@@ -77,8 +83,11 @@ const InputText: FC<OwnProps> = ({
         className="form-control"
         type={type || "text"}
         id={id}
+        step={step}
+        min={min}
+        max={max}
         dir="auto"
-        value={value || ''}
+        value={value ||( type === 'number' ? 0 : '')}
         tabIndex={tabIndex}
         placeholder={placeholder}
         maxLength={maxLength}

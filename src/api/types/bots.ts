@@ -2,7 +2,7 @@ import type {
   ApiDimensions,
   ApiPhoto, ApiSticker, ApiThumbnail, ApiVideo,
 } from './messages';
-import {PbAiBot_Type, PbChatGpBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {PbAiBot_Type, PbChatGptBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 
 export type ApiInlineResultType = (
   'article' | 'audio' | 'contact' | 'document' | 'game' | 'gif' | 'location' | 'mpeg4_gif' |

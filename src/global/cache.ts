@@ -324,6 +324,7 @@ export function serializeGlobal<T extends GlobalState>(global: T) {
     ...INITIAL_GLOBAL_STATE,
     ...pick(global, [
       'waitToSync',
+      "aiReplyHistory",
       'messagesDeleted',
       'chatIdsDeleted',
       'appConfig',

@@ -2,7 +2,7 @@ import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectUser} from "../../global/selectors";
 import {updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiBotCommand, ApiMessage} from "../../api/types";
+import {ApiBotCommand, ApiKeyboardButton, ApiMessage} from "../../api/types";
 import {currentTs} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
@@ -17,7 +17,6 @@ import Account from "../share/Account";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import {SendRes} from "../../lib/ptp/protobuf/PTPMsg";
-import {account} from "../../api/gramjs/methods/client";
 
 export default class MsgCommand {
   private msgDispatcher: MsgDispatcher;
@@ -40,11 +39,27 @@ export default class MsgCommand {
     })
   }
 
+  static back(global:GlobalState,chatId:string,messageId:number,data:string,path:string){
+    if(path.startsWith("/")){
+      path = path.substring(1)
+    }
+    const btn = data.replace(`${chatId}/${path}/`,"")
+    const inlineButtons:ApiKeyboardButton[][] = JSON.parse(btn);
+    MsgDispatcher.updateMessage(chatId, messageId, {
+      inlineButtons
+    });
+  }
   static buildInlineBackButton(chatId:string,messageId:number,path:string,text:string){
+    if(path.startsWith("/")){
+      path = path.substring(1)
+    }
     return MsgCommand.buildInlineCallbackButton(chatId,path+"/"+JSON.stringify(selectChatMessage(getGlobal(),chatId,messageId)!.inlineButtons),text,"callback")
   }
 
   static buildInlineCallbackButton(chatId:string,path:string,text:string,type:'callback' = 'callback'){
+    if(path.startsWith("/")){
+      path = path.substring(1)
+    }
     return [
       {
         type,
@@ -106,11 +121,12 @@ export default class MsgCommand {
       setGlobal(global)
       global = getGlobal()
       user = selectUser(global,chatId)
-      await MsgDispatcher.newTextMessage(chatId,await MsgDispatcher.genMsgId(),"重载成功")
       return true;
     }
   }
   static async uploadUser(global:GlobalState,chatId:string){
+    const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在上传...")
+
     const users:UserStoreRow_Type[] = [];
     const ids = [chatId]
     for (let i = 0; i < ids.length; i++) {
@@ -128,9 +144,17 @@ export default class MsgCommand {
       users,
       time:currentTs()
     }).pack())
-    MsgDispatcher.showNotification("上传成功")
+    await MsgDispatcher.updateMessage(chatId,message1.id,{
+      content:{
+        text:{
+          text:"上传成功"
+        }
+      }
+    })
   }
   static async downloadUser(global:GlobalState,chatId:string){
+    const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在下载...")
+
     const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
       userIds:[chatId],
     }).pack())
@@ -142,7 +166,14 @@ export default class MsgCommand {
       global = updateUser(global,user!.id, user)
       setGlobal(global)
     }
-    MsgDispatcher.showNotification("更新成功")
+
+    await MsgDispatcher.updateMessage(chatId,message1.id,{
+      content:{
+        text:{
+          text:"下载成功"
+        }
+      }
+    })
   }
   async setting(){
     const chatId = this.msgDispatcher.getChatId()

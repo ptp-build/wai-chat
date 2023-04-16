@@ -2,14 +2,14 @@ import type {RequiredGlobalActions} from '../../index';
 import {addActionHandler, getActions, getGlobal, setGlobal,} from '../../index';
 
 import type {ApiChat, ApiChatFolder, ApiChatMember, ApiError, ApiUser, ApiUserStatus,} from '../../../api/types';
-import {MAIN_THREAD_ID} from '../../../api/types';
+import {ApiAttachment, MAIN_THREAD_ID} from '../../../api/types';
 import {ChatCreationProgress, ManagementProgress, NewChatMembersProgress} from '../../../types';
 import type {ActionReturnType, GlobalState, TabArgs,} from '../../types';
 
 import {
   ALL_FOLDER_ID,
   ARCHIVED_FOLDER_ID,
-  DEBUG,
+  DEBUG, MEDIA_CACHE_NAME_WAI,
   RE_TG_LINK,
   SERVICE_NOTIFICATIONS_USER_ID,
   TME_WEB_DOMAINS,
@@ -82,14 +82,20 @@ import {selectCurrentLimit} from '../../selectors/limits';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {
-  ChatModelConfig, DEFAULT_AI_CONFIG_COMMANDS,
+  ChatModelConfig, DEFAULT_CHATGPT_AI_COMMANDS, DEFAULT_AVATARS,
   DEFAULT_BOT_COMMANDS,
   DEFAULT_CREATE_USER_BIO, DEFAULT_PROMPT,
   LoadAllChats, UserIdChatGpt,
-  UserIdFirstBot
+  UserIdFirstBot, UserIdCnPrompt, UserIdEnPrompt
 } from "../../../worker/setting";
-import {Api} from "../../../lib/gramjs";
 import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
+import {generateRandomBytes, readBigIntFromBuffer} from "../../../lib/gramjs/Helpers";
+import * as cacheApi from '../../../util/cacheApi';
+import {blobToDataUri, fetchBlob} from "../../../util/files";
+import {DownloadRes} from "../../../lib/ptp/protobuf/PTPFile";
+import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
+import {getFileId} from "../../../lib/gramjs/client/uploadFile";
+import MsgCommandChatLab from "../../../worker/msg/MsgCommandChatLab";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -526,7 +532,56 @@ addActionHandler('deleteChannel', (global, actions, payload): ActionReturnType =
   }
 });
 
-addActionHandler('createChat', (global, actions, payload)=> {
+
+const getAvatarPhoto = async (id:string,url:string)=>{
+  const res = await fetch(url)
+  const ab = await res.arrayBuffer()
+  const type = "image/"+url.split(".")[url.split(".").length - 1]
+  const body = new DownloadRes({
+    file:{
+      id,
+      part:0,
+      part_total:1,
+      buf:Buffer.from(ab),
+      size:Buffer.from(ab).length,
+      type
+    },
+    err:ERR.NO_ERROR
+  }).pack().getPbData()
+  const blob = new Blob([Buffer.from(body)],{type});
+  const dataUri = await blobToDataUri(blob);
+  const size = {
+    "width": 640,
+    "height":  640,
+  }
+  await cacheApi.save(MEDIA_CACHE_NAME_WAI, id, blob);
+
+  return {
+    id:id,
+    thumbnail:{
+      dataUri,
+      ...size
+    },
+    "sizes": [
+      {
+        width: 160,
+        height: 160,
+        type: 's',
+      },
+      {
+        width: 320,
+        height: 320,
+        type: 'm',
+      },
+      {
+        width: 640,
+        height: 640,
+        type: 'x',
+      },
+    ],
+  }
+}
+addActionHandler('createChat', async (global, actions, payload)=> {
   const {
     title, id,promptInit,about, tabId = getCurrentTabId(),
   } = payload;
@@ -557,7 +612,13 @@ addActionHandler('createChat', (global, actions, payload)=> {
 
     const chatGptApiKey = localStorage.getItem("cg-key") ? localStorage.getItem("cg-key") : ""
     const init_system_content = promptInit || DEFAULT_PROMPT
-
+    let avatarHash = "";
+    let photo = undefined
+    if(DEFAULT_AVATARS[userId]){
+      avatarHash = getFileId();
+      const avatarUrl = DEFAULT_AVATARS[userId]
+      photo = await getAvatarPhoto(avatarHash,avatarUrl);
+    }
     const user = {
       "canBeInvitedToGroup": false,
       "hasVideoAvatar": false,
@@ -567,11 +628,11 @@ addActionHandler('createChat', (global, actions, payload)=> {
       isMin:false,
       "noStatus": true,
       isSelf:false,
-      avatarHash:"",
+      avatarHash,
       accessHash:"",
       isPremium: false,
       firstName: title,
-      photos:[],
+      photos:[photo],
       usernames: [
         {
           "username": "Bot_"+userId,
@@ -589,8 +650,8 @@ addActionHandler('createChat', (global, actions, payload)=> {
             chatGptConfig:{
               init_system_content,
               api_key:chatGptApiKey,
-              max_history_length:10,
-              config:ChatModelConfig
+              max_history_length:4,
+              modelConfig:ChatModelConfig
             }
           },
           botId: userId,
@@ -598,7 +659,7 @@ addActionHandler('createChat', (global, actions, payload)=> {
           "menuButton": {
             "type": "commands"
           },
-          commands:DEFAULT_AI_CONFIG_COMMANDS.map(cmd=>{
+          commands:[...DEFAULT_BOT_COMMANDS,...DEFAULT_CHATGPT_AI_COMMANDS].map(cmd=>{
             // @ts-ignore
             cmd.botId = userId;
             return cmd
@@ -2002,7 +2063,19 @@ export async function loadChats<T extends GlobalState>(
     let result: { folderIds?: number[],chatFolders?: any[]; users?: any; userStatusesById?: any; chats?: any; chatIds?: any; draftsById?: any; replyingToById?: any; orderedPinnedIds?: string[] | never[] | undefined; totalChatCount?: number; };
     if(!global.users.byId[UserIdFirstBot]) {
       firstLoad = true;
+
       result = LoadAllChats;
+      for (let i = 0; i < result.users.length; i++) {
+        const user = result.users[i];
+        if(user.id === UserIdFirstBot){
+          if(!user.avatarHash){
+            user.avatarHash = getFileId();
+            const photo = await getAvatarPhoto(user.avatarHash,DEFAULT_AVATARS[user.id])
+            user.photos = [photo]
+            result.users[i] = user
+          }
+        }
+      }
       for (let i = 0; i < result.chats.length; i++) {
         const chat = result.chats[i];
         if (global.messages.byChatId[chat.id]) {
@@ -2180,6 +2253,12 @@ export async function loadChats<T extends GlobalState>(
     setGlobal(global);
     if(firstLoad){
       getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
+      setTimeout(async ()=>{
+        // await MsgCommandChatLab.createPromptChat(UserIdFirstBot,UserIdCnPrompt)
+        // await MsgCommandChatLab.createPromptChat(UserIdFirstBot,UserIdEnPrompt)
+        await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
+      },500)
+
     }
   }catch (e){
     console.error(e)

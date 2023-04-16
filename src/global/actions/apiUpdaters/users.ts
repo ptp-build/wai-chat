@@ -14,6 +14,7 @@ import {
 import {throttle} from '../../../util/schedulers';
 import {selectChat, selectIsCurrentUserPremium, selectUser} from '../../selectors';
 import type {ActionReturnType, RequiredGlobalState} from '../../types';
+import {AiReplyHistoryRole, AiReplyHistoryType} from "../../types";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -45,6 +46,32 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case "updateGlobalUpdate":
       const {data} = update
       switch (data.action){
+        case "updateAiHistory":
+          const chatId = data.payload!.chatId;
+          let historyList:AiReplyHistoryType[] = []
+          if(global.aiReplyHistory[chatId]){
+            historyList = [
+              ...global.aiReplyHistory[chatId],
+            ]
+          }
+          historyList = [
+            ...historyList,
+            {
+              msgId:data.payload!.messages[0],
+              role:AiReplyHistoryRole.USER
+            },
+            {
+              msgId:data.payload!.messages[0],
+              role:AiReplyHistoryRole.ASSISTANT
+            }
+          ]
+          return {
+            ...global,
+            aiReplyHistory:{
+              ...global.aiReplyHistory,
+              [chatId]:historyList
+            }
+          }
         case "updateBot":
           const userBotUpdate = {
             ...global.users.byId[data.payload!.botInfo.botId],

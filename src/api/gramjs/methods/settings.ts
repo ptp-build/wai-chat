@@ -137,33 +137,33 @@ export async function uploadProfilePhoto(file: File, isFallback?: boolean, isVid
   if(Account.getCurrentAccount()?.getSession()){
     return {
       avatarHash: id,
-        photos: [
-      {
-        id: id,
-        thumbnail: {
-          dataUri: thumbnail,
-          width: 640,
-          height: 640,
-        },
-        sizes: [
-          {
-            width: 160,
-            height: 160,
-            type: 's',
-          },
-          {
-            width: 320,
-            height: 320,
-            type: 'm',
-          },
-          {
+      photos: [
+        {
+          id: id,
+          thumbnail: {
+            dataUri: thumbnail,
             width: 640,
             height: 640,
-            type: 'x',
           },
-        ],
-      },
-    ],
+          sizes: [
+            {
+              width: 160,
+              height: 160,
+              type: 's',
+            },
+            {
+              width: 320,
+              height: 320,
+              type: 'm',
+            },
+            {
+              width: 640,
+              height: 640,
+              type: 'x',
+            },
+          ],
+        },
+      ],
     }
   }
   let pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new UploadProfilePhotoReq({

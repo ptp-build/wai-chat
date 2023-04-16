@@ -40,20 +40,19 @@ function parseMentionName(text:string) {
   }
   return result
 }
-
-function parseCmd(text:string, commands:string[]) {
-  if(commands.length === 0) return [];
-  const regex = new RegExp(`\\b(${commands.join('|')})\\b`, 'g');
+export function parseCmd(text: string, commands: string[]) {
+  if (commands.length === 0) return [];
+  const regex = new RegExp(`(?<=\\/)(${commands.join('|')})\\b`, 'g');
   const matches = [];
   let match;
   while ((match = regex.exec(text)) !== null) {
     matches.push({
-      type:ApiMessageEntityTypes.BotCommand,
+      type: 'MessageEntityBotCommand',
       offset: match.index-1,
-      length: match[0].length + 1
+      length: match[0].length+1
     });
   }
-  return matches
+  return matches;
 }
 
 export function parseEntities(text:string,commands:string[]){

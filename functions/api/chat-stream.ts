@@ -1,3 +1,4 @@
+// @ts-ignore
 import {createStream} from "../../src/worker/share/functions/openai";
 
 export const onRequestPost: PagesFunction = async ({request}) => {

@@ -77,6 +77,7 @@ import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import Account from '../../../worker/share/Account';
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
+import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
@@ -262,7 +263,8 @@ export function sendMessage(
     noWebPage,
     sendAs,
     shouldUpdateStickerSetsOrder,
-    botInfo
+    botInfo,
+    aiHistoryList
   }: {
     chat: ApiChat;
     text?: string;
@@ -281,6 +283,7 @@ export function sendMessage(
     sendAs?: ApiUser | ApiChat;
     shouldUpdateStickerSetsOrder?: boolean;
     botInfo?: ApiBotInfo;
+    aiHistoryList?:AiHistoryType[]
   },
   onProgress?: ApiOnProgress,
 ) {
@@ -363,6 +366,7 @@ export function sendMessage(
       attachment,
       media,
       botInfo,
+      aiHistoryList,
     },onUpdate).process()
   })();
 

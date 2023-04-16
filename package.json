@@ -133,7 +133,7 @@
     "whatwg-fetch": "^3.6.2",
     "array.prototype.at": "^1.1.1",
     "worktop": "0.8.0-next.14",
-    "wrangler": "^2.12.0"
+    "wrangler": "^2.15.0"
   },
   "dependencies": {
     "eventsource-parser": "^0.1.0",
