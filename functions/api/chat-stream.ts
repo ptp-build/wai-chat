@@ -1,5 +1,5 @@
-import {createParser} from "./eventsource-parser/src";
 import {requestOpenai} from "./common";
+import {createParser} from "../../src/lib/eventsource-parser";
 
 async function createStream(req: Request) {
   const encoder = new TextEncoder();
