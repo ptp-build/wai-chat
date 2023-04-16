@@ -320,7 +320,7 @@ export default class MsgCommandSetting{
               accountAddresses.length>0 ?MsgCommand.buildInlineButton(chatId,"其他账户:",'unsupported'):[],
               ...accountAddresses.map(address=>MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/account/"+address,` ${address}`,'callback')),
               MsgCommand.buildInlineButton(chatId,"",'unsupported'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","创建账户",'callback'),
+              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
               MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
               MsgCommand.buildInlineCallbackButton(chatId,"setting/disableSync","单机模式",'callback'),
               MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
@@ -336,7 +336,7 @@ export default class MsgCommandSetting{
             },
             inlineButtons:[
               MsgCommand.buildInlineButton(chatId," 二维码导入 ",'requestUploadImage'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync"," 云端模式 ",'callback'),
+              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync"," 密码登录 ",'callback'),
               MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
             ]
           })

@@ -1,5 +1,5 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectUser} from "../../global/selectors";
+import {selectChatMessage, selectUser} from "../../global/selectors";
 import {updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {ApiBotCommand, ApiMessage} from "../../api/types";
@@ -17,6 +17,7 @@ import Account from "../share/Account";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import {SendRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {account} from "../../api/gramjs/methods/client";
 
 export default class MsgCommand {
   private msgDispatcher: MsgDispatcher;
@@ -38,6 +39,11 @@ export default class MsgCommand {
       },
     })
   }
+
+  static buildInlineBackButton(chatId:string,messageId:number,path:string,text:string){
+    return MsgCommand.buildInlineCallbackButton(chatId,path+"/"+JSON.stringify(selectChatMessage(getGlobal(),chatId,messageId)!.inlineButtons),text,"callback")
+  }
+
   static buildInlineCallbackButton(chatId:string,path:string,text:string,type:'callback' = 'callback'){
     return [
       {
@@ -177,6 +183,25 @@ export default class MsgCommand {
     if(data.startsWith("requestChatStream/stop/")){
       const [chatId,messageId] = data.replace("requestChatStream/stop/","").split("/").map(Number)
       ControllerPool.stop(chatId,messageId);
+    }
+  }
+  static async handleHttpMsg(chatId:string,text:string){
+    const global = getGlobal();
+    const user = selectUser(global,chatId)
+    const botApi = user?.fullInfo?.botInfo?.aiBot && user?.fullInfo?.botInfo?.aiBot!.botApi
+    if(botApi){
+      const res = await fetch(botApi,{
+        method:"POST",
+        body: JSON.stringify({
+          text
+        }),
+        headers:{
+          'Content-Type':'application/json'
+        }
+      })
+      const result:{text:string} = await res.json();
+      console.log(result)
+      await MsgDispatcher.newTextMessage(chatId,undefined,result.text)
     }
   }
   static async createWsBot(chatId:string){
