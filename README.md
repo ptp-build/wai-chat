@@ -35,7 +35,7 @@ A private chatbot based on AI, blockchain encryption technology, and de-Chinese-
 
 ## 自定义部署
 
-- [在 CloudFlare 中部署](https://github.com/ptp-build/wai-chat/blob/main/docs/deploy-cloudflaure-pages.md)
+- [在 CloudFlare 中部署](https://github.com/ptp-build/wai-chat/blob/main/docs/deploy-cloudflaure-pages.md) 无需vps,免费
 
 
 ## 开发计划 Roadmap
