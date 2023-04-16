@@ -1,6 +1,6 @@
 import ProtoController from './controller/ProtoController';
 import { OpenAPIRouter } from '@cloudflare/itty-router-openapi';
-import {ENV, initEnv} from './env';
+import {ENV} from './env';
 import { SWAGGER_DOC } from './setting';
 import {getCorsHeader, ResponseJson} from "./share/utils/utils";
 import {RandomController} from "./controller/ApiController";
@@ -34,7 +34,6 @@ router.post('/proto', ProtoController);
 router.get('/utils/random', RandomController);
 router.all('*', () => new Response('Not Found.', { status: 404 }));
 
-export async function handleEvent({request}) {
-
+export async function handleEvent({request}:{request:Request}) {
 	return await router.handle(request);
 }

@@ -101,9 +101,11 @@ import {replaceSubstring} from "../../../worker/share/utils/utils";
 import {blobToBuffer, fetchBlob} from "../../../util/files";
 import {popByteBuffer, toUint8Array, writeBytes, writeInt16} from "../../../lib/ptp/protobuf/BaseMsg";
 import {resizeImage} from "../../../util/imageResize";
-import {UserIdFirstBot} from "../../../worker/setting";
+import {UserIdChatGpt, UserIdFirstBot} from "../../../worker/setting";
 import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
+import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -599,7 +601,7 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
   if (!chat) {
     return;
   }
-  if(chatId === UserIdFirstBot) return
+  if([UserIdFirstBot,UserIdChatGpt].includes(chatId)) return
   // await callApi('deleteHistory', { chat, shouldDeleteForAll });
 
   global = getGlobal();
@@ -1259,6 +1261,7 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
   replyingToTopId?: number;
   groupedId?: string;
   botInfo?:ApiBotInfo;
+  aiHistoryList?:AiHistoryType[]
 },
 ...[tabId = getCurrentTabId()]: TabArgs<T>) {
 
@@ -1309,7 +1312,9 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
 
   const user = selectUser(global,params.chat.id);
   params.botInfo = user?.fullInfo?.botInfo ? user?.fullInfo?.botInfo:undefined
+
   const res = await new MsgDispatcher(global,params).process()
+  params.aiHistoryList = MsgCommandChatGpt.getAiHistoryList(params.chat.id)
   if(!res){
     await callApi('sendMessage', params, progressCallback);
     // @ts-ignore

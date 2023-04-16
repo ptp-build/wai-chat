@@ -291,3 +291,8 @@ export async function blobToBuffer(blob:Blob) {
   const ab = await blobToArrayBuffer(blob);
   return Buffer.from(ab)
 }
+
+export function isPositiveInteger(str: string): boolean {
+  const reg = /^[1-9]\d*$/; // 正则表达式
+  return reg.test(str);
+}

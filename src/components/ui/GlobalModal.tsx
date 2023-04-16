@@ -1,7 +1,6 @@
 import type {FC} from '../../lib/teact/teact';
 import React, {memo, useCallback, useEffect, useState,} from '../../lib/teact/teact';
 
-import useLang from '../../hooks/useLang';
 import Modal from './Modal';
 import {ShowModalFromEventPayload} from "../../worker/share/utils/modal";
 import Button from "./Button";
@@ -70,10 +69,13 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
         <div className="settings-content password-form custom-scroll background">
           <div className="pt-4 pb-4 mb-2 background">
             {
-              payload.type === 'multipleInput' ?
+              payload.type !== 'multipleInput' ?
                 <InputText
-                  type={"text"}
+                  type={payload.inputType || "text"}
                   label={payload.placeholder||""}
+                  step={payload.step}
+                  min={payload.min}
+                  max={payload.max}
                   onChange={(e) => {
                     setValue(e.target.value)
                   }}

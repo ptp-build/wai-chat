@@ -105,7 +105,7 @@ export default class MsgCommandChatLab{
       getActions().createChat({title,promptInit:prompt})
     }
   }
-  static async createChatGpt(chatId:string,id:string){
+  static async createChatGpt(id:string){
     let name = "ChatGpt";
     let needCreate = true;
     let global = getGlobal();
@@ -195,7 +195,7 @@ export default class MsgCommandChatLab{
     }
     switch (data){
       case `${chatId}/lab/createChatGpt`:
-        await MsgCommandChatLab.createChatGpt(chatId,UserIdChatGpt)
+        await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
         break
       case `${chatId}/lab/createEnPrompt`:
         await MsgCommandChatLab.createPromptChat(chatId,UserIdEnPrompt)

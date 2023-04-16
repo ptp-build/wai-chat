@@ -3,6 +3,10 @@ export type ShowModalFromEventPayload = {
   type?:'singleInput'|'multipleInput',
   placeholder?:string,
   initVal?:string
+  max?:number
+  min?:number
+  step?:number
+  inputType?:string
 }
 export type ShowModalFromEventResult = {
   value?:string,

@@ -27,12 +27,14 @@ import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
 import {DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS} from "../setting";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdCnPrompt, UserIdEnPrompt} from "../setting";
+import MsgCommandChatLab from "./MsgCommandChatLab";
 
 let currentSyncBotContext:string|undefined;
 
 export default class MsgCommandSetting{
   static async start(chatId:string){
+    await MsgCommand.reloadCommands(chatId,DEFAULT_BOT_COMMANDS)
     const messageId = await MsgDispatcher.genMsgId();
     const text = DEFAULT_START_TIPS
     return MsgDispatcher.newMessage(chatId,messageId,{
@@ -52,6 +54,7 @@ export default class MsgCommandSetting{
     const account = Account.getCurrentAccount();
     const isEnableSync = account?.getSession();
     const messageId = await MsgDispatcher.genMsgId();
+    await MsgCommand.reloadCommands(chatId,DEFAULT_BOT_COMMANDS)
     return MsgDispatcher.newMessage(chatId,messageId,{
       chatId,
       id:messageId,
@@ -70,26 +73,13 @@ export default class MsgCommandSetting{
     const res:ApiKeyboardButtons = isEnableSync ? [
       [
         {
-          data:`${chatId}/setting/uploadFolder`,
-          text:"上传对话",
+          text:"云同步",
+          data:`${chatId}/setting/cloud`,
           type:"callback"
         },
-        {
-          data:`${chatId}/setting/downloadFolder`,
-          text:"下载对话",
-          type:"callback"
-        },
-      ],
-      [
-
         {
           text:"切换账户",
           data:`${chatId}/setting/switchAccount`,
-          type:"callback"
-        },
-        {
-          text:"重载命令",
-          data:`${chatId}/setting/reloadCommand`,
           type:"callback"
         },
         {
@@ -98,6 +88,19 @@ export default class MsgCommandSetting{
           type:"callback"
         },
       ],
+      [
+        {
+          data:`${chatId}/setting/createCnPrompts`,
+          text:"创建中文Prompts大全",
+          type:"callback"
+        },
+        {
+          data:`${chatId}/setting/createEnPrompts`,
+          text:"创建英文Prompts大全",
+          type:"callback"
+        },
+      ],
+
       [
         {
           data:`${chatId}/setting/cancel`,
@@ -113,13 +116,21 @@ export default class MsgCommandSetting{
           type:"callback"
         },
         {
-          text:"重载命令",
-          data:`${chatId}/setting/reloadCommand`,
+          text:"清除历史记录",
+          data:`${chatId}/setting/clearHistory`,
+          type:"callback"
+        },
+      ],
+
+      [
+        {
+          data:`${chatId}/setting/createCnPrompts`,
+          text:"创建中文Prompts大全",
           type:"callback"
         },
         {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
+          data:`${chatId}/setting/createEnPrompts`,
+          text:"创建英文Prompts大全",
           type:"callback"
         },
       ],
@@ -237,6 +248,10 @@ export default class MsgCommandSetting{
     if(data.startsWith(`${chatId}/setting/switchAccount/account/`)){
       return await MsgCommandSetting.switchAccount(chatId,messageId,data)
     }
+    if(data.startsWith(`${chatId}/setting/back`)){
+      MsgCommand.back(global,chatId,messageId,data,"setting/back")
+      return
+    }
     if(data.startsWith(`${chatId}/setting/switchAccount/back/`)){
       const inlineButtons = JSON.parse(data.replace(`${chatId}/setting/switchAccount/back/`,""))
       return MsgDispatcher.updateMessage(chatId,messageId,{
@@ -251,6 +266,31 @@ export default class MsgCommandSetting{
     }
 
     switch (data){
+      case `${chatId}/setting/createCnPrompts`:
+        await MsgCommandChatLab.createPromptChat(chatId,UserIdCnPrompt);
+        break
+      case `${chatId}/setting/createEnPrompts`:
+        await MsgCommandChatLab.createPromptChat(chatId,UserIdEnPrompt);
+        break
+      case `${chatId}/setting/cloud`:
+        await MsgDispatcher.updateMessage(chatId,messageId,{
+          inlineButtons:[
+            [
+              {
+                data:`${chatId}/setting/uploadFolder`,
+                text:"上传对话",
+                type:"callback"
+              },
+              {
+                data:`${chatId}/setting/downloadFolder`,
+                text:"下载对话",
+                type:"callback"
+              },
+            ],
+            MsgCommand.buildInlineBackButton(chatId,messageId,'setting/back',"< 返回")
+          ],
+        })
+        break
       case `${chatId}/setting/clearHistory`:
         await MsgCommand.clearHistory(chatId)
         break
@@ -281,10 +321,26 @@ export default class MsgCommandSetting{
         }
         break
       case `${chatId}/setting/uploadFolder`:
+        const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在上传...")
         await MsgCommandSetting.syncFolders(true)
+        await MsgDispatcher.updateMessage(chatId,message1.id,{
+          content:{
+            text:{
+              text:"上传成功"
+            }
+          }
+        })
         break
       case `${chatId}/setting/downloadFolder`:
+        const message2 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在下载...")
         await MsgCommandSetting.syncFolders(false)
+        await MsgDispatcher.updateMessage(chatId,message2.id,{
+          content:{
+            text:{
+              text:"下载成功"
+            }
+          }
+        })
         break
       case `${chatId}/setting/syncMessage`:
         getActions().updateGlobal({
@@ -364,6 +420,7 @@ export default class MsgCommandSetting{
         break
     }
   }
+
   static buildDefaultChat(user:ApiUser){
     return {
       "id": user.id,
@@ -493,7 +550,6 @@ export default class MsgCommandSetting{
         })
       }
     }
-    getActions().showNotification({message:"更新成功"})
   }
   static async enableSync(global:GlobalState,chatId:string,messageId:number,password:string){
     const account = Account.getCurrentAccount();

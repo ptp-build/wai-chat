@@ -243,10 +243,10 @@ message PbChatGpBotConfig {
   optional string init_system_content = 1;
   optional string api_key = 2;
   optional uint32 max_history_length = 3;
-  optional PbChatGptConfig config = 4;
+  optional PbChatGptModelConfig modelConfig = 4;
 }
 
-message PbChatGptConfig {
+message PbChatGptModelConfig {
   required string model = 1;
   required uint32 temperature = 2;
   required uint32 max_tokens = 3;

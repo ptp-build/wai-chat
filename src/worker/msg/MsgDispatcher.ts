@@ -12,14 +12,14 @@ import {
   ApiVideo
 } from "../../api/types";
 import {GlobalState} from "../../global/types";
-import {getActions, getGlobal, setGlobal} from "../../global";
+import {getActions, getGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
 import {GenMsgIdReq, GenMsgIdRes, SendReq} from "../../lib/ptp/protobuf/PTPMsg";
 import MsgCommand from "./MsgCommand";
 import {parseCodeBlock} from "../share/utils/stringParse";
 import MsgWorker from "./MsgWorker";
-import {DEFAULT_AI_CONFIG_COMMANDS, DEFAULT_BOT_COMMANDS, UserIdFirstBot} from "../setting";
+import {UserIdFirstBot} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {selectUser} from "../../global/selectors";
@@ -280,14 +280,16 @@ export default class MsgDispatcher {
         return await msgCommandChatGpt.start();
       case "/setting":
         return msgCommandChatGpt.setting()
-      case "/enableAi":
-        return await msgCommandChatGpt.enableAi();
+      case "/reset":
+        return await msgCommandChatGpt.reset();
       case "/aiModel":
         return await msgCommandChatGpt.aiModel();
       case "/initPrompt":
         return await msgCommandChatGpt.initPrompt();
       case "/apiKey":
         return await msgCommandChatGpt.apiKey();
+      case "/maxHistoryLength":
+        return await msgCommandChatGpt.maxHistoryLength();
       default:
         return true;
     }

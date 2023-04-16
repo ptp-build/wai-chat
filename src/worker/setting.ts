@@ -1,9 +1,14 @@
-import {PbChatGptConfig_Type} from "../lib/ptp/protobuf/PTPCommon/types";
+import {PbChatGptModelConfig_Type} from "../lib/ptp/protobuf/PTPCommon/types";
 
 export const UserIdFirstBot = "1000";
 export const UserIdCnPrompt = "1010";
 export const UserIdEnPrompt = "1011";
 export const UserIdChatGpt = "1012";
+
+export const DEFAULT_AVATARS:Record<string, string> = {
+  [UserIdFirstBot]:'icon-square-dev-512x512.png',
+  [UserIdChatGpt]:'avatar/ChatGPT_logo.png'
+}
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
@@ -11,50 +16,43 @@ export const DEFAULT_PROMPT = '你现在是一个优秀的助手，请用中文�
 export const BOT_FOLDER_TITLE = '机器人'
 export const BOT_FOLDER_ID = 1
 
-export const ChatModelConfig:PbChatGptConfig_Type = {
+
+const ENABLE_GPT4 = true;
+
+export const ALL_CHAT_GPT_MODELS = [
+  {
+    name: "gpt-4",
+    available: ENABLE_GPT4,
+  },
+  {
+    name: "gpt-4-0314",
+    available: ENABLE_GPT4,
+  },
+  {
+    name: "gpt-4-32k",
+    available: ENABLE_GPT4,
+  },
+  {
+    name: "gpt-4-32k-0314",
+    available: ENABLE_GPT4,
+  },
+  {
+    name: "gpt-3.5-turbo",
+    available: true,
+  },
+  {
+    name: "gpt-3.5-turbo-0301",
+    available: true,
+  },
+];
+
+export const ChatModelConfig:PbChatGptModelConfig_Type = {
   model: "gpt-3.5-turbo",
   temperature: 1,
   max_tokens: 2000,
   presence_penalty: 0,
 }
 
-export const DEFAULT_AI_CONFIG_COMMANDS = [
-  {
-    "botId": UserIdFirstBot,
-    "command": "start",
-    "description": "开始对话"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "setting",
-    "description": "设置"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "aiModel",
-    "description": "设置AI模型"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "apiKey",
-    "description": "设置apiKey"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "initPrompt",
-    "description": "初始化上下文Prompt"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "enableAi",
-    "description": "开启或者关闭AI"
-  },
-  {
-    "botId": UserIdFirstBot,
-    "command": "clearHistory",
-    "description": "清除历史记录"
-  },
-]
 export const DEFAULT_BOT_COMMANDS = [
   {
     "botId": UserIdFirstBot,
@@ -66,12 +64,49 @@ export const DEFAULT_BOT_COMMANDS = [
     "command": "setting",
     "description": "设置"
   },
+]
+
+export const DEFAULT_CHATGPT_AI_COMMANDS = [
   {
-    "botId": UserIdFirstBot,
-    "command": "lab",
-    "description": "实验室"
+    "botId": UserIdChatGpt,
+    "command": "reset",
+    "description": "重置ai记忆,提问只携带 初始化Prompt"
+  },
+  {
+    "botId": UserIdChatGpt,
+    "command": "aiModel",
+    "description": "设置AI模型"
+  },
+  {
+    "botId": UserIdChatGpt,
+    "command": "apiKey",
+    "description": "设置apiKey"
+  },
+  {
+    "botId": UserIdChatGpt,
+    "command": "initPrompt",
+    "description": "初始化 上下文 Prompt"
+  },
+  {
+    "botId": UserIdChatGpt,
+    "command": "maxHistoryLength",
+    "description": "每次提问携带历史消息数"
   },
 ]
+
+
+export const AI_START_TIPS =  `你可以通过发送以下命令来控制我：
+
+/setting - 设置面板
+`
+
+export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制我：
+
+/setting - 设置面板
+
+Prompts
+  点击 /setting >> 创建 prompts 大全
+`
 
 export const CurrentUserInfo = {
   "id": "1",
@@ -122,7 +157,7 @@ export let LoadAllChats = {
       },
       bot:{
         chatGptConfig:{
-          config:ChatModelConfig,
+          modelConfig:ChatModelConfig,
           api_key:"",
           init_system_content:DEFAULT_PROMPT,
           max_history_length:4,
@@ -225,25 +260,4 @@ export const SWAGGER_DOC = {
     ],
   },
 };
-
-export const AI_START_TIPS =  `你可以通过发送以下命令来控制我：
-
-/setting - 设置面板
-
-/aiModel - 当前模型
-/apiKey - 设置ApiKey
-/initPrompt - 设置初始化上下文Prompt, 每次请求都会带入
-/enableAi - 开启或者关闭AI
-`
-
-export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制我：
-
-/setting - 设置面板
-
-/lab - 实验室
-
-  * 创建 ChatGpt机器人
-  * 创建 中文Prompt大全
-  * 创建 英文Prompt大全
-
-`
+export const STOP_HANDLE_MESSAGE = true

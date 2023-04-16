@@ -9,8 +9,7 @@ export async function requestOpenai(req: Request) {
   let apiKey = req.headers.get("token");
   const openaiPath = req.headers.get("path");
   console.log("[Proxy]", openaiPath,apiKey?.substring(0,10));
-
-  return fetch(`${PROTOCOL}://${BASE_URL}/${openaiPath}`, {
+ return fetch(`${PROTOCOL}://${BASE_URL}/${openaiPath}`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,

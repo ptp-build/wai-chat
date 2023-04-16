@@ -694,9 +694,9 @@ var $conv_message = $createConverter([
                     '$': {"1":["id","uint32",0],"2":["title","string",""],"3":["channels","bool",false],"4":["pinnedChatIds","<string",null],"5":["includedChatIds","<string",null],"6":["excludedChatIds","<string",null]}
                 },
                 PbChatGpBotConfig: {
-                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["config","default.PTP.Common.PbChatGptConfig",null]}
+                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["modelConfig","default.PTP.Common.PbChatGptModelConfig",null]}
                 },
-                PbChatGptConfig: {
+                PbChatGptModelConfig: {
                     '$': {"1":["model","string",""],"2":["temperature","uint32",0],"3":["max_tokens","uint32",0],"4":["presence_penalty","uint32",0]}
                 },
                 PbCommands: {

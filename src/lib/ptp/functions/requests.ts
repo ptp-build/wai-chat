@@ -1,6 +1,6 @@
 import {ChatRequest, ChatResponse, Message} from "../../../../functions/api/types";
 import {AI_PROXY_API} from "../../../config";
-import {PbChatGptConfig_Type} from "../protobuf/PTPCommon/types";
+import {PbChatGptModelConfig_Type} from "../protobuf/PTPCommon/types";
 
 const TIME_OUT_MS = 30000;
 
@@ -114,11 +114,11 @@ export async function requestUsage(apiKey:string) {
 }
 
 
-export function filterConfig(oldConfig: PbChatGptConfig_Type): Partial<PbChatGptConfig_Type> {
+export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbChatGptModelConfig_Type> {
   const config = Object.assign({}, oldConfig);
 
   const validator: {
-    [k in keyof PbChatGptConfig_Type]: (x: PbChatGptConfig_Type[keyof PbChatGptConfig_Type]) => boolean;
+    [k in keyof PbChatGptModelConfig_Type]: (x: PbChatGptModelConfig_Type[keyof PbChatGptModelConfig_Type]) => boolean;
   } = {
     model(x) {
       return isValidModel(x as string);
@@ -135,7 +135,7 @@ export function filterConfig(oldConfig: PbChatGptConfig_Type): Partial<PbChatGpt
   };
 
   Object.keys(validator).forEach((k) => {
-    const key = k as keyof PbChatGptConfig_Type;
+    const key = k as keyof PbChatGptModelConfig_Type;
     if (!validator[key](config[key])) {
       delete config[key];
     }
@@ -149,7 +149,7 @@ export async function requestChatStream(
   options?: {
     apiKey:string,
     filterBot?: boolean;
-    modelConfig?: PbChatGptConfig_Type;
+    modelConfig?: PbChatGptModelConfig_Type;
     onMessage: (message: string, done: boolean) => void;
     onAbort: (error: Error) => void;
     onError: (error: Error) => void;
@@ -182,6 +182,7 @@ export async function requestChatStream(
       body: JSON.stringify(req),
       signal: controller.signal,
     });
+
     clearTimeout(reqTimeoutId);
 
     let responseText = "";
@@ -223,6 +224,7 @@ export async function requestChatStream(
       options?.onError(new Error("Stream Error"));
     }
   } catch (err:any) {
+    debugger
     if(err.code === 20){
       console.error("onAbort", err);
       options?.onAbort(err);

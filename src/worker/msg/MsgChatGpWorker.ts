@@ -1,32 +1,38 @@
 import {ApiBotInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessageEntityTypes} from "../../api/types";
-import {PbChatGpBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {PbChatGptBotConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {DEBUG} from "../../config";
 import {Message} from "../../../functions/api/types";
 import {currentTs, currentTs1000} from "../share/utils/utils";
 import {ChatModelConfig, DEFAULT_PROMPT} from "../setting";
 import {ControllerPool, requestChatStream} from "../../lib/ptp/functions/requests";
 import MsgWorker from "./MsgWorker";
-
+export type AiHistoryType = {
+  role:"user"|"system"|"assistant",
+  content:string,
+  date:string
+}
 export default class MsgChatGptWorker{
   private botInfo: ApiBotInfo;
-  private setting: PbChatGpBotConfig_Type | undefined;
+  private chatGptConfig: PbChatGptBotConfig_Type | undefined;
   private msgSend: ApiMessage;
   private replyMessage?: ApiMessage;
-  constructor(msgSend:ApiMessage,botInfo:ApiBotInfo) {
+  private aiHistoryList:AiHistoryType[];
+  constructor(msgSend:ApiMessage,botInfo:ApiBotInfo,aiHistoryList?:AiHistoryType[]) {
     this.msgSend = msgSend
     this.botInfo = botInfo
-    this.setting = this.botInfo.aiBot?.chatGptConfig
+    this.chatGptConfig = this.botInfo.aiBot?.chatGptConfig
+    this.aiHistoryList = aiHistoryList||[];
   }
   getPromptContext(){
-    if(this.setting?.init_system_content){
-      return this.setting?.init_system_content
+    if(this.chatGptConfig?.init_system_content){
+      return this.chatGptConfig?.init_system_content
     }else{
       return DEFAULT_PROMPT
     }
   }
   getApiKey(){
-    if(this.setting?.api_key){
-      return this.setting?.api_key
+    if(this.chatGptConfig?.api_key){
+      return this.chatGptConfig?.api_key
     }else{
       if(DEBUG && process.env.OPENAI_APIKEY){
         return process.env.OPENAI_APIKEY
@@ -38,9 +44,7 @@ export default class MsgChatGptWorker{
   getMsgText(){
     return this.msgSend.content.text?.text!
   }
-  isMsgCipher(){
-    return this.msgSend.content.text?.entities?.some((e) => e.type === ApiMessageEntityTypes.Spoiler);
-  }
+
   prepareSendMessages(){
     const text = this.getMsgText();
     const userMessage: Message = {
@@ -49,19 +53,13 @@ export default class MsgChatGptWorker{
       date: new Date(currentTs1000()).toLocaleString(),
     };
 
-    const botMessage: Message = {
-      content: "",
-      role: "assistant",
-      date: new Date().toLocaleString(),
-      streaming: true,
-    };
-
     const sendMessages:Message[] = [
       {
         role: "system",
         content: this.getPromptContext(),
         date: "",
       },
+      ...this.aiHistoryList,
       userMessage
     ]
     return sendMessages
@@ -110,20 +108,36 @@ export default class MsgChatGptWorker{
     message = MsgWorker.handleBotCmdText(message,this.botInfo)
     this.replyMessage = message
     MsgWorker.updateMessage(this.getChatId(),this.replyMessage!.id,message)
+    if(done){
+      MsgWorker.onUpdate({
+        '@type': "updateGlobalUpdate",
+        data:{
+          action:"updateAiHistory",
+          payload:{
+            chatId:this.getChatId(),
+            messages:[this.msgSend.id,this.replyMessage.id]
+          }
+        },
+      });
+    }
   }
   async process(){
     const apiKey = this.getApiKey();
     if(!apiKey){
       return await this.replyNotApiKey();
     }
-    if(this.isMsgCipher()){
-      return
-    }
+
     await this.replyThinking()
     requestChatStream(this.prepareSendMessages(), {
       apiKey:this.getApiKey()!,
-      modelConfig: this.setting?.config || ChatModelConfig,
+      modelConfig: this.chatGptConfig?.modelConfig || ChatModelConfig,
       onMessage:(content, done) =>{
+        if(!content){
+          ControllerPool.remove(parseInt(this.getChatId()), this.replyMessage?.id!);
+          this.updateReply("系统错误，请检查 /apiKey 和 /aiModel",[],false)
+          ControllerPool.remove(parseInt(this.getChatId()), this.replyMessage?.id!);
+          return
+        }
         if(done){
           this.updateReply(content,[],done)
           ControllerPool.remove(parseInt(this.getChatId()), this.replyMessage?.id!);
