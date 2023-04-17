@@ -216,37 +216,7 @@ export default class MsgCommand {
       ControllerPool.stop(chatId,messageId);
     }
   }
-  static async createWsBot(chatId:string){
-    const global = getGlobal();
-    const user = selectUser(global,chatId)
-    const botWs = BotWebSocket.getInstance(chatId)
-    if(!botWs.isConnect() && user?.fullInfo?.botInfo?.aiBot && user?.fullInfo?.botInfo?.aiBot!.botApi){
-      botWs.setMsgHandler(async (chatId, notifies)=>{
-        for (let i = 0; i < notifies.length; i++) {
-          const {action,payload} = notifies[i]
-          switch (action){
-            case BotWebSocketNotifyAction.onConnectionStateChanged:
-              switch (payload.BotWebSocketState){
-                case BotWebSocketState.connected:
-                  await MsgDispatcher.newTextMessage(chatId,undefined,"已连接")
-                  break;
-                case BotWebSocketState.closed:
-                  // await MsgDispatcher.newTextMessage(chatId,undefined,"已断开")
-                  break;
-              }
-              break
-            case BotWebSocketNotifyAction.onData:
-              await MsgCommand.handleWsBotOnData(chatId,payload)
-              break
-          }
-        }
-      })
-      botWs.setWsUrl(user?.fullInfo?.botInfo?.aiBot.botApi)
-      botWs.setSession(Account.getCurrentAccount()?.getSession()!)
-      botWs.connect();
-      await botWs.waitForMsgServerState(BotWebSocketState.connected)
-    }
-  }
+
   static async handleNewMessage(pdu:Pdu){
     const {msg,text,chatId} = SendRes.parseMsg(pdu)
     if(text){

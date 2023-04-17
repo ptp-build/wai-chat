@@ -3,13 +3,7 @@ import {Api as GramJs, connection, TelegramClient,} from '../../../lib/gramjs';
 import {Logger as GramJsLogger} from '../../../lib/gramjs/extensions/index';
 import type {TwoFaParams} from '../../../lib/gramjs/client/2fa';
 
-import type {
-  ApiInitialArgs,
-  ApiMediaFormat,
-  ApiOnProgress,
-  ApiSessionData,
-  OnApiUpdate,
-} from '../../types';
+import type {ApiInitialArgs, ApiMediaFormat, ApiOnProgress, ApiSessionData, OnApiUpdate,} from '../../types';
 
 import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, UPLOAD_WORKERS,} from '../../../config';
 import {onCurrentUserUpdate,} from './auth';
@@ -30,6 +24,7 @@ import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
 import {ControllerPool} from "../../../lib/ptp/functions/requests";
 import {StopChatStreamReq} from "../../../lib/ptp/protobuf/PTPOther";
 import {SendBotMsgReq, SendBotMsgRes, UpdateCmdReq, UpdateCmdRes} from "../../../lib/ptp/protobuf/PTPMsg";
+import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -415,50 +410,78 @@ const handleStopChatStreamReq = async (pdu:Pdu)=>{
   ControllerPool.stop(chatId,msgId)
 }
 
-const handleSendBotMsgReq = async (pdu:Pdu)=>{
-  const {botApi,text} = SendBotMsgReq.parseMsg(pdu)
+export const handleSendBotMsgReq = async (pdu:Pdu)=>{
+  const {botApi,chatId,text} = SendBotMsgReq.parseMsg(pdu)
   if(botApi){
     try {
-      const res = await fetch(botApi, {
-        method: "POST",
-        headers:{
-          Authorization: `Bearer ${account.getSession()}`,
-        },
-        body:JSON.stringify({
-          text
-        })
-      });
-      if(!res || res.status !== 200){
-        return;
+      if(botApi.startsWith("http")){
+        const res = await fetch(botApi+"/message", {
+          method: "POST",
+          headers:{
+            Authorization: `Bearer ${account.getSession()}`,
+          },
+          body:JSON.stringify({
+            text,
+            chatId,
+          })
+        });
+        if(!res || res.status !== 200){
+          return;
+        }
+        // @ts-ignore
+        const json = await res.json();
+        // @ts-ignore
+        return new SendBotMsgRes({text:json.text}).pack().getPbData()
+      }else{
+        const botWs = BotWebSocket.getInstance(chatId!)
+        if(!botWs.isLogged()){
+            await MsgWorker.createWsBot(chatId!,botApi)
+        }
+        const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
+          text,
+          chatId
+        }).pack())
+        return res.getPbData()
       }
-      // @ts-ignore
-      const json = await res.json();
-      return new SendBotMsgRes({
-        text:json.text
-      }).pack().getPbData()
     }catch (e){
       console.error(e)
       return
     }
   }
 }
+
 const handleUpdateCmdReq = async (pdu:Pdu)=>{
   const {botApi,chatId} = UpdateCmdReq.parseMsg(pdu)
   if(botApi){
     try {
-      const res = await fetch(botApi+"/commands", {
-        method: "GET",
-        headers:{
-          Authorization: `Bearer ${account.getSession()}`,
+      if(botApi.startsWith("http")){
+        const res = await fetch(botApi+"/commands", {
+          method: "GET",
+          headers:{
+            Authorization: `Bearer ${account.getSession()}`,
+          }
+        });
+        if(!res || res.status !== 200){
+          return;
         }
-      });
-      if(!res || res.status !== 200){
-        return;
+        // @ts-ignore
+        const {commands} = await res.json();
+        return new UpdateCmdRes({
+          commands
+        }).pack().getPbData()
+      }else{
+        const botWs = BotWebSocket.getInstance(chatId!)
+        if(!botWs.isLogged()){
+          await MsgWorker.createWsBot(chatId!,botApi)
+        }
+        const res = await botWs.sendPduWithCallback(new UpdateCmdReq({
+          chatId
+        }).pack())
+        const {commands} = UpdateCmdRes.parseMsg(res)
+        return new UpdateCmdRes({
+          commands
+        }).pack().getPbData()
       }
-      const {commands} = await res.json();
-      return new UpdateCmdRes({
-        commands
-      }).pack().getPbData()
     }catch (e){
       console.error(e)
       return

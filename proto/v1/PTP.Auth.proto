@@ -52,17 +52,12 @@ message AuthPreLoginRes{
 }
 
 message AuthLoginReq{
-  required bytes sign = 1;
-  required uint64 ts = 2;
-  required string uid = 3;
-  required string address = 4;
+  required string sign = 1;
 }
 
 message AuthLoginRes{
-  optional string payload = 1;
-  required Common.ERR err = 100;
+  optional Common.ERR err = 100;
 }
-
 
 message UploadProfilePhotoReq{
   required string id = 1;

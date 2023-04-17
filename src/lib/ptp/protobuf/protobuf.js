@@ -603,10 +603,10 @@ var $conv_message = $createConverter([
         PTP: {
             Auth: {
                 AuthLoginReq: {
-                    '$': {"1":["sign","bytes",[]],"2":["ts","uint64",{"low":0,"high":0,"unsigned":true}],"3":["uid","string",""],"4":["address","string",""]}
+                    '$': {"1":["sign","string",""]}
                 },
                 AuthLoginRes: {
-                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
+                    '$': {"100":["err","uint32",0]}
                 },
                 AuthNativeReq: {
                     '$': {"1":["accountId","uint64",{"low":0,"high":0,"unsigned":true}],"2":["entropy","string",""],"3":["session","string",""]}
@@ -824,10 +824,10 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 SendBotMsgReq: {
-                    '$': {"1":["botApi","string",""],"2":["text","string",""]}
+                    '$': {"1":["botApi","string",""],"2":["text","string",""],"3":["chatId","string",""],"4":["chatGpt","bool",false]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["text","string",""]}
+                    '$': {"1":["text","string",""],"2":["chatId","string",""]}
                 },
                 SendReq: {
                     '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}
@@ -839,7 +839,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
                 },
                 UpdateCmdRes: {
-                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null]}
+                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null],"2":["chatId","string",""]}
                 },
                 UploadMsgReq: {
                     '$': {"1":["messages","<default.PTP.Common.MessageStoreRow",null],"2":["chatId","string",""],"3":["time","uint32",0]}

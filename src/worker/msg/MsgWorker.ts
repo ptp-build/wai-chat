@@ -34,6 +34,8 @@ import * as cacheApi from "../../util/cacheApi";
 import {Type} from "../../util/cacheApi";
 import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
 import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
+import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
+import Account from "../share/Account";
 
 let messageIds:number[] = [];
 
@@ -67,6 +69,38 @@ export default class MsgWorker {
     this.media = media;
     this.msgSend = msgSend;
     this.attachment = attachment;
+  }
+
+  static async createWsBot(chatId:string,botApi?:string){
+    if(botApi && botApi.startsWith("ws")){
+      const botWs = BotWebSocket.getInstance(chatId)
+      if(!botWs.isLogged()){
+        botWs.setMsgHandler(async (chatId, notifies)=>{
+          for (let i = 0; i < notifies.length; i++) {
+            const {action,payload} = notifies[i]
+            switch (action){
+              case BotWebSocketNotifyAction.onConnectionStateChanged:
+                switch (payload.BotWebSocketState){
+                  case BotWebSocketState.connected:
+                    // await MsgDispatcher.newTextMessage(chatId,undefined,"已连接")
+                    break;
+                  case BotWebSocketState.closed:
+                    // await MsgDispatcher.newTextMessage(chatId,undefined,"已断开")
+                    break;
+                }
+                break
+              case BotWebSocketNotifyAction.onData:
+                // await MsgCommand.handleWsBotOnData(chatId,payload)
+                break
+            }
+          }
+        })
+        botWs.setWsUrl(botApi)
+        botWs.setSession(Account.getCurrentAccount()?.getSession()!)
+        botWs.connect();
+        await botWs.waitForMsgServerState(BotWebSocketState.logged)
+      }
+    }
   }
   static async beforeUploadUserReq(pdu:Pdu){
     const {users,...res} = UploadUserReq.parseMsg(pdu)
@@ -375,7 +409,7 @@ export default class MsgWorker {
     const {botInfo,msgSend} =this;
     if(
       msgSend.content.text && msgSend.content.text.text &&
-      botInfo?.aiBot && botInfo?.aiBot.enableAi && botInfo?.aiBot.chatGptConfig
+      botInfo?.aiBot
     ){
       return await new MsgChatGptWorker(this.msgSend,botInfo,this.aiHistoryList).process()
     }

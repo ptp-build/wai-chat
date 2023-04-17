@@ -127,7 +127,7 @@ export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbCh
 }
 
 export async function requestChatStream(
-  botApi?:string,
+  url?:string,
   messages: Message[],
   options?: {
     apiKey:string,
@@ -155,7 +155,7 @@ export async function requestChatStream(
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);
 
   try {
-    const res = await fetch(botApi ? botApi : AI_PROXY_API + "/api/chat-stream", {
+    const res = await fetch(url ? url : AI_PROXY_API + "/api/chat-stream", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",

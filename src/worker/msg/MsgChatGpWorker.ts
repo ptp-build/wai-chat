@@ -6,6 +6,9 @@ import {currentTs, currentTs1000} from "../share/utils/utils";
 import {ChatModelConfig, DEFAULT_PROMPT} from "../setting";
 import {ControllerPool, requestChatStream} from "../../lib/ptp/functions/requests";
 import MsgWorker from "./MsgWorker";
+import {handleSendBotMsgReq} from "../../api/gramjs/methods/client";
+import {SendBotMsgReq, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 export type AiHistoryType = {
   role:"user"|"system"|"assistant",
   content:string,
@@ -22,6 +25,20 @@ export default class MsgChatGptWorker{
     this.botInfo = botInfo
     this.chatGptConfig = this.botInfo.aiBot?.chatGptConfig
     this.aiHistoryList = aiHistoryList||[];
+  }
+  getBotApi(){
+    if(this.botInfo?.aiBot?.botApi){
+      return this.botInfo?.aiBot?.botApi
+    }else{
+      return undefined
+    }
+  }
+  isEnableAi(){
+    if(this.botInfo?.aiBot?.enableAi){
+      return !!this.botInfo?.aiBot?.enableAi
+    }else{
+      return false
+    }
   }
   getPromptContext(){
     if(this.chatGptConfig?.init_system_content){
@@ -41,6 +58,7 @@ export default class MsgChatGptWorker{
       }
     }
   }
+
   getMsgText(){
     return this.msgSend.content.text?.text!
   }
@@ -108,7 +126,7 @@ export default class MsgChatGptWorker{
     message = MsgWorker.handleBotCmdText(message,this.botInfo)
     this.replyMessage = message
     MsgWorker.updateMessage(this.getChatId(),this.replyMessage!.id,message)
-    if(done){
+    if(done && this.isEnableAi()){
       MsgWorker.onUpdate({
         '@type': "updateGlobalUpdate",
         data:{
@@ -123,13 +141,44 @@ export default class MsgChatGptWorker{
   }
   async process(){
     const apiKey = this.getApiKey();
-    if(!apiKey){
+    const botApi = this.getBotApi();
+    const isEnableAi = this.isEnableAi();
+
+    if(!apiKey && isEnableAi){
       return await this.replyNotApiKey();
+    }
+    let url = undefined
+    if(botApi){
+      if(botApi.startsWith("ws") || (!botApi.startsWith("ws") && !isEnableAi)){
+
+        const res = await handleSendBotMsgReq(new SendBotMsgReq(
+          {
+            botApi,
+            text:this.getMsgText()!,
+            chatId:this.getChatId()
+          }
+        ).pack())
+        if(res){
+          const {text} = SendBotMsgRes.parseMsg(new Pdu(res))
+          if(text){
+            await this.reply(text!)
+          }
+        }else{
+          await this.reply("Error Request")
+        }
+        return
+      }else{
+        url = botApi+"/chatGpt"
+      }
+    }else{
+      if(!isEnableAi){
+        return
+      }
     }
 
     await this.replyThinking()
     requestChatStream(
-      this.botInfo.aiBot?.botApi?(this.botInfo.aiBot?.botApi +"/chatGpt" ): undefined,
+      url,
       this.prepareSendMessages(),
       {
       apiKey:this.getApiKey()!,

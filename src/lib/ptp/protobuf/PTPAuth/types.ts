@@ -2,14 +2,10 @@
 import type * as PTPCommon from '../PTPCommon/types';
 
 export interface AuthLoginReq_Type {
-  sign: Buffer;
-  ts: number;
-  uid: string;
-  address: string;
+  sign: string;
 }
 export interface AuthLoginRes_Type {
-  payload?: string;
-  err: PTPCommon.ERR;
+  err?: PTPCommon.ERR;
 }
 export interface AuthNativeReq_Type {
   accountId: number;

@@ -364,27 +364,7 @@ export default class MsgCommandChatGpt{
     MsgDispatcher.newMessage(chatId,messageId,message)
     return message
   }
-  static async createBotWs(chatId:string){
-    let global = getGlobal();
-    // @ts-ignore
-    let botApi:string | undefined = MsgCommandChatGpt.getAiBotConfig(global,chatId,"botApi")
-    const res = await showModalFromEvent({
-      type:"singleInput",
-      title:"请输入 网址",
-      placeholder:"",
-      initVal:botApi
-    });
-    let {value} = res
-    if(botApi !== value){
-      botApi = value
-      MsgCommandChatGpt.changeAiBotConfig(global,chatId,{
-        botApi:value || ""
-      })
-    }
-    if(botApi){
-      await MsgCommand.createWsBot(chatId)
-    }
-  }
+
   static getCustomApiInlineButtons(chatId:string,messageId:number){
     const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
     return [
@@ -603,9 +583,6 @@ export default class MsgCommandChatGpt{
         return
       case `${chatId}/setting/ai/toggleClearHistory`:
         await MsgCommandChatGpt.toggleClearHistory(chatId,messageId)
-        return
-      case `${chatId}/setting/createBotWs`:
-        await MsgCommandChatGpt.createBotWs(chatId)
         return
       case `${chatId}/setting/uploadUser`:
         await MsgCommand.uploadUser(global,chatId)

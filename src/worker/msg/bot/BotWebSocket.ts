@@ -1,6 +1,8 @@
 import {DEBUG} from '../../../config';
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
+import Account from '../../share/Account';
+import {AuthLoginReq} from "../../../lib/ptp/protobuf/PTPAuth";
 
 export enum BotWebSocketNotifyAction{
   onConnectionStateChanged,
@@ -146,10 +148,15 @@ export default class BotWebSocket {
     reconnect_cnt = 0
     console.log("[onConnected account]",this.getChatId())
     this.notifyState(BotWebSocketState.connected);
+    this.login().catch(console.error)
   }
   async login(){
-      const {session} = this;
-
+    const {session} = this;
+    await this.sendPduWithCallback(new AuthLoginReq({
+      sign:Account.getCurrentAccount()?.getSession()!
+    }).pack())
+    console.log("[onLogin]")
+    this.notifyState(BotWebSocketState.logged);
   }
   notify(notifyList:BotWebSocketNotify[]) {
     if (this.__msgHandler) {

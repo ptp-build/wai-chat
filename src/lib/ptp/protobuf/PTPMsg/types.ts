@@ -65,9 +65,12 @@ export interface RemoveMessagesRes_Type {
 export interface SendBotMsgReq_Type {
   botApi?: string;
   text?: string;
+  chatId?: string;
+  chatGpt?: boolean;
 }
 export interface SendBotMsgRes_Type {
   text?: string;
+  chatId?: string;
 }
 export interface SendReq_Type {
   chatId: string;
@@ -88,6 +91,7 @@ export interface UpdateCmdReq_Type {
 }
 export interface UpdateCmdRes_Type {
   commands?: PTPCommon.PbCommands_Type[];
+  chatId?: string;
 }
 export interface UploadMsgReq_Type {
   messages?: PTPCommon.MessageStoreRow_Type[];

@@ -298,7 +298,7 @@ export default class MsgDispatcher {
     const sendMsgText = this.getMsgText();
     const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),this.getChatId(),"botApi")
     if(botApi){
-      const res = await callApiWithPdu(new SendBotMsgReq({botApi,text:sendMsgText}).pack())
+      const res = await callApiWithPdu(new SendBotMsgReq({botApi,chatId:this.getChatId(),text:sendMsgText}).pack())
       if(res){
         const {text} =  SendBotMsgRes.parseMsg(res.pdu)
         if(text){
@@ -328,33 +328,7 @@ export default class MsgDispatcher {
     if(this.getMsgText()?.startsWith("/")){
       res = await this.processCmd();
     }
-    // if(!res && this.getBot()){
-    //   res = await this.handleWsBot();
-    // }
     return res
-  }
-  async handleWsBot(){
-    const config = this.getBotConfig();
-    if(config && config.botApi){
-      if(config.botApi){
-        await this.sendOutgoingMsg()
-        if(config.botApi.indexOf("http") === 0){
-          await MsgCommand.handleHttpMsg(this.getChatId(),this.getMsgText()!)
-        }else {
-          const wsBot = BotWebSocket.getInstance(this.getChatId())
-          if(!wsBot.isConnect()){
-            await MsgCommand.createWsBot(this.getChatId())
-          }
-          if(wsBot.isConnect()){
-            wsBot.send(new SendReq({
-              chatId:this.getChatId(),
-              text:this.getMsgText()
-            }).pack().getPbData())
-          }
-        }
-        return true;
-      }
-    }
   }
   static showNotification(message:string){
     getActions().showNotification({message})
