@@ -240,7 +240,6 @@ addCallback((global: GlobalState) => {
   if (!isMasterTab || (
     previousGlobal?.connectionState === connectionState
     && previousGlobal?.authState === authState
-    && previousGlobal?.msgClientState === msgClientState
   )) {
     previousGlobal = global;
     return;
@@ -248,10 +247,6 @@ addCallback((global: GlobalState) => {
 
   if (
     connectionState === 'connectionStateReady' && authState === 'authorizationStateReady'
-    && (
-      msgClientState === 'connectionStateConnected' ||
-      msgClientState === 'connectionStateLogged'
-    )
   ) {
     if(DEBUG){
       console.log({connectionState,msgClientState,authState})

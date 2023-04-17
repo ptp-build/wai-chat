@@ -274,16 +274,6 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
     }
 
     global = getGlobal();
-
-    if (
-      !(
-        global.msgClientState === 'connectionStateLogged' ||
-        global.msgClientState === 'connectionStateWaitingLogin'||
-        global.msgClientState === 'connectionStateConnected'
-      ) ) {
-      return;
-    }
-
     const listIds = !shouldReplace && global.chats.listIds[listType];
     const oldestChat = listIds
       ? listIds
@@ -2140,7 +2130,7 @@ export async function loadChats<T extends GlobalState>(
         orderedIds
       }
     }
-    if (shouldReplace && listType === 'active' && global.msgClientState === 'connectionStateLogged') {
+    if (shouldReplace && listType === 'active') {
       // Always include service notifications chat
       // if (!chatIds.includes(SERVICE_NOTIFICATIONS_USER_ID)) {
       //   const result2 = await callApi('fetchChat', {
@@ -2176,7 +2166,7 @@ export async function loadChats<T extends GlobalState>(
       global = replaceUserStatuses(global, result.userStatusesById);
       global = replaceChats(global, buildCollectionByKey(visibleChats.concat(result.chats), 'id'));
       global = updateChatListIds(global, listType, chatIds);
-    } else if (shouldReplace && listType === 'archived'   && global.msgClientState === 'connectionStateLogged') {
+    } else if (shouldReplace && listType === 'archived') {
       global = addUsers(global, buildCollectionByKey(result.users, 'id'));
       global = addUserStatuses(global, result.userStatusesById);
       global = updateChats(global, buildCollectionByKey(result.chats, 'id'));

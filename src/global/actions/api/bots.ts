@@ -200,7 +200,7 @@ addActionHandler('sendBotCommand', (global, actions, payload): ActionReturnType 
   const chat = chatId ? selectChat(global, chatId) : selectCurrentChat(global, tabId);
   const currentMessageList = selectCurrentMessageList(global, tabId);
 
-  if (!chat || !currentMessageList || global.msgClientState !== 'connectionStateLogged') {
+  if (!chat || !currentMessageList) {
     return;
   }
 

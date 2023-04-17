@@ -237,7 +237,7 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
   const { tabId = getCurrentTabId() } = payload;
   const currentMessageList = selectCurrentMessageList(global, tabId);
 
-  if (!currentMessageList || global.msgClientState !== "connectionStateLogged") {
+  if (!currentMessageList) {
     return undefined;
   }
   const { chatId, threadId, type } = currentMessageList;

@@ -85,10 +85,6 @@ export async function init(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) 
     onUpdate({'@type': 'updateCurrentUser',currentUser: CurrentUserInfo});
 
     onUpdate({
-      '@type': 'updateMsgClientState',
-      msgClientState:"connectionStateLogged",
-    });
-    onUpdate({
       '@type': 'updateConnectionState',
       connectionState:"connectionStateReady",
     });
