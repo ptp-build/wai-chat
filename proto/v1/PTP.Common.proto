@@ -258,6 +258,7 @@ message PbAiBot {
   optional bool enableAi = 3;
   optional string botApi = 4;
   optional bool disableClearHistory = 5;
+  repeated PbCommands commandsFromApi = 6;
 }
 
 message PbQrCode {

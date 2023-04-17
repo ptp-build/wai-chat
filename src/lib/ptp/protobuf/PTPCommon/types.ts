@@ -48,6 +48,7 @@ export interface PbAiBot_Type {
   enableAi?: boolean;
   botApi?: string;
   disableClearHistory?: boolean;
+  commandsFromApi?: PbCommands_Type[];
 }
 
 export interface PbAudio_Type {

@@ -679,7 +679,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["text","string",""],"2":["type","string",""]}
                 },
                 PbAiBot: {
-                    '$': {"1":["chatGptConfig","default.PTP.Common.PbChatGpBotConfig",null],"3":["enableAi","bool",false],"4":["botApi","string",""],"5":["disableClearHistory","bool",false]}
+                    '$': {"1":["chatGptConfig","default.PTP.Common.PbChatGpBotConfig",null],"3":["enableAi","bool",false],"4":["botApi","string",""],"5":["disableClearHistory","bool",false],"6":["commandsFromApi","<default.PTP.Common.PbCommands",null]}
                 },
                 PbAudio: {
                     '$': {"1":["id","string",""],"2":["size","[uint32",null],"3":["duration","[uint32",null],"5":["mimeType","string",""],"6":["fileName","string",""],"7":["performer","string",""],"8":["title","string",""],"9":["thumbnailSizes","<default.PTP.Common.PbSizes",null]}
@@ -823,11 +823,23 @@ var $conv_message = $createConverter([
                 RemoveMessagesRes: {
                     '$': {"100":["err","uint32",0]}
                 },
+                SendBotMsgReq: {
+                    '$': {"1":["botApi","string",""],"2":["text","string",""]}
+                },
+                SendBotMsgRes: {
+                    '$': {"1":["text","string",""]}
+                },
                 SendReq: {
                     '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}
                 },
                 SendRes: {
                     '$': {"1":["chatId","string",""],"2":["action","string",""],"3":["msg","default.PTP.Common.PbMsg",null],"4":["text","string",""],"5":["localId","uint32",0],"100":["err","uint32",0]}
+                },
+                UpdateCmdReq: {
+                    '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
+                },
+                UpdateCmdRes: {
+                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null]}
                 },
                 UploadMsgReq: {
                     '$': {"1":["messages","<default.PTP.Common.MessageStoreRow",null],"2":["chatId","string",""],"3":["time","uint32",0]}

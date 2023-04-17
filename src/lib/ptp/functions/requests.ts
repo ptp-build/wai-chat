@@ -96,24 +96,6 @@ export async function requestChat(messages: Message[],apiKey:string) {
   }
 }
 
-export async function requestUsage(apiKey:string) {
-  const res = await requestOpenaiClient(
-    "dashboard/billing/credit_grants?_vercel_no_cache=1",apiKey
-  )(null, "GET");
-
-  try {
-    const response = (await res.json()) as {
-      total_available: number;
-      total_granted: number;
-      total_used: number;
-    };
-    return response;
-  } catch (error) {
-    console.error("[Request usage] ", error, res.body);
-  }
-}
-
-
 export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbChatGptModelConfig_Type> {
   const config = Object.assign({}, oldConfig);
 
@@ -145,6 +127,7 @@ export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbCh
 }
 
 export async function requestChatStream(
+  botApi?:string,
   messages: Message[],
   options?: {
     apiKey:string,
@@ -172,7 +155,7 @@ export async function requestChatStream(
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);
 
   try {
-    const res = await fetch(AI_PROXY_API + "/api/chat-stream", {
+    const res = await fetch(botApi ? botApi : AI_PROXY_API + "/api/chat-stream", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
@@ -197,7 +180,6 @@ export async function requestChatStream(
       const decoder = new TextDecoder();
 
       options?.onController?.(controller);
-
       while (true) {
         // handle time out, will stop if no response in 10 secs
         const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
@@ -282,3 +264,54 @@ export const ControllerPool = {
     return `${sessionIndex},${messageIndex}`;
   },
 };
+
+export async function requestUsage(apiKey:string) {
+  const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+      .getDate()
+      .toString()
+      .padStart(2, "0")}`;
+  const ONE_DAY = 2 * 24 * 60 * 60 * 1000;
+  const now = new Date(Date.now() + ONE_DAY);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startDate = formatDate(startOfMonth);
+  const endDate = formatDate(now);
+
+  const [used, subs] = await Promise.all([
+    requestOpenaiClient(
+      `dashboard/billing/usage?start_date=${startDate}&end_date=${endDate}`,
+      apiKey
+    )(null, "GET"),
+    requestOpenaiClient("dashboard/billing/subscription",apiKey)(null, "GET"),
+  ]);
+
+  const response = (await used.json()) as {
+    total_usage?: number;
+    error?: {
+      type: string;
+      message: string;
+    };
+  };
+
+  const total = (await subs.json()) as {
+    hard_limit_usd?: number;
+  };
+
+  if (response.error && response.error.type) {
+    console.error(response.error)
+    throw new Error(response.error.type)
+  }
+
+  if (response.total_usage) {
+    response.total_usage = Math.round(response.total_usage) / 100;
+  }
+
+  if (total.hard_limit_usd) {
+    total.hard_limit_usd = Math.round(total.hard_limit_usd * 100) / 100;
+  }
+
+  return {
+    used: response.total_usage,
+    subscription: total.hard_limit_usd,
+  };
+}

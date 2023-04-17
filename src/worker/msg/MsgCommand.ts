@@ -216,25 +216,6 @@ export default class MsgCommand {
       ControllerPool.stop(chatId,messageId);
     }
   }
-  static async handleHttpMsg(chatId:string,text:string){
-    const global = getGlobal();
-    const user = selectUser(global,chatId)
-    const botApi = user?.fullInfo?.botInfo?.aiBot && user?.fullInfo?.botInfo?.aiBot!.botApi
-    if(botApi){
-      const res = await fetch(botApi,{
-        method:"POST",
-        body: JSON.stringify({
-          text
-        }),
-        headers:{
-          'Content-Type':'application/json'
-        }
-      })
-      const result:{text:string} = await res.json();
-      console.log(result)
-      await MsgDispatcher.newTextMessage(chatId,undefined,result.text)
-    }
-  }
   static async createWsBot(chatId:string){
     const global = getGlobal();
     const user = selectUser(global,chatId)

@@ -128,15 +128,26 @@ export default class MsgChatGptWorker{
     }
 
     await this.replyThinking()
-    requestChatStream(this.prepareSendMessages(), {
+    requestChatStream(
+      this.botInfo.aiBot?.botApi?(this.botInfo.aiBot?.botApi +"/chatGpt" ): undefined,
+      this.prepareSendMessages(),
+      {
       apiKey:this.getApiKey()!,
       modelConfig: this.chatGptConfig?.modelConfig || ChatModelConfig,
       onMessage:(content, done) =>{
         if(!content){
           ControllerPool.remove(parseInt(this.getChatId()), this.replyMessage?.id!);
-          this.updateReply("系统错误，请检查 /apiKey 和 /aiModel",[],false)
+          this.updateReply("请求错误，请检查 /apiKey 和 /aiModel",[],false)
           ControllerPool.remove(parseInt(this.getChatId()), this.replyMessage?.id!);
           return
+        }
+        if(content.indexOf("{") === 0 && content.substring(content.length-1) === "}"){
+          const contentJson = JSON.parse(content)
+          if(contentJson.error){
+            this.updateReply(contentJson.error.message,[],false)
+            return;
+          }
+          content = contentJson.choices[0].message.content
         }
         if(done){
           this.updateReply(content,[],done)

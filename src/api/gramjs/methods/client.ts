@@ -4,7 +4,6 @@ import {Logger as GramJsLogger} from '../../../lib/gramjs/extensions/index';
 import type {TwoFaParams} from '../../../lib/gramjs/client/2fa';
 
 import type {
-  AccountSession,
   ApiInitialArgs,
   ApiMediaFormat,
   ApiOnProgress,
@@ -30,6 +29,7 @@ import MsgWorker from "../../../worker/msg/MsgWorker";
 import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
 import {ControllerPool} from "../../../lib/ptp/functions/requests";
 import {StopChatStreamReq} from "../../../lib/ptp/protobuf/PTPOther";
+import {SendBotMsgReq, SendBotMsgRes, UpdateCmdReq, UpdateCmdRes} from "../../../lib/ptp/protobuf/PTPMsg";
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -410,13 +410,64 @@ const handleAuthNative = async (accountId:number,entropy:string,session?:string)
   }
 }
 
+const handleAuthNativeReq = async (pdu:Pdu)=>{
+  const {accountId,entropy,session} = AuthNativeReq.parseMsg(pdu)
+  await handleAuthNative(accountId,entropy,session);
+}
 const handleStopChatStreamReq = async (pdu:Pdu)=>{
   const {msgId,chatId} = StopChatStreamReq.parseMsg(pdu)
   ControllerPool.stop(chatId,msgId)
 }
-const handleAuthNativeReq = async (pdu:Pdu)=>{
-  const {accountId,entropy,session} = AuthNativeReq.parseMsg(pdu)
-  await handleAuthNative(accountId,entropy,session);
+
+const handleSendBotMsgReq = async (pdu:Pdu)=>{
+  const {botApi,text} = SendBotMsgReq.parseMsg(pdu)
+  if(botApi){
+    try {
+      const res = await fetch(botApi, {
+        method: "POST",
+        headers:{
+          Authorization: `Bearer ${account.getSession()}`,
+        },
+        body:JSON.stringify({
+          text
+        })
+      });
+      if(!res || res.status !== 200){
+        return;
+      }
+      // @ts-ignore
+      const json = await res.json();
+      return new SendBotMsgRes({
+        text:json.text
+      }).pack().getPbData()
+    }catch (e){
+      console.error(e)
+      return
+    }
+  }
+}
+const handleUpdateCmdReq = async (pdu:Pdu)=>{
+  const {botApi,chatId} = UpdateCmdReq.parseMsg(pdu)
+  if(botApi){
+    try {
+      const res = await fetch(botApi+"/commands", {
+        method: "GET",
+        headers:{
+          Authorization: `Bearer ${account.getSession()}`,
+        }
+      });
+      if(!res || res.status !== 200){
+        return;
+      }
+      const {commands} = await res.json();
+      return new UpdateCmdRes({
+        commands
+      }).pack().getPbData()
+    }catch (e){
+      console.error(e)
+      return
+    }
+  }
 }
 
 export async function sendWithCallback(buff:Uint8Array){
@@ -426,6 +477,10 @@ export async function sendWithCallback(buff:Uint8Array){
     console.log(pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
   }
   switch (pdu.getCommandId()) {
+    case ActionCommands.CID_SendBotMsgReq:
+      return await handleSendBotMsgReq(pdu);
+    case ActionCommands.CID_UpdateCmdReq:
+      return await handleUpdateCmdReq(pdu);
     case ActionCommands.CID_StopChatStreamReq:
       return await handleStopChatStreamReq(pdu);
     case ActionCommands.CID_AuthNativeReq:

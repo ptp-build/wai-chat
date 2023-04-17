@@ -6,7 +6,7 @@ import {getGlobal, setGlobal} from "../../global";
 import {selectChatMessage, selectUser} from "../../global/selectors";
 import {updateUser} from "../../global/reducers";
 import {
-  AI_START_TIPS, ALL_CHAT_GPT_MODELS,
+  ALL_CHAT_GPT_MODELS,
   ChatModelConfig,
   DEFAULT_BOT_COMMANDS,
   DEFAULT_CHATGPT_AI_COMMANDS,
@@ -19,6 +19,8 @@ import MsgCommand from "./MsgCommand";
 import {showModalFromEvent} from "../share/utils/modal";
 import {PbAiBot_Type, PbChatGpBotConfig_Type, PbChatGptModelConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {AiHistoryType} from "./MsgChatGpWorker";
+import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {requestUsage} from "../../lib/ptp/functions/requests";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
@@ -27,6 +29,7 @@ export default class MsgCommandChatGpt{
     this.chatId = chatId
     this.botInfo = botInfo;
   }
+
   static getAiHistoryList(chatId:string){
     const global = getGlobal();
     const {aiReplyHistory} = global
@@ -136,10 +139,10 @@ export default class MsgCommandChatGpt{
     const messageId = await MsgDispatcher.genMsgId();
     const {chatId} = this
     await MsgCommandChatGpt.reloadCommands(chatId);
-    const enableAi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'enableAi')
-    const text = enableAi ? AI_START_TIPS+`\n`+DEFAULT_CHATGPT_AI_COMMANDS.map(cmd=>{
+    const commands = MsgCommandChatGpt.getCommands(chatId);
+    const text = `你可以通过发送以下命令来控制我：\n\n` + commands.map(cmd=>{
       return `/${cmd.command} ${cmd.description}`
-    }).join("\n")+"\n":AI_START_TIPS;
+    }).join("\n") + "\n";
     const message = {
       chatId,
       id:messageId,
@@ -185,7 +188,7 @@ export default class MsgCommandChatGpt{
     return message
   }
 
-  static getAiBotConfig(global:GlobalState,chatId:string,key:'enableAi'|'botApi'|'chatGptConfig'|'disableClearHistory'){
+  static getAiBotConfig(global:GlobalState,chatId:string,key:'enableAi'|'botApi'|'commandsFromApi'|'chatGptConfig'|'disableClearHistory'){
     const user = selectUser(global,chatId);
     if(
       user?.fullInfo &&
@@ -276,6 +279,36 @@ export default class MsgCommandChatGpt{
     }
     return STOP_HANDLE_MESSAGE
   }
+
+  async usage(){
+    const {chatId} = this
+    const api_key = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"api_key")
+    if(api_key){
+      const msg = await MsgDispatcher.newTextMessage(chatId,undefined,'...')
+      try {
+        const {used,subscription} = await requestUsage(api_key)
+        await MsgDispatcher.updateMessage(chatId,msg.id,{
+          content:{
+            text:{
+              text:`本月已用: ${used} / 总: ${subscription} USD`
+            }
+          }
+        })
+      }catch (e){
+        console.error(e)
+        await MsgDispatcher.updateMessage(chatId,msg.id,{
+          content:{
+            text:{
+              text:`查询失败`
+            }
+          }
+        })
+      }
+    }else{
+      await MsgDispatcher.newTextMessage(chatId,undefined,'请先配置 /apiKey')
+    }
+    return STOP_HANDLE_MESSAGE
+  }
   async apiKey(){
     const {chatId} = this
     const api_key = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"api_key")
@@ -352,15 +385,63 @@ export default class MsgCommandChatGpt{
       await MsgCommand.createWsBot(chatId)
     }
   }
-  static async customApi(chatId:string,messageId:number){
-    await MsgDispatcher.newTextMessage(chatId,undefined,"自定义api",[
+  static getCustomApiInlineButtons(chatId:string,messageId:number){
+    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+    return [
       [
-        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',"设置api"),
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',botApi ? "修改api": "设置api"),
+        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/disableApi',"禁用api"):[]),
+        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/updateCmd',"更新命令"):[]),
       ],
       [
         ...MsgCommand.buildInlineBackButton(chatId,messageId,'setting/ai/back',"< 返回"),
       ]
-    ])
+    ]
+  }
+  static async customApi(chatId:string,messageId:number){
+    await MsgDispatcher.newTextMessage(chatId,undefined,"通过自定义api，可以使用单独的机器人api",MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId))
+  }
+  static async updateCmd(chatId:string,messageId:number){
+    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+    const res = await callApiWithPdu(new UpdateCmdReq({
+      botApi,
+      chatId,
+    }).pack())
+    if(res){
+      const {commands} = UpdateCmdRes.parseMsg(res.pdu)
+      MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+        commandsFromApi:commands?.map(cmd=>{
+          return{
+            ...cmd,
+            botId:chatId
+          }
+        })
+      })
+      await MsgCommandChatGpt.reloadCommands(chatId)
+      await MsgDispatcher.newTextMessage(chatId,undefined,"更新成功")
+    }else{
+      await MsgDispatcher.newTextMessage(chatId,undefined,"更新失败")
+    }
+  }
+  static async disableApi(chatId:string,messageId:number){
+
+    MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+      botApi:undefined
+    })
+    const inlineButtons = MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId)
+    const message = selectChatMessage(getGlobal(),chatId,messageId)
+    MsgDispatcher.updateMessage(chatId,messageId, {
+        content: {
+          text: {
+            text: "请输入api地址"
+          }
+        },
+        inlineButtons: [
+          ...inlineButtons.slice(0,inlineButtons.length-1),
+          ...message!.inlineButtons!.slice(inlineButtons.length-1)
+        ]
+      }
+    )
   }
   static async setApi(chatId:string,messageId:number){
     // @ts-ignore
@@ -373,13 +454,20 @@ export default class MsgCommandChatGpt{
     MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
       botApi:value
     })
-    MsgDispatcher.updateMessage(chatId,messageId,{
-      content:{
-        text:{
-          text:botApi ? `地址: ${botApi}` : "请输入api地址"
-        }
+    const inlineButtons = MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId)
+    const message = selectChatMessage(getGlobal(),chatId,messageId)
+    MsgDispatcher.updateMessage(chatId,messageId, {
+        content: {
+          text: {
+            text:botApi ? `地址: ${botApi}` : "请输入api地址"
+          }
+        },
+        inlineButtons: [
+          ...inlineButtons.slice(0,inlineButtons.length-1),
+          ...message!.inlineButtons!.slice(inlineButtons.length-1)
+        ]
       }
-    })
+    )
   }
   static getAiModelInlineButtons(chatId:string){
 
@@ -474,6 +562,11 @@ export default class MsgCommandChatGpt{
     })
     const inlineButtons:ApiKeyboardButtons = MsgCommandChatGpt.getAiModelInlineButtons(chatId)
     MsgDispatcher.updateMessage(chatId,messageId,{
+      content:{
+        text:{
+          text:`当前模型:【${model}】`
+        }
+      },
       inlineButtons
     })
   }
@@ -496,8 +589,14 @@ export default class MsgCommandChatGpt{
       case `${chatId}/model/property/presence_penalty`:
         await MsgCommandChatGpt.handleChangeModelConfig(chatId,messageId,"presence_penalty")
         return
+      case `${chatId}/setting/ai/disableApi`:
+        await MsgCommandChatGpt.disableApi(chatId,messageId)
+        return
       case `${chatId}/setting/ai/setApi`:
         await MsgCommandChatGpt.setApi(chatId,messageId)
+        return
+      case `${chatId}/setting/ai/updateCmd`:
+        await MsgCommandChatGpt.updateCmd(chatId,messageId)
         return
       case `${chatId}/setting/ai/customApi`:
         await MsgCommandChatGpt.customApi(chatId,messageId)
@@ -635,9 +734,20 @@ export default class MsgCommandChatGpt{
         break
     }
   }
-
-  private static async reloadCommands(chatId:string) {
+  static getCommands(chatId:string){
+    const commandsFromApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'commandsFromApi')
     const isEnable = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,"enableAi");
-    await MsgCommand.reloadCommands(chatId,isEnable ? [...DEFAULT_BOT_COMMANDS,...DEFAULT_CHATGPT_AI_COMMANDS]:DEFAULT_BOT_COMMANDS)
+    let commands = [...DEFAULT_BOT_COMMANDS]
+    if(isEnable){
+      commands = [...commands,...DEFAULT_CHATGPT_AI_COMMANDS]
+    }
+    if(commandsFromApi){
+      // @ts-ignore
+      commands = [...commands,...commandsFromApi]
+    }
+    return commands
+  }
+  private static async reloadCommands(chatId:string) {
+    await MsgCommand.reloadCommands(chatId,MsgCommandChatGpt.getCommands(chatId))
   }
 }

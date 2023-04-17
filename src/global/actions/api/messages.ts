@@ -305,6 +305,7 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
             payload.entities[i] = {...entity,cipher:cipher.toString("hex"),hint}
           }
         }
+        console.log(payload)
       }else{
         return undefined
       }

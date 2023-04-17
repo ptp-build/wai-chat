@@ -15,11 +15,11 @@ import {GlobalState} from "../../global/types";
 import {getActions, getGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
-import {GenMsgIdReq, GenMsgIdRes, SendReq} from "../../lib/ptp/protobuf/PTPMsg";
+import {GenMsgIdReq, GenMsgIdRes, SendBotMsgReq, SendBotMsgRes, SendReq} from "../../lib/ptp/protobuf/PTPMsg";
 import MsgCommand from "./MsgCommand";
 import {parseCodeBlock} from "../share/utils/stringParse";
 import MsgWorker from "./MsgWorker";
-import {UserIdFirstBot} from "../setting";
+import {STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {selectUser} from "../../global/selectors";
@@ -261,9 +261,7 @@ export default class MsgDispatcher {
       if(this.params.botInfo?.botId === UserIdFirstBot){
         return await this.processFirstBotCmd();
       }
-      if(this.params.botInfo?.aiBot?.chatGptConfig){
-        return await this.processAiBotCmd();
-      }
+      return await this.processAiBotCmd();
     }
     return true
   }
@@ -290,9 +288,25 @@ export default class MsgDispatcher {
         return await msgCommandChatGpt.apiKey();
       case "/maxHistoryLength":
         return await msgCommandChatGpt.maxHistoryLength();
+      case "/usage":
+        return await msgCommandChatGpt.usage();
       default:
-        return true;
+        return await this.processBotApiCmd();
     }
+  }
+  async processBotApiCmd(){
+    const sendMsgText = this.getMsgText();
+    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),this.getChatId(),"botApi")
+    if(botApi){
+      const res = await callApiWithPdu(new SendBotMsgReq({botApi,text:sendMsgText}).pack())
+      if(res){
+        const {text} =  SendBotMsgRes.parseMsg(res.pdu)
+        if(text){
+          await MsgDispatcher.newTextMessage(this.getChatId(),undefined,text)
+        }
+      }
+    }
+    return STOP_HANDLE_MESSAGE
   }
   async processFirstBotCmd(){
     const sendMsgText = this.getMsgText();
@@ -314,9 +328,9 @@ export default class MsgDispatcher {
     if(this.getMsgText()?.startsWith("/")){
       res = await this.processCmd();
     }
-    if(!res && this.getBot()){
-      res = await this.handleWsBot();
-    }
+    // if(!res && this.getBot()){
+    //   res = await this.handleWsBot();
+    // }
     return res
   }
   async handleWsBot(){

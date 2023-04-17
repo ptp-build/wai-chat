@@ -62,7 +62,7 @@ export const DEFAULT_BOT_COMMANDS = [
   {
     "botId": UserIdFirstBot,
     "command": "setting",
-    "description": "设置"
+    "description": "设置面板"
   },
 ]
 
@@ -92,13 +92,12 @@ export const DEFAULT_CHATGPT_AI_COMMANDS = [
     "command": "maxHistoryLength",
     "description": "每次提问携带历史消息数"
   },
+  {
+    "botId": UserIdChatGpt,
+    "command": "usage",
+    "description": "账户余额"
+  },
 ]
-
-
-export const AI_START_TIPS =  `你可以通过发送以下命令来控制我：
-
-/setting - 设置面板
-`
 
 export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制我：
 

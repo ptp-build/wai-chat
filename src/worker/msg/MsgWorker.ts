@@ -318,11 +318,17 @@ export default class MsgWorker {
       botInfo.commands.forEach(cmd=>commands.push(cmd.command))
     }
     if(msgSend.content && msgSend.content.text && msgSend.content.text.text){
-      // @ts-ignore
-      msgSend.content.text!.entities = [
-        ...msgSend.content.text!.entities||[],
-        ...parseEntities(msgSend.content.text!.text!,commands)
-      ]
+      if(msgSend.content.text!.entities && msgSend.content.text!.entities.find(e=>{
+        // @ts-ignore
+        return e.cipher
+      })){
+      }else{
+        // @ts-ignore
+        msgSend.content.text!.entities = [
+          ...msgSend.content.text!.entities||[],
+          ...parseEntities(msgSend.content.text!.text!,commands)
+        ]
+      }
     }
     return msgSend;
   }
