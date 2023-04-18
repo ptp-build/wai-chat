@@ -96,6 +96,7 @@ import {DownloadRes} from "../../../lib/ptp/protobuf/PTPFile";
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import {getFileId} from "../../../lib/gramjs/client/uploadFile";
 import MsgCommandChatLab from "../../../worker/msg/MsgCommandChatLab";
+import { resizeImage } from '../../../util/imageResize';
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -539,7 +540,12 @@ const getAvatarPhoto = async (id:string,url:string)=>{
     err:ERR.NO_ERROR
   }).pack().getPbData()
   const blob = new Blob([Buffer.from(body)],{type});
-  const dataUri = await blobToDataUri(blob);
+  const blob1= new Blob([Buffer.from(ab)],{type});
+
+  const quality = 0.1;
+  const thumbUrl = await resizeImage(blob1, 40,40, 'image/jpeg',quality);
+  const thumbBlob = await fetchBlob(thumbUrl)
+  const dataUri = await blobToDataUri(thumbBlob);
   const size = {
     "width": 640,
     "height":  640,

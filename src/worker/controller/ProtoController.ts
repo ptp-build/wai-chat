@@ -5,7 +5,8 @@ import {DownloadMsgReq, DownloadMsgRes, UploadMsgReq, UploadMsgRes} from '../../
 import {
   ERR,
   MessageStoreRow_Type,
-  UserMessageStoreData_Type, UserStoreData_Type,
+  UserMessageStoreData_Type,
+  UserStoreData_Type,
   UserStoreRow_Type,
 } from '../../lib/ptp/protobuf/PTPCommon/types';
 import Account from '../share/Account';
@@ -22,7 +23,7 @@ import {
 import WaiOpenAPIRoute from "../share/cls/WaiOpenAPIRoute";
 import {SyncReq, SyncRes} from "../../lib/ptp/protobuf/PTPSync";
 import {UserMessageStoreData, UserStoreData} from "../../lib/ptp/protobuf/PTPCommon";
-
+import {OtherNotify} from "../../lib/ptp/protobuf/PTPOther";
 
 export default class ProtoController extends WaiOpenAPIRoute{
   static schema = {
@@ -39,7 +40,15 @@ export default class ProtoController extends WaiOpenAPIRoute{
 
   // @ts-ignore
   async handle(request: Request, data: Record<string, any>) {
-    return await this.dispatch(request)
+    try{
+      return await this.dispatch(request)
+    }catch(e:any){
+      console.error(e.stack)
+      return WaiOpenAPIRoute.responsePdu(new OtherNotify({
+        err:ERR.ERR_SYSTEM
+      }).pack(),500)
+    }
+
   }
 
 	async dispatch(request: Request) {
@@ -251,13 +260,16 @@ export default class ProtoController extends WaiOpenAPIRoute{
 
   async handleDownloadUserReq (authUserId: number, pdu: Pdu) {
     const {userIds} = DownloadUserReq.parseMsg(pdu);
+    console.log({userIds})
     const users:UserStoreRow_Type[] = []
     if(userIds){
       for (let i = 0; i < userIds?.length; i++) {
         const userId = userIds![i]
+        console.log({userId})
         const res = await storage.get(
           `wai/${authUserId}/users/${userId}`,
         );
+        console.log("res")
         users.push({
           userId,
           buf:Buffer.from(res!)

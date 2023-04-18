@@ -486,12 +486,17 @@ export default class MsgCommandSetting{
     if(isUpload){
       for (let index = 0; index < chatIds.length; index++) {
         const userId = chatIds[index];
+        const user = selectUser(global,userId);
+        if(user?.photos && user.photos[0] === null){
+          user.photos = []
+        }
         users.push({
           time:currentTs(),
           userId,
-          user:selectUser(global,userId)
+          user
         })
       }
+
       await callApiWithPdu(new UploadUserReq({
         users,
         time:currentTs()
