@@ -27,7 +27,7 @@ import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
 import {DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdCnPrompt, UserIdEnPrompt} from "../setting";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdCnPrompt, UserIdEnPrompt, UserIdFirstBot} from "../setting";
 import MsgCommandChatLab from "./MsgCommandChatLab";
 
 let currentSyncBotContext:string|undefined;
@@ -519,7 +519,7 @@ export default class MsgCommandSetting{
       })
       if(res.chatIds){
         const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-          userIds:res.chatIds,
+          userIds:res.chatIds.filter(id=>id!== UserIdFirstBot),
         }).pack())
         if(DownloadUserReqRes){
           const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
@@ -530,7 +530,7 @@ export default class MsgCommandSetting{
             const addChatsObj = {}
             for (let index = 0; index < downloadUserRes.users.length; index++) {
               const {user} = downloadUserRes.users[index];
-              if(!chatIdsDeleted.includes(user!.id)){
+              if(!chatIdsDeleted.includes(user!.id) && user!.id !== UserIdFirstBot){
                 if(chatIds.includes(user!.id)){
                   // @ts-ignore
                   global = updateUser(global,user!.id, user!)
