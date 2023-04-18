@@ -582,7 +582,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     title, id,promptInit,about, tabId = getCurrentTabId(),
   } = payload;
 
-  const userIds = Object.keys(global.users.byId)
+  let userIds = Object.keys(global.users.byId)
 
   global = updateTabState(global, {
     chatCreation: {
@@ -595,6 +595,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     let userIdInt = parseInt(UserIdFirstBot)
     if(!id){
       if(userIds.length > 0){
+        userIds = [...userIds,...global.chatIdsDeleted]
         userIds.sort((a,b)=>parseInt(b) - parseInt(a))
         userIdInt = parseInt(userIds[0]) + 1
       }
@@ -609,11 +610,12 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     const chatGptApiKey = localStorage.getItem("cg-key") ? localStorage.getItem("cg-key") : ""
     const init_system_content = promptInit || DEFAULT_PROMPT
     let avatarHash = "";
-    let photo = undefined
+    let photos = []
     if(DEFAULT_AVATARS[userId]){
       avatarHash = getFileId();
       const avatarUrl = DEFAULT_AVATARS[userId]
-      photo = await getAvatarPhoto(avatarHash,avatarUrl);
+      const photo = await getAvatarPhoto(avatarHash,avatarUrl);
+      photos.push(photo)
     }
     const user = {
       "canBeInvitedToGroup": false,
@@ -628,7 +630,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
       accessHash:"",
       isPremium: false,
       firstName: title,
-      photos:[photo],
+      photos,
       usernames: [
         {
           "username": "Bot_"+userId,

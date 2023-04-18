@@ -269,11 +269,13 @@ export default class ProtoController extends WaiOpenAPIRoute{
         const res = await storage.get(
           `wai/${authUserId}/users/${userId}`,
         );
-        console.log("res")
-        users.push({
-          userId,
-          buf:Buffer.from(res!)
-        })
+        console.log("res",res)
+        if(res){
+          users.push({
+            userId,
+            buf:Buffer.from(res!)
+          })
+        }
       }
     }
 
