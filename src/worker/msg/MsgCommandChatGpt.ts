@@ -21,6 +21,7 @@ import {PbAiBot_Type, PbChatGpBotConfig_Type, PbChatGptModelConfig_Type} from ".
 import {AiHistoryType} from "./MsgChatGpWorker";
 import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {requestUsage} from "../../lib/ptp/functions/requests";
+import {DEBUG} from "../../config";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
@@ -138,6 +139,10 @@ export default class MsgCommandChatGpt{
   async start(){
     const messageId = await MsgDispatcher.genMsgId();
     const {chatId} = this
+    if(DEBUG){
+      const global = getGlobal();
+      console.log({user:global.users.byId[chatId],messages:global.messages.byChatId[chatId]})
+    }
     await MsgCommandChatGpt.reloadCommands(chatId);
     const commands = MsgCommandChatGpt.getCommands(chatId);
     const text = `你可以通过发送以下命令来控制我：\n\n` + commands.map(cmd=>{

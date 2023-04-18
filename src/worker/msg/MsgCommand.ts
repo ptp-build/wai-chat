@@ -16,7 +16,7 @@ import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/B
 import Account from "../share/Account";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
-import {SendRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {DownloadMsgReq, DownloadMsgRes, SendRes} from "../../lib/ptp/protobuf/PTPMsg";
 
 export default class MsgCommand {
   private msgDispatcher: MsgDispatcher;
@@ -159,6 +159,7 @@ export default class MsgCommand {
       userIds:[chatId],
     }).pack())
     const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
+    console.log("downloadUser",downloadUserRes)
     if(downloadUserRes.users){
       const {user} = downloadUserRes.users[0]
       global = getGlobal();
@@ -166,6 +167,27 @@ export default class MsgCommand {
       global = updateUser(global,user!.id, user)
       setGlobal(global)
     }
+
+
+    const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
+      chatId
+    }).pack())
+    const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
+    console.log("downloadMsgRes",downloadMsgRes,global.messages.byChatId[chatId])
+    if(downloadMsgRes.messages){
+        for (let i = 0; i < downloadMsgRes.messages.length; i++) {
+          const {message} = downloadMsgRes.messages[i];
+          if(message.previousLocalId){
+            delete message.previousLocalId
+          }
+          if(selectChatMessage(global,chatId,message!.id)){
+            await MsgDispatcher.updateMessage(chatId,message!.id,message!)
+          }else{
+            await MsgDispatcher.newMessage(chatId,message!.id,message!)
+          }
+        }
+    }
+
 
     await MsgDispatcher.updateMessage(chatId,message1.id,{
       content:{
