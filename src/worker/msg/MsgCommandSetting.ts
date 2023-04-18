@@ -220,29 +220,37 @@ export default class MsgCommandSetting{
     const keys = Account.getKeys();
     const sessions = Account.getSessions();
     const global = getGlobal();
-    for (let i = 0; i < Object.keys(sessions).length; i++) {
-      const session = sessions[Object.keys(sessions)[i]]
-      const res = Account.parseSession(session)
-      if(res?.address === accountAddress){
-        const accountId = res.accountId;
-        const account = Account.getInstance(accountId);
-        if(keys[accountId]){
-          const entropy = keys[accountId]
-          account?.setEntropy(entropy,true)
-          const {password} = await getPasswordFromEvent(undefined,true)
-          if(password){
-            const resVerify = await account?.verifySession(session,password);
-            if(resVerify){
-              Account.setCurrentAccountId(accountId)
-              return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
-            }else{
-              return MsgDispatcher.showNotification("密码不正确!")
+    if(sessions && Object.keys(sessions).length > 0){
+      for (let i = 0; i < Object.keys(sessions).length; i++) {
+        const session = sessions[Object.keys(sessions)[i]]
+        const res = Account.parseSession(session)
+        if(res?.address === accountAddress){
+          const accountId = res.accountId;
+          const account = Account.getInstance(accountId);
+          if(keys[accountId]){
+            const entropy = keys[accountId]
+            account?.setEntropy(entropy,true)
+            const {password} = await getPasswordFromEvent(undefined,true)
+            if(password){
+              const resVerify = await account?.verifySession(session,password);
+              if(resVerify){
+                Account.setCurrentAccountId(accountId)
+                return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+              }else{
+                return MsgDispatcher.showNotification("密码不正确!")
+              }
             }
+            break
           }
-          break
         }
       }
+    }else{
+      const {password} = await getPasswordFromEvent(undefined,true)
+      if(password){
+        return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+      }
     }
+
   }
   static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
     if(data.startsWith(`${chatId}/setting/switchAccount/account/`)){
