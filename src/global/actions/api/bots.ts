@@ -207,7 +207,7 @@ addActionHandler('sendBotCommand', (global, actions, payload): ActionReturnType 
   const { threadId } = currentMessageList;
   actions.setReplyingToId({ messageId: undefined, tabId });
   actions.clearWebPagePreview({ tabId });
-
+  actions.focusLastMessage()
   void sendBotCommand(
     chat, threadId, command, selectReplyingToId(global, chat.id, threadId), selectSendAs(global, chat.id),
   );
