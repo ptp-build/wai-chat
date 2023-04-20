@@ -1,4 +1,3 @@
-import Logger from '../cls/Logger';
 let i = 0;
 export default class CloudFlareKv {
   private db: any;

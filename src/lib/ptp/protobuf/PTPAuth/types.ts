@@ -3,6 +3,7 @@ import type * as PTPCommon from '../PTPCommon/types';
 
 export interface AuthLoginReq_Type {
   sign: string;
+  clientInfo?: PTPCommon.ClientInfo_Type;
 }
 export interface AuthLoginRes_Type {
   err?: PTPCommon.ERR;

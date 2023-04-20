@@ -1,3 +1,4 @@
+export { default as ClientInfo } from './ClientInfo';
 export { default as FileInfo } from './FileInfo';
 export { default as MessageStoreRow } from './MessageStoreRow';
 export { default as PbAction } from './PbAction';

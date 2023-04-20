@@ -34,6 +34,8 @@ import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
 import {hashSha256} from "../../../worker/share/utils/helpers";
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
+import {getPasswordFromEvent} from "../../../worker/share/utils/password";
+import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -68,7 +70,15 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     mockScenario: initialLocationHash?.mockScenario,
     accountId,entropy,session
   });
-
+  setTimeout(async ()=>{
+    if(!session){
+      const {password} = await getPasswordFromEvent(undefined,true,'showMnemonic',true)
+      if(password){
+        await MsgCommandSetting.enableSync(getGlobal(),password,undefined,undefined)
+        return
+      }
+    }
+  },1000)
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {

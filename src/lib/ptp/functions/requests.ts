@@ -1,6 +1,7 @@
 import {ChatRequest, ChatResponse, Message} from "../../../../functions/api/types";
-import {AI_PROXY_API} from "../../../config";
+import {CHATGPT_PROXY_API} from "../../../config";
 import {PbChatGptModelConfig_Type} from "../protobuf/PTPCommon/types";
+import Account from "../../../worker/share/Account";
 
 const TIME_OUT_MS = 30000;
 
@@ -71,23 +72,23 @@ function getHeaders(apiKey:string) {
   return headers;
 }
 
-export function requestOpenaiClient(path: string,apiKey:string) {
-  return (body: any, method = "POST") =>
-    fetch(AI_PROXY_API +"/api/openai", {
-      method,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        path,
-        ...getHeaders(apiKey),
-      },
-      body: body && JSON.stringify(body),
-    });
+export function requestOpenaiClient(path: string,body:any) {
+  return fetch(CHATGPT_PROXY_API+"/" +path, {
+    method:"POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
+    },
+    body: body && JSON.stringify(body),
+  })
 }
 
 export async function requestChat(messages: Message[],apiKey:string) {
   const req: ChatRequest = makeRequestParam(messages, { filterBot: true });
 
-  const res = await requestOpenaiClient("v1/chat/completions",apiKey)(req);
+  const res = await requestOpenaiClient("v1/chat/completions",{
+    apiKey
+  });
 
   try {
     return (await res.json()) as ChatResponse;
@@ -127,9 +128,10 @@ export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbCh
 }
 
 export async function requestChatStream(
-  url?:string,
-  messages: Message[],
-  options?: {
+  url:string,
+  options: {
+    messages: Message[],
+    systemPrompt:string,
     apiKey:string,
     filterBot?: boolean;
     modelConfig?: PbChatGptModelConfig_Type;
@@ -139,13 +141,13 @@ export async function requestChatStream(
     onController?: (controller: AbortController) => void;
   },
 ) {
-  const req = makeRequestParam(messages, {
+  const req = makeRequestParam(options.messages, {
     stream: true,
-    filterBot: options?.filterBot,
+    filterBot: options.filterBot,
   });
 
   // valid and assign model config
-  if (options?.modelConfig) {
+  if (options.modelConfig) {
     Object.assign(req, filterConfig(options.modelConfig));
   }
 
@@ -155,14 +157,17 @@ export async function requestChatStream(
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);
 
   try {
-    const res = await fetch(url ? url : AI_PROXY_API + "/api/chat-stream", {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        path: "v1/chat/completions",
-        ...getHeaders(options!.apiKey),
+        "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
       },
-      body: JSON.stringify(req),
+      body: JSON.stringify({
+        ...req,
+        systemPrompt:options.systemPrompt,
+        apiKey:options.apiKey,
+      }),
       signal: controller.signal,
     });
 
@@ -171,7 +176,7 @@ export async function requestChatStream(
     let responseText = "";
 
     const finish = () => {
-      options?.onMessage(responseText, true);
+      options.onMessage(responseText, true);
       controller.abort();
     };
 
@@ -179,7 +184,7 @@ export async function requestChatStream(
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
 
-      options?.onController?.(controller);
+      options.onController?.(controller);
       while (true) {
         // handle time out, will stop if no response in 10 secs
         const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
@@ -199,21 +204,20 @@ export async function requestChatStream(
       finish();
     } else if (res.status === 401) {
       console.error("Anauthorized");
-      responseText = "Unauthorized";
+      responseText = "sign://401/你需要 点击下方生成签名登录, 并告知管理员,加入授权列表";
       finish();
     } else {
       console.error("Stream Error", res.body);
-      options?.onError(new Error("Stream Error"));
+      options.onError(new Error("Stream Error"));
     }
   } catch (err:any) {
-    debugger
     if(err.code === 20){
       console.error("onAbort", err);
-      options?.onAbort(err);
+      options.onAbort(err);
     }else{
       // AbortError
       console.error("NetWork Error", err);
-      options?.onError(err);
+      options.onError(err);
     }
   }
 }
@@ -276,42 +280,6 @@ export async function requestUsage(apiKey:string) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startDate = formatDate(startOfMonth);
   const endDate = formatDate(now);
-
-  const [used, subs] = await Promise.all([
-    requestOpenaiClient(
-      `dashboard/billing/usage?start_date=${startDate}&end_date=${endDate}`,
-      apiKey
-    )(null, "GET"),
-    requestOpenaiClient("dashboard/billing/subscription",apiKey)(null, "GET"),
-  ]);
-
-  const response = (await used.json()) as {
-    total_usage?: number;
-    error?: {
-      type: string;
-      message: string;
-    };
-  };
-
-  const total = (await subs.json()) as {
-    hard_limit_usd?: number;
-  };
-
-  if (response.error && response.error.type) {
-    console.error(response.error)
-    throw new Error(response.error.type)
-  }
-
-  if (response.total_usage) {
-    response.total_usage = Math.round(response.total_usage) / 100;
-  }
-
-  if (total.hard_limit_usd) {
-    total.hard_limit_usd = Math.round(total.hard_limit_usd * 100) / 100;
-  }
-
-  return {
-    used: response.total_usage,
-    subscription: total.hard_limit_usd,
-  };
+  const res = await requestOpenaiClient(`usage?start_date=${startDate}&end_date=${endDate}`,{apiKey})
+  return await res.json();
 }

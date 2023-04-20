@@ -12,11 +12,11 @@ import MsgCommandChatLab from "./MsgCommandChatLab";
 import {UserStoreRow_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {callApiWithPdu} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
-import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import {DownloadMsgReq, DownloadMsgRes, SendRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {getPasswordFromEvent} from "../share/utils/password";
 
 export default class MsgCommand {
   private msgDispatcher: MsgDispatcher;
@@ -205,7 +205,20 @@ export default class MsgCommand {
   static async requestUploadImage(global:GlobalState,chatId:string,messageId:number,files:FileList | null){
     await MsgCommandSetting.requestUploadImage(global,chatId,messageId,files)
   }
+  static getOpenAiApiKey(){
+    return localStorage.getItem("openAiApiKey") ? localStorage.getItem("openAiApiKey")! : ""
+  }
   static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
+    if(data === "sign://401"){
+      const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
+      const ts = currentTs().toString()
+      if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
+        MsgDispatcher.showNotification("密码不正确")
+      }else{
+        return MsgDispatcher.newTextMessage(chatId,messageId,
+          "请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员",[])
+      }
+    }
     await MsgCommandSetting.answerCallbackButton(global,chatId,messageId,data)
     await MsgCommandChatGpt.answerCallbackButton(global,chatId,messageId,data)
     await MsgCommandChatLab.answerCallbackButton(global,chatId,messageId,data)

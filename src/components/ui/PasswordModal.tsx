@@ -17,6 +17,8 @@ export type PasswordHelperType = undefined | "showMnemonic" | "messageEncryptPas
 const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
 
   const [open, setOpen] = useState<boolean>(false);
+  const [noBackdropClose, setNoBackdropClose] = useState<boolean>(false);
+
   const [showHitInput, setShowHitInput] = useState<boolean>(false);
   const [passwordHelper, setPasswordHelper] = useState<PasswordHelperType>(undefined);
   const [validationError, setValidationError] = useState<string>('');
@@ -42,6 +44,8 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
         // @ts-ignore
         onConfirm = e.detail.callback;
         // @ts-ignore
+        setNoBackdropClose(e.detail.noBackdropClose)
+        // @ts-ignore
         setPasswordHelper(e.detail.passwordHelper)
         // @ts-ignore
         setHint(e.detail.hint)
@@ -61,9 +65,13 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
 
   return (
     <Modal
-      hasCloseButton
+      hasCloseButton={!noBackdropClose}
       isOpen={open}
+      noBackdropClose={noBackdropClose}
       onClose={() => {
+        if(noBackdropClose){
+          return false
+        }
         if (onConfirm) {
           onConfirm({password: "", hint: ""});
         }

@@ -15,7 +15,7 @@ import {GlobalState} from "../../global/types";
 import {getActions, getGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
-import {GenMsgIdReq, GenMsgIdRes, SendBotMsgReq, SendBotMsgRes, SendReq} from "../../lib/ptp/protobuf/PTPMsg";
+import {GenMsgIdReq, GenMsgIdRes, SendBotMsgReq, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import MsgCommand from "./MsgCommand";
 import {parseCodeBlock} from "../share/utils/stringParse";
 import MsgWorker from "./MsgWorker";
@@ -23,8 +23,6 @@ import {STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {selectUser} from "../../global/selectors";
-import MsgCommandChatLab from "./MsgCommandChatLab";
-import BotWebSocket from "./bot/BotWebSocket";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -282,8 +280,8 @@ export default class MsgDispatcher {
         return await msgCommandChatGpt.reset();
       case "/aiModel":
         return await msgCommandChatGpt.aiModel();
-      case "/initPrompt":
-        return await msgCommandChatGpt.initPrompt();
+      case "/systemPrompt":
+        return await msgCommandChatGpt.systemPrompt();
       case "/apiKey":
         return await msgCommandChatGpt.apiKey();
       case "/maxHistoryLength":
@@ -314,8 +312,6 @@ export default class MsgDispatcher {
       case "/start":
         await this.sendOutgoingMsg();
         return MsgCommandSetting.start(this.getChatId())
-      case "/lab":
-        return await new MsgCommandChatLab(this.getChatId(),this.params.botInfo!).lab();
       case "/setting":
         return await this.msgCommand.setting();
       default:

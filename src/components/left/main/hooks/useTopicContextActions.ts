@@ -37,7 +37,7 @@ export default function useTopicContextActions(
     const canTogglePinned = chat.isCreator || getHasAdminRight(chat, 'manageTopics');
 
     const actionOpenInNewTab = IS_MULTITAB_SUPPORTED && {
-      title: 'Open in new tab',
+      title: '1Open in new tab',
       icon: 'open-in-new-tab',
       handler: () => {
         openChatInNewTab({ chatId: chat.id, threadId: topicId });

@@ -26,7 +26,7 @@ import {Decoder} from "@nuintun/qrcode";
 import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {DEBUG} from "../../config";
+import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
 import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdCnPrompt, UserIdEnPrompt, UserIdFirstBot} from "../setting";
 import MsgCommandChatLab from "./MsgCommandChatLab";
 
@@ -70,81 +70,44 @@ export default class MsgCommandSetting{
     })
   }
   static getInlineButtons(chatId:string,isEnableSync:boolean):ApiKeyboardButtons{
-    const res:ApiKeyboardButtons = isEnableSync ? [
-      [
+    const res:ApiKeyboardButtons = []
+    res.push([
+      {
+        text:"切换账户",
+        data:`${chatId}/setting/switchAccount`,
+        type:"callback"
+      },
+    ])
+    if(CLOUD_MESSAGE_API){
+      res.push([
         {
           text:"云同步",
           data:`${chatId}/setting/cloud`,
           type:"callback"
         },
         {
-          text:"切换账户",
-          data:`${chatId}/setting/switchAccount`,
+          text:"清除历史记录",
+          data:`${chatId}/setting/clearHistory`,
           type:"callback"
         },
+      ])
+    }else{
+      res.push([
         {
           text:"清除历史记录",
           data:`${chatId}/setting/clearHistory`,
           type:"callback"
         },
-      ],
-      [
-        {
-          data:`${chatId}/setting/createCnPrompts`,
-          text:"创建中文Prompts大全",
-          type:"callback"
-        },
-        {
-          data:`${chatId}/setting/createEnPrompts`,
-          text:"创建英文Prompts大全",
-          type:"callback"
-        },
-      ],
-
-      [
-        {
-          data:`${chatId}/setting/cancel`,
-          text:"取消",
-          type:"callback"
-        },
-      ],
-    ]:[
-      [
-        {
-          text:"切换账户",
-          data:`${chatId}/setting/switchAccount`,
-          type:"callback"
-        },
-        {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
-          type:"callback"
-        },
-      ],
-
-      [
-        {
-          data:`${chatId}/setting/createCnPrompts`,
-          text:"创建中文Prompts大全",
-          type:"callback"
-        },
-        {
-          data:`${chatId}/setting/createEnPrompts`,
-          text:"创建英文Prompts大全",
-          type:"callback"
-        },
-      ],
-      [
-        {
-          data:`${chatId}/setting/cancel`,
-          text:"取消",
-          type:"callback"
-        },
-      ],
-    ]
-    if(DEBUG){
-      res.push(MsgCommand.buildInlineCallbackButton(chatId,"setting/debug","Debug",'callback'))
+      ])
     }
+
+    res.push([
+      {
+        data:`${chatId}/setting/cancel`,
+        text:"取消",
+        type:"callback"
+      },
+    ])
     return res;
   }
   static async requestUploadImage(global:GlobalState,chatId:string,messageId:number,files:FileList | null){
@@ -235,7 +198,7 @@ export default class MsgCommandSetting{
               const resVerify = await account?.verifySession(session,password);
               if(resVerify){
                 Account.setCurrentAccountId(accountId)
-                return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+                return await MsgCommandSetting.enableSync(global,password,chatId,messageId)
               }else{
                 return MsgDispatcher.showNotification("密码不正确!")
               }
@@ -247,7 +210,7 @@ export default class MsgCommandSetting{
     }else{
       const {password} = await getPasswordFromEvent(undefined,true)
       if(password){
-        return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+        return await MsgCommandSetting.enableSync(global,password,chatId,messageId)
       }
     }
 
@@ -286,12 +249,12 @@ export default class MsgCommandSetting{
             [
               {
                 data:`${chatId}/setting/uploadFolder`,
-                text:"上传对话",
+                text:"上传所有机器人",
                 type:"callback"
               },
               {
                 data:`${chatId}/setting/downloadFolder`,
-                text:"下载对话",
+                text:"下载所有机器人",
                 type:"callback"
               },
             ],
@@ -315,9 +278,6 @@ export default class MsgCommandSetting{
             chatFolders:global.chatFolders,
           })
         }
-        // await MsgDispatcher.newJsonMessage(chatId,undefined,{chatFolders:global.chatFolders})
-        // await MsgDispatcher.newJsonMessage(chatId,undefined,{chatIdsDeleted:global.chatIdsDeleted})
-        await MsgCommand.createWsBot(chatId)
         break
       case `${chatId}/setting/getSession`:
         const account = Account.getCurrentAccount();
@@ -381,12 +341,12 @@ export default class MsgCommandSetting{
             },
             inlineButtons:[
               MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
-              accountAddresses.length>0 ?MsgCommand.buildInlineButton(chatId,"其他账户:",'unsupported'):[],
-              ...accountAddresses.map(address=>MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/account/"+address,` ${address}`,'callback')),
+              // accountAddresses.length>0 ?MsgCommand.buildInlineButton(chatId,"其他账户:",'unsupported'):[],
+              // ...accountAddresses.map(address=>MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/account/"+address,` ${address}`,'callback')),
               MsgCommand.buildInlineButton(chatId,"",'unsupported'),
               MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
               MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/disableSync","单机模式",'callback'),
+              // MsgCommand.buildInlineCallbackButton(chatId,"setting/disableSync","单机模式",'callback'),
               MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
             ]
           })
@@ -423,7 +383,7 @@ export default class MsgCommandSetting{
       case `${chatId}/setting/enableSync`:
         const {password} = await getPasswordFromEvent(undefined,true)
         if(password){
-          await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+          await MsgCommandSetting.enableSync(global,password,chatId,messageId)
         }
         break
     }
@@ -564,7 +524,7 @@ export default class MsgCommandSetting{
       }
     }
   }
-  static async enableSync(global:GlobalState,chatId:string,messageId:number,password:string){
+  static async enableSync(global:GlobalState,password:string,chatId?:string,messageId?:number){
     const account = Account.getCurrentAccount();
     const pwd = hashSha256(password)
     const ts = +(new Date());
@@ -573,13 +533,15 @@ export default class MsgCommandSetting{
     account!.saveSession(session)
     const entropy = await account!.getEntropy()
     const accountId = account!.getAccountId();
-    MsgDispatcher.updateMessage(chatId,messageId,{
-      inlineButtons:[]
-    })
+    if(chatId){
+      MsgDispatcher.updateMessage(chatId,messageId!,{
+        inlineButtons:[]
+      })
+    }
     await callApiWithPdu(new AuthNativeReq({
       accountId,entropy,session
     }).pack())
-    setTimeout(()=>window.location.reload(),500)
+    setTimeout(()=>window.location.reload(),200)
   }
   static async disableSync(global:GlobalState,chatId:string,messageId:number){
     const account = Account.getCurrentAccount();

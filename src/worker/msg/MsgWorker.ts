@@ -8,7 +8,7 @@ import {
   OnApiUpdate
 } from "../../api/types";
 import {LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
-import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
+import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {
   Pdu,
@@ -36,6 +36,8 @@ import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
 import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
 import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
+import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
+import {currentTs} from "../share/utils/utils";
 
 let messageIds:number[] = [];
 
@@ -71,25 +73,54 @@ export default class MsgWorker {
     this.attachment = attachment;
   }
 
-  static async createWsBot(chatId:string,botApi?:string){
+  static async createWsBot(accountId:number,botApi?:string){
     if(botApi && botApi.startsWith("ws")){
-      const botWs = BotWebSocket.getInstance(chatId)
+      const botWs = BotWebSocket.getInstance(accountId)
       if(!botWs.isLogged()){
-        botWs.setMsgHandler(async (chatId, notifies)=>{
+        botWs.setMsgHandler(async (msgConnId, notifies)=>{
           for (let i = 0; i < notifies.length; i++) {
             const {action,payload} = notifies[i]
             switch (action){
               case BotWebSocketNotifyAction.onConnectionStateChanged:
                 switch (payload.BotWebSocketState){
                   case BotWebSocketState.connected:
-                    // await MsgDispatcher.newTextMessage(chatId,undefined,"已连接")
                     break;
                   case BotWebSocketState.closed:
-                    // await MsgDispatcher.newTextMessage(chatId,undefined,"已断开")
                     break;
                 }
                 break
               case BotWebSocketNotifyAction.onData:
+                console.log("[onData]",{accountId,payload})
+                switch (payload.getCommandId()) {
+                  case ActionCommands.CID_SendBotMsgRes:
+                    const {text,msgId,chatId,streamEnd} = SendBotMsgRes.parseMsg(payload)
+                    console.log("[SendBotMsgRes]",text)
+                    if(text){
+                      if(msgId){
+                        await MsgWorker.updateMessage(chatId!,msgId,{
+                          content:{
+                            text:{
+                              text
+                            }
+                          }
+                        })
+                      }else{
+                        const msgId1 = await MsgWorker.genMessageId();
+                        await MsgWorker.newMessage(chatId!,msgId1,{
+                          chatId:chatId!,
+                          content: {
+                            text:{
+                              text
+                            }
+                          },
+                          date: currentTs(),
+                          id: msgId1,
+                          isOutgoing: false
+                        })
+                      }
+                    }
+                    break
+                }
                 // await MsgCommand.handleWsBotOnData(chatId,payload)
                 break
             }
@@ -341,8 +372,11 @@ export default class MsgWorker {
   }
   static handleMessageTextCode(msgSend:Partial<ApiMessage>){
     if(msgSend.content?.text && msgSend.content.text.text){
+      const {entities} = msgSend.content.text
       // @ts-ignore
-      msgSend.content.text = parseCodeBlock(msgSend.content.text?.text)
+      msgSend.content.text = {
+        ...parseCodeBlock(msgSend.content.text?.text,entities)
+      }
     }
     return msgSend
   }
@@ -367,6 +401,7 @@ export default class MsgWorker {
     return msgSend;
   }
   static updateMessage(chatId:string,messageId:number,message:Partial<ApiMessage>){
+    message = MsgWorker.handleMessageTextCode(message);
     MsgWorker.onUpdate({
       '@type': "updateMessage",
       id: messageId,
@@ -376,6 +411,7 @@ export default class MsgWorker {
     return message
   }
   static newMessage(chatId:string,messageId:number,message:ApiMessage){
+    message = MsgWorker.handleMessageTextCode(message);
     MsgWorker.onUpdate({
       '@type': "newMessage",
       chatId,
@@ -420,6 +456,7 @@ export default class MsgWorker {
     try {
       await this.handleMedia();
       if(botInfo){
+        // @ts-ignore
         this.msgSend = MsgWorker.handleBotCmdText(this.msgSend,botInfo);
       }
       await this.processOutGoing();

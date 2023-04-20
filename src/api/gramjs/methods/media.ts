@@ -97,7 +97,9 @@ export default async function downloadMedia(
     // if (!data) {
     //   return undefined;
     // }
-
+    if(!CLOUD_MESSAGE_API){
+      return undefined
+    }
     let downloadReq = new DownloadReq({
       id,
     })

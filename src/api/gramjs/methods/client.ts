@@ -5,7 +5,7 @@ import type {TwoFaParams} from '../../../lib/gramjs/client/2fa';
 
 import type {ApiInitialArgs, ApiMediaFormat, ApiOnProgress, ApiSessionData, OnApiUpdate,} from '../../types';
 
-import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, UPLOAD_WORKERS,} from '../../../config';
+import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, MSG_SERVER, UPLOAD_WORKERS,} from '../../../config';
 import {onCurrentUserUpdate,} from './auth';
 import {updater} from '../updater';
 import {setMessageBuilderCurrentUserId} from '../apiBuilders/messages';
@@ -25,6 +25,7 @@ import {ControllerPool} from "../../../lib/ptp/functions/requests";
 import {StopChatStreamReq} from "../../../lib/ptp/protobuf/PTPOther";
 import {SendBotMsgReq, SendBotMsgRes, UpdateCmdReq, UpdateCmdRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
+import {ClientInfo_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -48,15 +49,11 @@ export async function init(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) 
     userAgent, platform, sessionData, isTest, isMovSupported, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     mockScenario,accountId,entropy,session
   } = initialArgs;
-  await handleAuthNative(accountId,entropy,session);
-  if(DEBUG){
-    console.log("[initialArgs]",{
-      deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
-      systemVersion: platform || DEFAULT_PLATFORM,
-      appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
-      useWSS: true,
-    })
-  }
+  await handleAuthNative(accountId,entropy,session,{
+    deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
+    systemVersion: platform || DEFAULT_PLATFORM,
+    appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
+  });
   try {
     if (DEBUG) {
       log('CONNECTING');
@@ -387,15 +384,21 @@ export async function repairFileReference({
   return false;
 }
 
-const handleAuthNative = async (accountId:number,entropy:string,session?:string)=>{
+const handleAuthNative = async (accountId:number,entropy:string,session?:string,clientInfo?:ClientInfo_Type)=>{
   const kv = new LocalDatabase();
   kv.init(localDb);
   Account.setClientKv(kv)
   account = Account.getInstance(accountId);
+  account.setClientInfo(clientInfo)
   await account.setEntropy(entropy)
   Account.setCurrentAccountId(accountId)
   if(session){
     account.saveSession(session)
+
+    const botWs = BotWebSocket.getInstance(accountId)
+    if(!botWs.isLogged() && MSG_SERVER){
+      await MsgWorker.createWsBot(accountId,MSG_SERVER)
+    }
   }else{
     account.delSession()
   }
@@ -411,7 +414,7 @@ const handleStopChatStreamReq = async (pdu:Pdu)=>{
 }
 
 export const handleSendBotMsgReq = async (pdu:Pdu)=>{
-  const {botApi,chatId,text} = SendBotMsgReq.parseMsg(pdu)
+  const {botApi,chatId,msgId,chatGpt,text} = SendBotMsgReq.parseMsg(pdu)
   if(botApi){
     try {
       if(botApi.startsWith("http")){
@@ -433,13 +436,15 @@ export const handleSendBotMsgReq = async (pdu:Pdu)=>{
         // @ts-ignore
         return new SendBotMsgRes({text:json.text}).pack().getPbData()
       }else{
-        const botWs = BotWebSocket.getInstance(chatId!)
+        const botWs = BotWebSocket.getInstance(parseInt(chatId!))
         if(!botWs.isLogged()){
-            await MsgWorker.createWsBot(chatId!,botApi)
+            await MsgWorker.createWsBot(parseInt(chatId!),botApi)
         }
         const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
           text,
-          chatId
+          chatId,
+          msgId,
+          chatGpt
         }).pack())
         return res.getPbData()
       }
@@ -470,9 +475,9 @@ const handleUpdateCmdReq = async (pdu:Pdu)=>{
           commands
         }).pack().getPbData()
       }else{
-        const botWs = BotWebSocket.getInstance(chatId!)
+        const botWs = BotWebSocket.getInstance(parseInt(chatId!))
         if(!botWs.isLogged()){
-          await MsgWorker.createWsBot(chatId!,botApi)
+          await MsgWorker.createWsBot(parseInt(chatId!),botApi)
         }
         const res = await botWs.sendPduWithCallback(new UpdateCmdReq({
           chatId

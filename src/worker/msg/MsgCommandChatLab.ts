@@ -1,13 +1,12 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {ApiBotInfo, ApiKeyboardButtons, ApiMessage} from "../../api/types";
-import {DEFAULT_BOT_COMMANDS, UserIdChatGpt, UserIdCnPrompt, UserIdEnPrompt, UserIdFirstBot} from "../setting";
+import {UserIdChatGpt, UserIdCnPrompt, UserIdEnPrompt, UserIdFirstBot} from "../setting";
 import {GlobalState} from "../../global/types";
 import {showModalFromEvent} from "../share/utils/modal";
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {currentTs} from "../share/utils/utils";
 import {DEBUG} from "../../config";
 import {selectChatMessage} from "../../global/selectors";
-import {updateChat} from "../../global/reducers";
 
 export default class MsgCommandChatLab{
   private chatId: string;
@@ -105,8 +104,7 @@ export default class MsgCommandChatLab{
       getActions().createChat({title,promptInit:prompt})
     }
   }
-  static async createChatGpt(id:string){
-    let name = "ChatGpt";
+  static async createChatGpt(id:string,name:string = "ChatGpt"){
     let needCreate = true;
     let global = getGlobal();
     if(global.chats.byId[id]){
@@ -121,7 +119,7 @@ export default class MsgCommandChatLab{
     }
     if(!needCreate){
       getActions().openChat({id,shouldReplaceHistory:true})
-      return MsgDispatcher.showNotification(`${name} 已创建`)
+      return
     }
     getActions().createChat({id,title:name})
   }

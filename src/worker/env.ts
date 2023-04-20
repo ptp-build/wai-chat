@@ -1,7 +1,6 @@
 import CloudFlareKv from './share/db/CloudFlareKv';
 import CloudFlareR2 from './share/storage/CloudFlareR2';
 import LocalStorage from './share/db/LocalStorage';
-import Logger from './share/cls/Logger';
 
 export const ENV: {
 	IS_PROD: boolean;
@@ -29,8 +28,6 @@ export function initEnv(env: Record<string, any>) {
 			ENV[key] = env[key];
 		}
 	}
-	// Logger.setLevel(ENV.IS_PROD ? 'info' : 'debug');
-	Logger.setLevel(ENV.IS_PROD ? 'debug' : 'debug');
 	kv = new CloudFlareKv();
 	kv.init(env[ENV.KV_NAMESPACE_BINDING_KEY]);
 	storage = new CloudFlareR2();

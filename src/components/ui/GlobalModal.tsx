@@ -17,12 +17,17 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
   const [open, setOpen] = useState<boolean>(false);
   const [value, setValue] = useState<string>("");
   const handleChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
-    setValue(e.target.value);
+    let {value} = e.target
+    setValue(value);
   }, []);
 
-  const handleSubmit = useCallback((password) => {
+  const handleSubmit = useCallback(() => {
     if (onConfirm) {
-      onConfirm({value});
+      if(payload?.inputType === 'number'){
+        onConfirm({value});
+      }else{
+        onConfirm({value:value.trim()});
+      }
       setOpen(false)
       setValue("")
     }
@@ -76,9 +81,7 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
                   step={payload.step}
                   min={payload.min}
                   max={payload.max}
-                  onChange={(e) => {
-                    setValue(e.target.value)
-                  }}
+                  onChange={handleChange}
                   value={value}
                   autoComplete="given-name"
                 />:

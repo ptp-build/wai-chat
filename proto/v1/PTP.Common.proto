@@ -294,3 +294,9 @@ message UserMessageStoreData{
   required uint64 time = 4;
 }
 
+
+message ClientInfo{
+  required string deviceModel = 1;
+  required string systemVersion = 2;
+  required string appVersion = 3;
+}

@@ -1,5 +1,6 @@
 import {callApi} from "../../api/gramjs";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
+
 export type CallApiWithPduRes = {
   pdu:Pdu
 }

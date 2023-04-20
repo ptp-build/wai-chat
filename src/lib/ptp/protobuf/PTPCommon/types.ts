@@ -22,6 +22,12 @@ export enum QrCodeType {
   QrCodeType_MNEMONIC = 1,
 }
 
+export interface ClientInfo_Type {
+  deviceModel: string;
+  systemVersion: string;
+  appVersion: string;
+}
+
 export interface FileInfo_Type {
   id: string;
   size: number;

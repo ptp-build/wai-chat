@@ -23,7 +23,7 @@ export enum BotWebSocketState {
   logged,
 }
 
-export type MsgHandleType = (chatId:string,notifies:BotWebSocketNotify[])=>void
+export type MsgHandleType = (msgConnId:number,notifies:BotWebSocketNotify[])=>void
 
 let reconnect_cnt = 0;
 let seq_num = 0;
@@ -39,12 +39,12 @@ export default class BotWebSocket {
   private __msgHandler?: MsgHandleType;
   private sendMsgTimer?: NodeJS.Timeout;
   private state: BotWebSocketState;
-  private chatId: string;
+  private msgConnId: number;
   private wsUrl?: string;
   private session?: string;
-  constructor(chatId: string) {
+  constructor(msgConnId: number) {
     currentMsgConn = this;
-    this.chatId = chatId;
+    this.msgConnId = msgConnId;
     this.autoConnect = true;
     this.sendMsgTimer = undefined;
     this.state = BotWebSocketState.connect_none;
@@ -60,8 +60,8 @@ export default class BotWebSocket {
   getState() {
     return this.state;
   }
-  getChatId(){
-    return this.chatId;
+  getMsgConnId(){
+    return this.msgConnId;
   }
 
   getAutoConnect() {
@@ -90,7 +90,7 @@ export default class BotWebSocket {
       return;
     }
     try {
-      console.log('connecting', this.chatId,this.wsUrl);
+      console.log('connecting', this.msgConnId,this.wsUrl);
       this.notifyState(BotWebSocketState.connecting);
       this.client = new WebSocket(`${this.wsUrl}`);
       this.client.binaryType = 'arraybuffer';
@@ -146,13 +146,13 @@ export default class BotWebSocket {
 
   onConnected() {
     reconnect_cnt = 0
-    console.log("[onConnected account]",this.getChatId())
+    console.log("[onConnected account]",this.getMsgConnId())
     this.notifyState(BotWebSocketState.connected);
     this.login().catch(console.error)
   }
   async login(){
-    const {session} = this;
     await this.sendPduWithCallback(new AuthLoginReq({
+      clientInfo:Account.getCurrentAccount()!.getClientInfo(),
       sign:Account.getCurrentAccount()?.getSession()!
     }).pack())
     console.log("[onLogin]")
@@ -160,7 +160,7 @@ export default class BotWebSocket {
   }
   notify(notifyList:BotWebSocketNotify[]) {
     if (this.__msgHandler) {
-      this.__msgHandler(this.chatId,notifyList);
+      this.__msgHandler(this.msgConnId,notifyList);
     }
   }
   onData(e: { data: Buffer }) {
@@ -228,11 +228,11 @@ export default class BotWebSocket {
     }
   }
 
-  static getInstance(chatId: string): BotWebSocket {
-    if (!clients[chatId]) {
-      clients[chatId] = new BotWebSocket(chatId);
+  static getInstance(msgConnId: number): BotWebSocket {
+    if (!clients[msgConnId]) {
+      clients[msgConnId] = new BotWebSocket(msgConnId);
     }
-    return clients[chatId];
+    return clients[msgConnId];
   }
 
   waitForMsgCallback(

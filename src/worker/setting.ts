@@ -4,16 +4,18 @@ export const UserIdFirstBot = "1000";
 export const UserIdCnPrompt = "1010";
 export const UserIdEnPrompt = "1011";
 export const UserIdChatGpt = "1012";
+export const UserIdChatGpt4 = "1013";
 
 export const DEFAULT_AVATARS:Record<string, string> = {
   [UserIdFirstBot]:'icon-square-dev-512x512.png',
-  [UserIdChatGpt]:'avatar/ChatGPT_logo.png'
+  [UserIdChatGpt]:'avatar/ChatGPT_logo.png',
+  [UserIdChatGpt4]:'avatar/chatgpt4.png'
 }
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
 export const DEFAULT_PROMPT = '你现在是一个优秀的助手，请用中文回答我的问题。'
-export const BOT_FOLDER_TITLE = '机器人'
+export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
 
 
@@ -24,26 +26,26 @@ export const ALL_CHAT_GPT_MODELS = [
     name: "gpt-4",
     available: ENABLE_GPT4,
   },
-  {
-    name: "gpt-4-0314",
-    available: ENABLE_GPT4,
-  },
-  {
-    name: "gpt-4-32k",
-    available: ENABLE_GPT4,
-  },
-  {
-    name: "gpt-4-32k-0314",
-    available: ENABLE_GPT4,
-  },
+  // {
+  //   name: "gpt-4-0314",
+  //   available: ENABLE_GPT4,
+  // },
+  // {
+  //   name: "gpt-4-32k",
+  //   available: ENABLE_GPT4,
+  // },
+  // {
+  //   name: "gpt-4-32k-0314",
+  //   available: ENABLE_GPT4,
+  // },
   {
     name: "gpt-3.5-turbo",
     available: true,
   },
-  {
-    name: "gpt-3.5-turbo-0301",
-    available: true,
-  },
+  // {
+  //   name: "gpt-3.5-turbo-0301",
+  //   available: true,
+  // },
 ];
 
 export const ChatModelConfig:PbChatGptModelConfig_Type = {
@@ -80,11 +82,11 @@ export const DEFAULT_CHATGPT_AI_COMMANDS = [
   {
     "botId": UserIdChatGpt,
     "command": "apiKey",
-    "description": "设置apiKey"
+    "description": "自定义apiKey"
   },
   {
     "botId": UserIdChatGpt,
-    "command": "initPrompt",
+    "command": "systemPrompt",
     "description": "初始化 上下文 Prompt"
   },
   {
@@ -103,8 +105,6 @@ export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制
 
 /setting - 设置面板
 
-Prompts
-  点击 /setting >> 创建 prompts 大全
 `
 
 export const CurrentUserInfo = {
@@ -217,11 +217,22 @@ export let LoadAllChats = {
       "channels": false,
       "pinnedChatIds": [],
       "excludedChatIds": []
+    },
+    {
+      "id": 2,
+      "title": "ChatGpt",
+      "includedChatIds": [
+        UserIdChatGpt,UserIdChatGpt4
+      ],
+      "channels": false,
+      "pinnedChatIds": [],
+      "excludedChatIds": []
     }
   ],
   folderIds:[
     0,
-    BOT_FOLDER_ID
+    BOT_FOLDER_ID,
+    2
   ],
   "draftsById": {},
   "replyingToById": {},
@@ -234,29 +245,7 @@ export const BYPASS_API = [
   "sendMessage","editMessage","deleteMessages","downloadMedia","destroy","fetchMessages","answerCallbackButton",
   "uploadProfilePhoto","fetchChats","sendWithCallback","msgClientLogin","updateProfile","updateUsername"
 ]
-export const MaxSyncUserToRemote = 5;
-export const MaxSyncMessageToRemote = 10;
+
 export const BOTTOM_INPUT_LEFT_MARGIN = 'width:4px;'
 
-export const SWAGGER_DOC = {
-  schema: {
-    info: {
-      title: 'Worker Wai Chat',
-      version: '1.0',
-    },
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-};
 export const STOP_HANDLE_MESSAGE = true

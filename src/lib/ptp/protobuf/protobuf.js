@@ -603,7 +603,7 @@ var $conv_message = $createConverter([
         PTP: {
             Auth: {
                 AuthLoginReq: {
-                    '$': {"1":["sign","string",""]}
+                    '$': {"1":["sign","string",""],"2":["clientInfo","default.PTP.Common.ClientInfo",null]}
                 },
                 AuthLoginRes: {
                     '$': {"100":["err","uint32",0]}
@@ -662,6 +662,9 @@ var $conv_message = $createConverter([
             Common: {
                 AUTH_TYPE: {
                     '@': {"AUTH_TYPE_USERNAME":0,"AUTH_TYPE_EMAIL":1,"AUTH_TYPE_MOBILE":2}
+                },
+                ClientInfo: {
+                    '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
                 },
                 EncryptType: {
                     '@': {"EncryptType_Wallet":0,"EncryptType_Group":1,"EncryptType_Message":2,"EncryptType_Media":3}
@@ -824,10 +827,10 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 SendBotMsgReq: {
-                    '$': {"1":["botApi","string",""],"2":["text","string",""],"3":["chatId","string",""],"4":["chatGpt","bool",false]}
+                    '$': {"1":["botApi","string",""],"2":["text","string",""],"3":["chatId","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["text","string",""],"2":["chatId","string",""]}
+                    '$': {"1":["text","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false]}
                 },
                 SendReq: {
                     '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}

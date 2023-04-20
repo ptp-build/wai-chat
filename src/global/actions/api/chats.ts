@@ -86,7 +86,7 @@ import {
   DEFAULT_BOT_COMMANDS,
   DEFAULT_CREATE_USER_BIO, DEFAULT_PROMPT,
   LoadAllChats, UserIdChatGpt,
-  UserIdFirstBot, UserIdCnPrompt, UserIdEnPrompt
+  UserIdFirstBot, UserIdCnPrompt, UserIdEnPrompt, UserIdChatGpt4
 } from "../../../worker/setting";
 import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
 import {generateRandomBytes, readBigIntFromBuffer} from "../../../lib/gramjs/Helpers";
@@ -590,6 +590,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     },
   }, tabId);
   setGlobal(global);
+
   try{
     let userId: string;
     let userIdInt = parseInt(UserIdFirstBot)
@@ -647,9 +648,12 @@ addActionHandler('createChat', async (global, actions, payload)=> {
             enableAi:true,
             chatGptConfig:{
               init_system_content,
-              api_key:chatGptApiKey,
-              max_history_length:4,
-              modelConfig:ChatModelConfig
+              api_key:"",
+              max_history_length:10,
+              modelConfig:{
+                ...ChatModelConfig,
+                ...(userId === UserIdChatGpt4 ? {model:"gpt-4"} : {})
+              }
             }
           },
           botId: userId,
@@ -677,15 +681,18 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     let activeChatFolderRow;
     const chatFolderById:Record<string, ApiChatFolder> = {};
     if(activeChatFolder){
-      // @ts-ignore
       Object.values(chatFolders.byId).forEach((row:ApiChatFolder)=>{
-        if(row.id === parseInt(activeChatFolder!)){
-          activeChatFolderRow = row;
-          if(!row.includedChatIds){
-            row.includedChatIds = []
+        if(chatFolders.orderedIds![parseInt(activeChatFolder!)]){
+          const activeFolderId = chatFolders.orderedIds![parseInt(activeChatFolder!)]
+          if(row.id === activeFolderId){
+
+            if(!row.includedChatIds){
+              row.includedChatIds = []
+            }
+            row.includedChatIds.push(userId)
+            chatFolderById[row.id] = row;
+            activeChatFolderRow = row;
           }
-          row.includedChatIds.push(userId)
-          chatFolderById[row.id] = row;
         }
       })
     }
@@ -723,7 +730,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     if(activeChatFolderRow){
       actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
     }
-    if(promptInit || id === UserIdChatGpt){
+    if(promptInit || (id === UserIdChatGpt || id === UserIdChatGpt4)){
       actions.sendBotCommand({chatId:userId,command:"/initPrompt",tabId})
     }
     // @ts-ignore
@@ -2046,6 +2053,23 @@ addActionHandler('toggleTopicPinned', (global, actions, payload): ActionReturnTy
   void callApi('togglePinnedTopic', { chat, topicId, isPinned });
 });
 
+
+const initChats = (firstLoad?:boolean)=>{
+
+  setTimeout(async ()=>{
+    if(firstLoad){
+      getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
+    }
+    const global = getGlobal();
+    if(!global.users.byId[UserIdChatGpt]){
+      await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
+    }
+    if(!global.users.byId[UserIdChatGpt4]){
+      await MsgCommandChatLab.createChatGpt(UserIdChatGpt4,"ChatGpt4")
+    }
+  },500)
+}
+
 export async function loadChats<T extends GlobalState>(
   global: T,
   listType: 'active' | 'archived',
@@ -2096,6 +2120,7 @@ export async function loadChats<T extends GlobalState>(
         },
       };
       setGlobal(global);
+      initChats()
       return
     }
     // result = await callApi('fetchChats', {
@@ -2249,20 +2274,11 @@ export async function loadChats<T extends GlobalState>(
     };
 
     setGlobal(global);
-    if(firstLoad){
-      getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
-      setTimeout(async ()=>{
-        // await MsgCommandChatLab.createPromptChat(UserIdFirstBot,UserIdCnPrompt)
-        // await MsgCommandChatLab.createPromptChat(UserIdFirstBot,UserIdEnPrompt)
-        await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
-      },500)
-
-    }
+    initChats(firstLoad)
   }catch (e){
     console.error(e)
   }
 
-  return;
   // const result = await callApi('fetchChats', {
   //   limit: CHAT_LIST_LOAD_SLICE,
   //   offsetDate,

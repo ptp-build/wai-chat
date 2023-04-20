@@ -53,6 +53,7 @@ message AuthPreLoginRes{
 
 message AuthLoginReq{
   required string sign = 1;
+  optional Common.ClientInfo clientInfo = 2;
 }
 
 message AuthLoginRes{

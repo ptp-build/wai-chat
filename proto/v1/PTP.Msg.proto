@@ -120,10 +120,13 @@ message SendBotMsgReq{
   optional string botApi = 1;
   optional string text = 2;
   optional string chatId = 3;
-  optional bool chatGpt = 4;
+  optional string chatGpt = 4;
+  optional uint32 msgId = 5;
 }
 
 message SendBotMsgRes{
   optional string text = 1;
   optional string chatId = 2;
+  optional uint32 msgId = 3;
+  optional bool streamEnd = 4;
 }
