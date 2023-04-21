@@ -100,7 +100,13 @@ export default class MsgCommandSetting{
         },
       ])
     }
-
+    res.push([
+      {
+        text:"生成签名",
+        data:`${chatId}/setting/signGen`,
+        type:"callback"
+      },
+    ])
     res.push([
       {
         data:`${chatId}/setting/cancel`,

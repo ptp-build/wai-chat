@@ -3,7 +3,7 @@ import {selectChatMessage, selectUser} from "../../global/selectors";
 import {updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {ApiBotCommand, ApiKeyboardButton, ApiMessage} from "../../api/types";
-import {currentTs} from "../share/utils/utils";
+import {currentTs, currentTs1000} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
@@ -17,6 +17,7 @@ import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import {DownloadMsgReq, DownloadMsgRes, SendRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {getPasswordFromEvent} from "../share/utils/password";
+import {hashSha256} from "../share/utils/helpers";
 
 export default class MsgCommand {
   private msgDispatcher: MsgDispatcher;
@@ -205,20 +206,30 @@ export default class MsgCommand {
   static async requestUploadImage(global:GlobalState,chatId:string,messageId:number,files:FileList | null){
     await MsgCommandSetting.requestUploadImage(global,chatId,messageId,files)
   }
-  static getOpenAiApiKey(){
-    return localStorage.getItem("openAiApiKey") ? localStorage.getItem("openAiApiKey")! : ""
-  }
   static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
     if(data === "sign://401"){
       const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
-      const ts = currentTs().toString()
       if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
         MsgDispatcher.showNotification("密码不正确")
+        return
       }else{
         return MsgDispatcher.newTextMessage(chatId,messageId,
           "请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员",[])
       }
     }
+    if(data === chatId + "/setting/signGen"){
+      const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
+      if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
+        MsgDispatcher.showNotification("密码不正确")
+        return
+      }else{
+        const ts = currentTs1000();
+        const resSign = await Account.getCurrentAccount()?.signMessage(`${ts}_${chatId}`,hashSha256(password))
+        return MsgDispatcher.newTextMessage(chatId,messageId,
+          "签名:```\n"+`sk_${resSign!.sign.toString("hex")}_${ts}_${chatId}`+"```",[])
+      }
+    }
+
     await MsgCommandSetting.answerCallbackButton(global,chatId,messageId,data)
     await MsgCommandChatGpt.answerCallbackButton(global,chatId,messageId,data)
     await MsgCommandChatLab.answerCallbackButton(global,chatId,messageId,data)

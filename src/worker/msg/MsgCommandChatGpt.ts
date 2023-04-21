@@ -94,6 +94,11 @@ export default class MsgCommandChatGpt{
           ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
       ],
     )
+    res.push(
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/signGen',"生成签名"),
+      ],
+    )
     return res
   }
 

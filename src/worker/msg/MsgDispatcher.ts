@@ -261,6 +261,7 @@ export default class MsgDispatcher {
       }
       return await this.processAiBotCmd();
     }
+    console.log("processCmd end")
     return true
   }
 

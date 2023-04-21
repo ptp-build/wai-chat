@@ -99,11 +99,11 @@ export async function destroy(noLogOut = false, noClearLocalDb = false) {
   // }
   if (!noClearLocalDb) clearLocalDb();
 
-  await client.destroy();
+  // await client.destroy();
 }
 
 export async function disconnect() {
-  await client.disconnect();
+  // await client.disconnect();
 }
 
 export function getClient() {
