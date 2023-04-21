@@ -1,7 +1,24 @@
+
+
+#Main.right-column-open{
+  @media (min-width: 1276px) {
+    .message-content{
+      max-width: var(--max-width);
+    }
+  }
+}
+
+#Main{
+  @media (min-width: 1276px) {
+    .message-content{
+      max-width: 100%;
+    }
+  }
+}
+
+
 .message-content {
   position: relative;
-  max-width: var(--max-width);
-
   @media (max-width: 600px) {
     max-width: min(29rem, calc(100vw - 6.25rem));
     .MessageList.no-avatars & {
