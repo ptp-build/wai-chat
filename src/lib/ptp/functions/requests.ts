@@ -1,7 +1,20 @@
-import {ChatRequest, ChatResponse, Message} from "../../../../functions/api/types";
 import {CHATGPT_PROXY_API} from "../../../config";
 import {PbChatGptModelConfig_Type} from "../protobuf/PTPCommon/types";
 import Account from "../../../worker/share/Account";
+import type {
+  ChatCompletionResponseMessage,
+  CreateChatCompletionRequest,
+  CreateChatCompletionResponse,
+} from "openai";
+
+
+export type Message = ChatCompletionResponseMessage & {
+  date: string;
+  streaming?: boolean;
+};
+
+export type ChatRequest = CreateChatCompletionRequest;
+export type ChatResponse = CreateChatCompletionResponse;
 
 const TIME_OUT_MS = 30000;
 
@@ -130,26 +143,17 @@ export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbCh
 export async function requestChatStream(
   url:string,
   options: {
-    messages: Message[],
-    systemPrompt:string,
-    apiKey:string,
-    filterBot?: boolean;
-    modelConfig?: PbChatGptModelConfig_Type;
+    body:Record<string, any>,
     onMessage: (message: string, done: boolean) => void;
     onAbort: (error: Error) => void;
     onError: (error: Error) => void;
     onController?: (controller: AbortController) => void;
   },
 ) {
-  const req = makeRequestParam(options.messages, {
+  const req = makeRequestParam(options.body.messages, {
     stream: true,
-    filterBot: options.filterBot,
+    filterBot:false,
   });
-
-  // valid and assign model config
-  if (options.modelConfig) {
-    Object.assign(req, filterConfig(options.modelConfig));
-  }
 
   console.log("[Request] ", req);
 
@@ -163,11 +167,7 @@ export async function requestChatStream(
         "Content-Type": "application/json; charset=utf-8",
         "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
       },
-      body: JSON.stringify({
-        ...req,
-        systemPrompt:options.systemPrompt,
-        apiKey:options.apiKey,
-      }),
+      body: JSON.stringify(options.body),
       signal: controller.signal,
     });
 
@@ -191,6 +191,9 @@ export async function requestChatStream(
         const content = await reader?.read();
         clearTimeout(resTimeoutId);
         const text = decoder.decode(content?.value);
+        if(text.startsWith("ERROR:")){
+          options.onError(new Error(text.replace("ERROR:","")));
+        }
         responseText += text;
 
         const done = !content || content.done;

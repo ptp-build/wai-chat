@@ -176,7 +176,9 @@
       }
     }
   }
-
+  &.selfSend {
+    --background-color: var(--color-background-own)!important;
+  }
   &.own {
     flex-direction: row-reverse;
     --background-color: var(--color-background-own);

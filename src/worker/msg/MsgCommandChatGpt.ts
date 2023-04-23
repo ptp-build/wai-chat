@@ -1,7 +1,7 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {currentTs, isPositiveInteger} from "../share/utils/utils";
-import {ApiBotInfo, ApiKeyboardButtons, ApiMessage} from "../../api/types";
-import {AiReplyHistoryRole, GlobalState} from "../../global/types";
+import {ApiKeyboardButtons} from "../../api/types";
+import {GlobalState} from "../../global/types";
 import {getGlobal, setGlobal} from "../../global";
 import {selectChatMessage, selectUser} from "../../global/selectors";
 import {updateUser} from "../../global/reducers";
@@ -17,57 +17,23 @@ import {StopChatStreamReq} from "../../lib/ptp/protobuf/PTPOther";
 import MsgCommand from "./MsgCommand";
 import {showModalFromEvent} from "../share/utils/modal";
 import {PbAiBot_Type, PbChatGpBotConfig_Type, PbChatGptModelConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
-import {AiHistoryType} from "./MsgChatGpWorker";
 import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {requestUsage} from "../../lib/ptp/functions/requests";
 import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
+import ChatMsg from "./ChatMsg";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
-  private botInfo: ApiBotInfo;
-  constructor(chatId:string,botInfo:ApiBotInfo) {
+  private chatMsg: ChatMsg;
+  constructor(chatId:string) {
     this.chatId = chatId
-    this.botInfo = botInfo;
+    this.chatMsg = new ChatMsg(chatId)
   }
 
-  static getAiHistoryList(chatId:string){
-    const global = getGlobal();
-    const {aiReplyHistory} = global
-    const historyList = aiReplyHistory[chatId] || []
-    if (historyList.length>0){
-      // @ts-ignore
-      const max_history_length:number = MsgCommandChatGpt.getChatGptConfig(global,chatId,"max_history_length")
-      let rows:AiHistoryType[] = []
-
-      if(max_history_length !== undefined){
-        if(max_history_length){
-          for (let i = 0; i < historyList.length; i++) {
-            const {msgId,role} = historyList[i]
-            const message = selectChatMessage(global,chatId,msgId)
-            if(message && message?.content.text){
-              rows.push({
-                role:role === AiReplyHistoryRole.USER ? "user" : "assistant",
-                content:message!.content.text!.text,
-                date: new Date(message.date*1000).toLocaleString(),
-              })
-            }
-          }
-          if(rows.length > max_history_length){
-            rows = rows.slice(Math.max(0,historyList.length - max_history_length))
-          }
-        }else {
-          rows = []
-        }
-      }
-      return rows;
-    }else{
-      return []
-    }
-  }
-  static getInlineButtons(chatId:string):ApiKeyboardButtons{
-    const global = getGlobal();
-    const isEnableAi = MsgCommandChatGpt.getAiBotConfig(global,chatId,'enableAi')
-    const disableClearHistory = MsgCommandChatGpt.getAiBotConfig(global,chatId,'disableClearHistory')
+  getInlineButtons():ApiKeyboardButtons{
+    const chatId = this.chatId
+    const isEnableAi = this.getAiBotConfig('enableAi')
+    const disableClearHistory = this.getAiBotConfig('disableClearHistory')
     const res = [
       [
         ...MsgCommand.buildInlineCallbackButton(
@@ -102,95 +68,51 @@ export default class MsgCommandChatGpt{
     return res
   }
 
-  static async toggleClearHistory(chatId:string,messageId:number){
-    const global = getGlobal();
-    const disableClearHistory = MsgCommandChatGpt.getAiBotConfig(global,chatId,'disableClearHistory')
-    await MsgCommandChatGpt.changeAiBotConfig(global,chatId,{
+  async toggleClearHistory(messageId:number){
+    const disableClearHistory = this.getAiBotConfig('disableClearHistory')
+    await this.changeAiBotConfig({
       "disableClearHistory":!disableClearHistory
     })
-
-    await MsgDispatcher.updateMessage(chatId,messageId,{
-      inlineButtons:MsgCommandChatGpt.getInlineButtons(chatId)
+    await this.chatMsg.update(messageId,{
+      inlineButtons:this.getInlineButtons()
     })
   }
   async setting(){
-    const {chatId} = this;
-    await MsgCommandChatGpt.reloadCommands(chatId)
-    const messageId = await MsgDispatcher.genMsgId();
+    await this.reloadCommands()
     const text = `设置面板`
-    return MsgDispatcher.newMessage(chatId,messageId,{
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text
-        }
-      },
-      inlineButtons:MsgCommandChatGpt.getInlineButtons(chatId),
-    })
+    return this.chatMsg.setText(text).setInlineButtons(this.getInlineButtons()).reply();
   }
   async start(){
-    const messageId = await MsgDispatcher.genMsgId();
     const {chatId} = this
     if(DEBUG){
       const global = getGlobal();
       console.log({user:global.users.byId[chatId],messages:global.messages.byChatId[chatId]})
     }
-    await MsgCommandChatGpt.reloadCommands(chatId);
-    const commands = MsgCommandChatGpt.getCommands(chatId);
+    await this.reloadCommands();
+    const commands = this.getCommands();
     const text = `你可以通过发送以下命令来控制我：\n\n` + commands.map(cmd=>{
       return `/${cmd.command} ${cmd.description}`
     }).join("\n") + "\n";
-    const message = {
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text
-        }
-      },
-    }
-    MsgDispatcher.newMessage(chatId,messageId,message)
-    return message
+    return this.chatMsg.setText(text).reply();
   }
   async systemPrompt(){
-    const messageId = await MsgDispatcher.genMsgId();
     const {chatId} = this
-    const init_system_content = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"init_system_content")
+    const init_system_content = this.getChatGptConfig("init_system_content")
 
-    const message:ApiMessage = {
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text:`${init_system_content?init_system_content:"未设置"}`
+    return this.chatMsg.setText("```\n"+init_system_content+"```").setInlineButtons([
+      [
+        {
+          text:"点击修改 系统 Prompt",
+          type:"callback",
+          data:`${chatId}/init_system_content`
         }
-      },
-      inlineButtons:[
-        [
-          {
-            text:"点击修改 初始化 Prompt",
-            type:"callback",
-            data:`${chatId}/init_system_content`
-          }
-        ]
       ]
-    }
-    MsgDispatcher.newMessage(chatId,messageId,message)
-    return message
+    ]).reply();
   }
 
-  static getAiBotConfig(global:GlobalState,chatId:string,key:'enableAi'|'botApi'|'commandsFromApi'|'chatGptConfig'|'disableClearHistory'){
-    const user = selectUser(global,chatId);
+  getAiBotConfig(key:'enableAi'|'botApi'|'commandsFromApi'|'chatGptConfig'|'disableClearHistory'){
+    const global = getGlobal();
+    const user = selectUser(global,this.chatId);
     if(
       user?.fullInfo &&
       user?.fullInfo.botInfo &&
@@ -201,32 +123,35 @@ export default class MsgCommandChatGpt{
       return undefined
     }
   }
-  static getChatGptConfig(global:GlobalState,chatId:string,key:'api_key'|'max_history_length'|'init_system_content'|'modelConfig'){
-    // @ts-ignore
-    const aiBotConfig:PbChatGptBotConfig_Type = MsgCommandChatGpt.getAiBotConfig(global,chatId,"chatGptConfig")
-    if(aiBotConfig && aiBotConfig[key]){
+  getChatGptConfig(key:'api_key'|'max_history_length'|'init_system_content'|'modelConfig'){
+    const aiBotConfig = this.getAiBotConfig("chatGptConfig") as PbChatGpBotConfig_Type
+    if(aiBotConfig && aiBotConfig[key] !== undefined){
       return aiBotConfig[key]
     }else{
       if(key === "modelConfig"){
         return ChatModelConfig
       }
+
+      if(key === "max_history_length"){
+        return -1
+      }
       return ""
     }
   }
 
-  static getChatGptModelConfig(global:GlobalState,chatId:string,key:'model'|'temperature'|'max_tokens'|'presence_penalty'){
-    // @ts-ignore
-    const modelConfig:PbChatGptModelConfig_Type = MsgCommandChatGpt.getChatGptConfig(global,chatId,"modelConfig")
+  getChatGptModelConfig(key:'model'|'temperature'|'max_tokens'|'presence_penalty'){
+    const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
     if(modelConfig && undefined !== modelConfig[key]){
       return modelConfig[key]
     }else{
       return ChatModelConfig[key]
     }
   }
-  static changeAiBotConfig(global:GlobalState,botId:string,aiConfig:Partial<PbAiBot_Type>){
-    global = getGlobal();
-    const user = selectUser(global,botId);
-    global = updateUser(global,botId,{
+
+  changeAiBotConfig(aiConfig:Partial<PbAiBot_Type>){
+    let global = getGlobal();
+    const user = selectUser(global,this.chatId);
+    global = updateUser(global,this.chatId,{
       ...user,
       fullInfo:{
         ...user?.fullInfo,
@@ -241,11 +166,11 @@ export default class MsgCommandChatGpt{
     })
     setGlobal(global)
   }
-  static changeChatGptConfig(botId:string,chatGptConfig:Partial<PbChatGpBotConfig_Type>){
+  changeChatGptConfig(chatGptConfig:Partial<PbChatGpBotConfig_Type>){
     let global = getGlobal();
-    const user = selectUser(global,botId);
+    const user = selectUser(global,this.chatId);
 
-    MsgCommandChatGpt.changeAiBotConfig(global,botId,{
+    this.changeAiBotConfig({
       ...user?.fullInfo?.botInfo?.aiBot,
       chatGptConfig:{
         ...user?.fullInfo?.botInfo?.aiBot?.chatGptConfig,
@@ -254,11 +179,9 @@ export default class MsgCommandChatGpt{
     })
   }
 
-  static changeChatGptModelConfig(botId:string,chatGptModelConfig:Partial<PbChatGptModelConfig_Type>){
-    let global = getGlobal();
-    const user = selectUser(global,botId);
-    const modelConfig = MsgCommandChatGpt.getChatGptConfig(global,botId,"modelConfig")
-    MsgCommandChatGpt.changeChatGptConfig(botId,{
+  changeChatGptModelConfig(chatGptModelConfig:Partial<PbChatGptModelConfig_Type>){
+    const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
+    this.changeChatGptConfig({
       modelConfig:{
         ...modelConfig,
         ...chatGptModelConfig
@@ -266,50 +189,37 @@ export default class MsgCommandChatGpt{
     })
   }
   async maxHistoryLength(){
-    const {chatId} = this
-    let max_history_length = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"max_history_length")
+    let max_history_length = this.getChatGptConfig("max_history_length")
     const {value} = await showModalFromEvent({
       initVal:(max_history_length||0).toString(),
       title:"请输入携带历史消息数",
+      inputType:"number",
       placeholder:"每次提问携带历史消息数,当为 0 时不携带,须为偶数"
     })
     if(value && value!== max_history_length){
       max_history_length = isPositiveInteger(value) ? parseInt(value) : 0;
-      MsgCommandChatGpt.changeChatGptConfig(chatId,{max_history_length})
-      return await MsgDispatcher.newTextMessage(chatId,undefined,'修改成功')
+      this.changeChatGptConfig({max_history_length})
+      return this.chatMsg.setText("修改成功").reply()
     }
     return STOP_HANDLE_MESSAGE
   }
 
   async usage(){
-    const {chatId} = this
-    const api_key = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"api_key")
-    const msg = await MsgDispatcher.newTextMessage(chatId,undefined,'...')
+    const api_key = this.getChatGptConfig("api_key")
+    const msg = await this.chatMsg.setThinking().reply();
     try {
       // @ts-ignore
       const {text} = await requestUsage(api_key)
-      await MsgDispatcher.updateMessage(chatId,msg.id,{
-        content:{
-          text:{
-            text
-          }
-        }
-      })
+      await this.chatMsg.updateText(msg.id,text)
     }catch (e){
       console.error(e)
-      await MsgDispatcher.updateMessage(chatId,msg.id,{
-        content:{
-          text:{
-            text:`查询失败`
-          }
-        }
-      })
+      await this.chatMsg.updateText(msg.id,"查询失败")
     }
     return STOP_HANDLE_MESSAGE
   }
   async apiKey(){
     const {chatId} = this
-    const api_key = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"api_key")
+    const api_key = this.getChatGptConfig("api_key") as string
     const {value} = await showModalFromEvent({
       initVal:api_key,
       title:"请输入apiKey",
@@ -317,7 +227,7 @@ export default class MsgCommandChatGpt{
     })
     if(value!== api_key){
       localStorage.setItem("cg-key",value || "")
-      MsgCommandChatGpt.changeChatGptConfig(chatId,{api_key:value})
+      this.changeChatGptConfig({api_key:value})
       MsgDispatcher.showNotification("修改成功")
     }
     return STOP_HANDLE_MESSAGE
@@ -327,45 +237,30 @@ export default class MsgCommandChatGpt{
     const {chatId} = this
     setGlobal({
       ...global,
-      aiReplyHistory:{
-        ...global.aiReplyHistory,
-        [chatId]:[]
+      chatGptAskHistory:{
+        ...global.chatGptAskHistory,
+        [chatId]:{}
       }
     })
-    await MsgDispatcher.newTextMessage(chatId,undefined,"重置成功")
+    await this.chatMsg.setText("重置成功").reply()
     return STOP_HANDLE_MESSAGE
   }
   async enableAi(){
-    const messageId = await MsgDispatcher.genMsgId();
-    const {chatId} = this
-    const isEnable = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,"enableAi")
-    const message:ApiMessage = {
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text:`当前AI状态:【${isEnable ? "开启" : "关闭"}】，修改请点击下面按钮:`
+    const isEnable = this.getAiBotConfig("enableAi")
+    return this.chatMsg.setText(`当前AI状态:【${isEnable ? "开启" : "关闭"}】，修改请点击下面按钮:`).setInlineButtons([
+      [
+        {
+          text:isEnable ? "关闭" : "开启",
+          type:"callback",
+          data:`${this.chatId}/enableAi/${isEnable ? "0":"1"}`
         }
-      },
-      inlineButtons:[
-        [
-          {
-            text:isEnable ? "关闭" : "开启",
-            type:"callback",
-            data:`${chatId}/enableAi/${isEnable ? "0":"1"}`
-          }
-        ]
       ]
-    }
-    MsgDispatcher.newMessage(chatId,messageId,message)
-    return message
+    ]).reply()
   }
 
-  static getCustomApiInlineButtons(chatId:string,messageId:number){
-    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+  getCustomApiInlineButtons(messageId:number){
+    const botApi = this.getAiBotConfig('botApi')
+    const chatId = this.chatId;
     return [
       [
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',botApi ? "修改Api": "设置Api"),
@@ -377,18 +272,27 @@ export default class MsgCommandChatGpt{
       ]
     ]
   }
-  static async customApi(chatId:string,messageId:number){
-    await MsgDispatcher.newTextMessage(chatId,undefined,"通过自定义api，可以使用单独的机器人Api",MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId))
+  async customApi(messageId:number){
+    await this.chatMsg.update(messageId,{
+      content:{
+        text:{
+          text:"通过自定义api，可以使用单独的机器人Api"
+        }
+      },
+      inlineButtons:this.getCustomApiInlineButtons(messageId)
+    })
   }
-  static async updateCmd(chatId:string,messageId:number){
-    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+
+  async updateCmd(messageId:number){
+    const chatId = this.chatId;
+    const botApi = this.getAiBotConfig('botApi') as string
     const res = await callApiWithPdu(new UpdateCmdReq({
       botApi,
       chatId,
     }).pack())
     if(res){
       const {commands} = UpdateCmdRes.parseMsg(res.pdu)
-      MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+      this.changeAiBotConfig({
         commandsFromApi:commands?.map(cmd=>{
           return{
             ...cmd,
@@ -396,61 +300,58 @@ export default class MsgCommandChatGpt{
           }
         })
       })
-      await MsgCommandChatGpt.reloadCommands(chatId)
-      await MsgDispatcher.newTextMessage(chatId,undefined,"更新成功")
+      await this.reloadCommands()
+      await this.chatMsg.setText("更新成功").reply()
     }else{
-      await MsgDispatcher.newTextMessage(chatId,undefined,"更新失败")
+      await this.chatMsg.setText("更新失败").reply()
     }
   }
-  static async disableApi(chatId:string,messageId:number){
+  async disableApi(messageId:number){
 
-    MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+    this.changeAiBotConfig({
       botApi:undefined
     })
-    const inlineButtons = MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId)
-    const message = selectChatMessage(getGlobal(),chatId,messageId)
-    MsgDispatcher.updateMessage(chatId,messageId, {
-        content: {
-          text: {
-            text: "请输入api地址"
-          }
-        },
-        inlineButtons: [
-          ...inlineButtons.slice(0,inlineButtons.length-1),
-          ...message!.inlineButtons!.slice(inlineButtons.length-1)
-        ]
-      }
-    )
+    const inlineButtons = this.getCustomApiInlineButtons(messageId)
+    const message = selectChatMessage(getGlobal(),this.chatId,messageId)
+    this.chatMsg.update(messageId,{
+      content: {
+        text: {
+          text: "请输入api地址"
+        }
+      },
+      inlineButtons: [
+        ...inlineButtons.slice(0,inlineButtons.length-1),
+        ...message!.inlineButtons!.slice(inlineButtons.length-1)
+      ]
+    })
   }
-  static async setApi(chatId:string,messageId:number){
-    // @ts-ignore
-    let botApi:string | undefined = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
+  async setApi(messageId:number){
+    let botApi = this.getAiBotConfig('botApi') as string | undefined
     const {value} = await showModalFromEvent({
       title:"请输入api地址",
       initVal:botApi || ""
     })
     botApi = value;
-    MsgCommandChatGpt.changeAiBotConfig(getGlobal(),chatId,{
+    this.changeAiBotConfig({
       botApi:value
     })
-    const inlineButtons = MsgCommandChatGpt.getCustomApiInlineButtons(chatId,messageId)
-    const message = selectChatMessage(getGlobal(),chatId,messageId)
-    MsgDispatcher.updateMessage(chatId,messageId, {
-        content: {
-          text: {
-            text:botApi ? `地址: ${botApi}` : "请输入api地址"
-          }
-        },
-        inlineButtons: [
-          ...inlineButtons.slice(0,inlineButtons.length-1),
-          ...message!.inlineButtons!.slice(inlineButtons.length-1)
-        ]
-      }
-    )
+    const inlineButtons = this.getCustomApiInlineButtons(messageId)
+    const message = selectChatMessage(getGlobal(),this.chatId,messageId)
+    this.chatMsg.update(messageId,{
+      content: {
+        text: {
+          text:botApi ? `地址: ${botApi}` : "请输入api地址"
+        }
+      },
+      inlineButtons: [
+        ...inlineButtons.slice(0,inlineButtons.length-1),
+        ...message!.inlineButtons!.slice(inlineButtons.length-1)
+      ]
+    })
   }
-  static getAiModelInlineButtons(chatId:string){
-
-    const modelConfig = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"modelConfig")
+  getAiModelInlineButtons(){
+    const chatId = this.chatId;
+    const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
     const models =   ALL_CHAT_GPT_MODELS.filter(({name})=>name !== modelConfig.model).map(({name})=>{
       return MsgCommand.buildInlineCallbackButton(chatId,"model/switch/"+name,"# "+name)
     })
@@ -463,28 +364,12 @@ export default class MsgCommandChatGpt{
     ]
   }
   async aiModel(){
-    const messageId = await MsgDispatcher.genMsgId();
-    const {chatId} = this
-    const modelConfig = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,"modelConfig")
-    const inlineButtons:ApiKeyboardButtons = MsgCommandChatGpt.getAiModelInlineButtons(chatId);
-    const message:ApiMessage = {
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text:`当前模型:【${modelConfig.model}】`
-        }
-      },
-      inlineButtons
-    }
-    MsgDispatcher.newMessage(chatId,messageId,message)
-    return message
+    const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons();
+    return this.chatMsg.setText(`当前模型:【${modelConfig.model}】`).setInlineButtons(inlineButtons).reply()
   }
-  static async handleChangeModelConfig(chatId:string,messageId:number,key:'model'|'temperature'|'max_tokens'|'presence_penalty'){
-    const val:any = MsgCommandChatGpt.getChatGptModelConfig(getGlobal(),chatId,key)
+  async handleChangeModelConfig(messageId:number,key:'model'|'temperature'|'max_tokens'|'presence_penalty'){
+    const val:any = this.getChatGptModelConfig(key)
     let title = "";
     let placeholder = "";
     let step = 1;
@@ -524,79 +409,74 @@ export default class MsgCommandChatGpt{
     })
 
     if(value !== val){
-      MsgCommandChatGpt.changeChatGptModelConfig(chatId,{
+      this.changeChatGptModelConfig({
         [key]:Number(value)
       })
     }
-    const inlineButtons:ApiKeyboardButtons = MsgCommandChatGpt.getAiModelInlineButtons(chatId)
-    MsgDispatcher.updateMessage(chatId,messageId,{
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons()
+    this.chatMsg.update(messageId,{
       inlineButtons
     })
 
   }
-  static async switch(global:GlobalState,chatId:string,messageId:number,data:string){
+  async switchModel(messageId:number,data:string){
+    const chatId = this.chatId;
     const model = data.replace(`${chatId}/model/switch/`,"")
-    MsgCommandChatGpt.changeChatGptModelConfig(chatId,{
+    this.changeChatGptModelConfig({
       model
     })
-    const inlineButtons:ApiKeyboardButtons = MsgCommandChatGpt.getAiModelInlineButtons(chatId)
-    MsgDispatcher.updateMessage(chatId,messageId,{
-      content:{
-        text:{
-          text:`当前模型:【${model}】`
-        }
-      },
-      inlineButtons
-    })
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons()
+    await this.chatMsg.setText(`当前模型:【${model}】`).setInlineButtons(inlineButtons).reply()
   }
-  static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
+  async answerCallbackButton(global:GlobalState,messageId:number,data:string){
+    const chatId = this.chatId;
     if(data.startsWith(`${chatId}/setting/ai/back`)){
-      await MsgCommand.back(global,chatId,messageId,data,"setting/ai/back")
+      await new MsgCommand(chatId).back(global,messageId,data,"setting/ai/back")
       return
     }
     if(data.startsWith(`${chatId}/model/switch`)){
-      await MsgCommandChatGpt.switch(global,chatId,messageId,data)
+      await this.switchModel(messageId,data)
       return
     }
     switch (data){
       case `${chatId}/model/property/temperature`:
-        await MsgCommandChatGpt.handleChangeModelConfig(chatId,messageId,"temperature")
+        await this.handleChangeModelConfig(messageId,"temperature")
         return
       case `${chatId}/model/property/max_tokens`:
-        await MsgCommandChatGpt.handleChangeModelConfig(chatId,messageId,"max_tokens")
+        await this.handleChangeModelConfig(messageId,"max_tokens")
         return
       case `${chatId}/model/property/presence_penalty`:
-        await MsgCommandChatGpt.handleChangeModelConfig(chatId,messageId,"presence_penalty")
+        await this.handleChangeModelConfig(messageId,"presence_penalty")
         return
       case `${chatId}/setting/ai/disableApi`:
-        await MsgCommandChatGpt.disableApi(chatId,messageId)
+        await this.disableApi(messageId)
         return
       case `${chatId}/setting/ai/setApi`:
-        await MsgCommandChatGpt.setApi(chatId,messageId)
+        await this.setApi(messageId)
         return
       case `${chatId}/setting/ai/updateCmd`:
-        await MsgCommandChatGpt.updateCmd(chatId,messageId)
+        await this.updateCmd(messageId)
         return
       case `${chatId}/setting/ai/customApi`:
-        await MsgCommandChatGpt.customApi(chatId,messageId)
+        await this.customApi(messageId)
         return
       case `${chatId}/setting/ai/toggleClearHistory`:
-        await MsgCommandChatGpt.toggleClearHistory(chatId,messageId)
+        await this.toggleClearHistory(messageId)
         return
       case `${chatId}/setting/uploadUser`:
-        await MsgCommand.uploadUser(global,chatId)
+        await new MsgCommand(chatId).uploadUser(global)
         break
       case `${chatId}/setting/downloadUser`:
-        await MsgCommand.downloadUser(global,chatId)
+        await new MsgCommand(chatId).downloadUser(global)
         break
       case `${chatId}/setting/ai/clearHistory`:
-        await MsgCommand.clearHistory(chatId)
+        await new MsgCommand(chatId).clearHistory()
         break
       case `${chatId}/setting/ai/reloadCommands`:
-        await MsgCommandChatGpt.reloadCommands(chatId)
+        await this.reloadCommands()
         break
       case `${chatId}/requestChatStream/stop`:
-        MsgDispatcher.updateMessage(chatId,messageId, {
+        this.chatMsg.update(messageId,{
           inlineButtons:[
             [
               {
@@ -606,6 +486,7 @@ export default class MsgCommandChatGpt{
             ]
           ]
         })
+
         await callApiWithPdu(new StopChatStreamReq({
           chatId:parseInt(chatId),
           msgId:messageId
@@ -613,38 +494,40 @@ export default class MsgCommandChatGpt{
         break
       case `${chatId}/init_system_content`:
         global = getGlobal();
-        let init_system_content = MsgCommandChatGpt.getChatGptConfig(global,chatId,"init_system_content")
-        const {value} = await showModalFromEvent({
-          type:"singleInput",
-          title:"请输入 上下文记忆",
-          placeholder:"每次请求都会带入 上下文记忆",
-          initVal:init_system_content
-        });
-        if(value){
-          init_system_content = value
-          MsgCommandChatGpt.changeChatGptConfig(chatId,{
-            init_system_content:value
-          })
-          const message1 = {
-            content:{
-              text:{
-                text:`${init_system_content?init_system_content:"未设置"}`
-              }
-            },
-            inlineButtons:[
-              [
-                {
-                  text:"点击修改 初始化 Prompt",
-                  type:"callback",
-                  data:`${chatId}/init_system_content`
-                }
-              ]
-            ]
-          }
+        const e = document.querySelector("#message"+messageId+" pre.text-entity-pre");
+        if(e){
+          const btn = document.querySelector("#message"+messageId+" .InlineButtons .inline-button-text");
           // @ts-ignore
-          MsgDispatcher.newMessage(chatId,messageId,message1)
-        }
+          if(e.contentEditable === "true"){
+            // @ts-ignore
+            btn.innerText = "点击修改"
+            // @ts-ignore
+            e.contentEditable = false
+            // @ts-ignore
+            e.blur();
+          }else{
+            // @ts-ignore
+            btn.innerText = "保存修改"
+            // @ts-ignore
+            e.contentEditable = true
+            // @ts-ignore
+            e.focus();
+            e.addEventListener('focus', ()=>{
+              // @ts-ignore
+              btn.innerText = "保存修改"
+            });
+            e.addEventListener('blur', ()=>{
+              // @ts-ignore
+              e.contentEditable = false
+              // @ts-ignore
+              const init_system_content = e.innerText
+              this.changeChatGptConfig({
+                init_system_content
+              })
+            });
+          }
 
+        }
         break;
       case `${chatId}/apiKey`:
         const res = await showModalFromEvent({
@@ -652,10 +535,10 @@ export default class MsgCommandChatGpt{
           title:"请输入 ApiKey",
           placeholder:""
         });
-        let api_key = MsgCommandChatGpt.getChatGptConfig(getGlobal(),chatId,'api_key')
+        let api_key = this.getChatGptConfig('api_key')
         if(api_key !== res.value) {
           api_key = res.value;
-          MsgCommandChatGpt.changeChatGptConfig(chatId, {
+          this.changeChatGptConfig({
             api_key
           })
         }
@@ -663,20 +546,20 @@ export default class MsgCommandChatGpt{
       case `${chatId}/setting/ai/enable/1`:
       case `${chatId}/setting/ai/enable/0`:
         const isEnable = data === `${chatId}/setting/ai/enable/1`;
-        MsgCommandChatGpt.changeAiBotConfig(global,chatId,{
+        this.changeAiBotConfig({
           enableAi:isEnable
         })
-        await MsgCommandChatGpt.reloadCommands(chatId)
-        MsgDispatcher.updateMessage(chatId,messageId,{
-          inlineButtons:MsgCommandChatGpt.getInlineButtons(chatId,)
+        await this.reloadCommands()
+        await this.chatMsg.update(messageId,{
+          inlineButtons:this.getInlineButtons()
         })
         break
     }
   }
-  static getCommands(chatId:string){
-    const commandsFromApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'commandsFromApi')
-    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,'botApi')
-    const isEnable = MsgCommandChatGpt.getAiBotConfig(getGlobal(),chatId,"enableAi");
+  getCommands(){
+    const commandsFromApi = this.getAiBotConfig('commandsFromApi')
+    const botApi = this.getAiBotConfig('botApi')
+    const isEnable = this.getAiBotConfig("enableAi");
     let commands = [...DEFAULT_BOT_COMMANDS]
 
     if(botApi){
@@ -689,10 +572,9 @@ export default class MsgCommandChatGpt{
         commands = [...commands,...DEFAULT_CHATGPT_AI_COMMANDS]
       }
     }
-    console.log(commands)
     return commands
   }
-  private static async reloadCommands(chatId:string) {
-    await MsgCommand.reloadCommands(chatId,MsgCommandChatGpt.getCommands(chatId))
+  private async reloadCommands() {
+    await new MsgCommand(this.chatId).reloadCommands(this.getCommands())
   }
 }

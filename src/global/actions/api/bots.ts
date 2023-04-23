@@ -54,7 +54,7 @@ addActionHandler('clickBotInlineButton', (global, actions, payload): ActionRetur
       if (!chat) {
         return;
       }
-      MsgCommand.answerCallbackButton(global,chat.id,messageId,button.data);
+      new MsgCommand(chat.id).answerCallbackButton(global,messageId,button.data);
       // void answerCallbackButton(global, actions, chat, messageId, button.data, undefined, tabId);
       break;
     }
@@ -65,9 +65,9 @@ addActionHandler('clickBotInlineButton', (global, actions, payload): ActionRetur
       }
       openSystemFilesDialog(
         Array.from(SUPPORTED_IMAGE_CONTENT_TYPES).join(','),
-        (e) => {
+        async (e) => {
           const { files } = e.target as HTMLInputElement;
-          MsgCommand.requestUploadImage(global,chat.id,messageId,files);
+          await new MsgCommand(chat.id).requestUploadImage(global,messageId,files);
         },
         true
       );
@@ -960,7 +960,7 @@ async function sendBotCommand(
     sendAs,
     botInfo:user?.fullInfo?.botInfo
   }
-  const res = await new MsgDispatcher(getGlobal(),params).process()
+  const res = await new MsgDispatcher(params).process()
   if(!res){
     await callApi('sendMessage', params);
   }

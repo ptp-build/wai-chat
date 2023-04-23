@@ -51,7 +51,7 @@ export const ALL_CHAT_GPT_MODELS = [
 export const ChatModelConfig:PbChatGptModelConfig_Type = {
   model: "gpt-3.5-turbo",
   temperature: 1,
-  max_tokens: 2000,
+  max_tokens: 1000,
   presence_penalty: 0,
 }
 
@@ -110,7 +110,7 @@ export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制
 export const CurrentUserInfo = {
   "id": "1",
   "accessHash": "",
-  "firstName": "",
+  "firstName": "me",
   "lastName": "",
   "canBeInvitedToGroup": false,
   "hasVideoAvatar": false,

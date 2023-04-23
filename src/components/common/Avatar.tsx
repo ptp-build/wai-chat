@@ -209,13 +209,15 @@ const Avatar: FC<OwnProps> = ({
 
   const hasMedia = Boolean(isSavedMessages || imgBlobUrl);
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement, MouseEvent>) => {
+    if(userId === "1"){
+      return
+    }
     if (onClick) {
       onClick(e, hasMedia);
     }
   }, [onClick, hasMedia]);
 
   const senderId = (user || chat) && (user || chat)!.id;
-
   return (
     <div
       ref={ref}

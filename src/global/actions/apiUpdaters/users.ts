@@ -46,30 +46,16 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case "updateGlobalUpdate":
       const {data} = update
       switch (data.action){
-        case "updateAiHistory":
+        case "updateChatGptHistory":
           const chatId = data.payload!.chatId;
-          let historyList:AiReplyHistoryType[] = []
-          if(global.aiReplyHistory[chatId]){
-            historyList = [
-              ...global.aiReplyHistory[chatId],
-            ]
-          }
-          historyList = [
-            ...historyList,
-            {
-              msgId:data.payload!.messages[0],
-              role:AiReplyHistoryRole.USER
-            },
-            {
-              msgId:data.payload!.messages[0],
-              role:AiReplyHistoryRole.ASSISTANT
-            }
-          ]
           return {
             ...global,
-            aiReplyHistory:{
-              ...global.aiReplyHistory,
-              [chatId]:historyList
+            chatGptAskHistory:{
+              ...global.chatGptAskHistory,
+              [chatId]:{
+                ...global.chatGptAskHistory[chatId],
+                [data.payload!.msgIdAssistant]:data.payload!.msgIdUser
+              }
             }
           }
         case "updateBot":

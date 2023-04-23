@@ -577,10 +577,11 @@ export enum AiReplyHistoryRole{
   USER
 }
 
-export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole}
+export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole,}
 
 export type GlobalState = {
   aiReplyHistory:Record<string, AiReplyHistoryType[]>
+  chatGptAskHistory:Record<string, Record<number, number>>
   messagesDeleted:Record<string, number[]>
   chatIdsDeleted:string[],
   userSetting?:UserStoreData_Type,

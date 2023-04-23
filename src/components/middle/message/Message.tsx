@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from '../../../lib/teact/teact';
-import { getActions, withGlobal } from '../../../global';
+import {getActions, withGlobal} from '../../../global';
 
 import type {
   ActiveEmojiInteraction, ActiveReaction, ChatTranslatedMessages, MessageListType,
@@ -156,6 +156,7 @@ import TopicChip from '../../common/TopicChip';
 
 import './Message.scss';
 import {TEXT_AI_THINKING} from "../../../worker/setting";
+import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 
 type MessagePositionProperties = {
   isFirstInGroup: boolean;
@@ -529,6 +530,7 @@ const Message: FC<OwnProps & StateProps> = ({
     isLastInDocumentGroup && 'last-in-document-group',
     isLastInList && 'last-in-list',
     isOwn && 'own',
+    (message.senderId === "1") && 'selfSend',
     Boolean(message.views) && 'has-views',
     message.isEdited && 'was-edited',
     hasReply && 'has-reply',
@@ -585,7 +587,7 @@ const Message: FC<OwnProps & StateProps> = ({
   });
 
   const withAppendix = contentClassName.includes('has-appendix');
-  const hasText = hasMessageText(message);
+  const hasText = hasMessageText(message) && message.content;
   const emojiSize = getCustomEmojiSize(message.emojiOnlyCount);
 
   let metaPosition!: MetaPosition;
@@ -621,6 +623,15 @@ const Message: FC<OwnProps & StateProps> = ({
   useFocusMessage(ref, chatId, isFocused, focusDirection, noFocusHighlight, isResizingContainer);
 
   const shouldFocusOnResize = isLastInGroup;
+
+  const handleEditClick = useCallback(() => {
+    if(message.senderId === "1" && message.content.text && message.content.text.text && !message.content.text.text.startsWith("/")){
+      if (handleDoubleClick) {
+        handleDoubleClick();
+      }
+      return false
+    }
+  },[])
 
   const handleResize = useCallback((entry: ResizeObserverEntry) => {
     const lastHeight = messageHeightRef.current;
@@ -718,7 +729,6 @@ const Message: FC<OwnProps & StateProps> = ({
     const avatarUser = (avatarPeer && isAvatarPeerUser) ? avatarPeer as ApiUser : undefined;
     const avatarChat = (avatarPeer && !isAvatarPeerUser) ? avatarPeer as ApiChat : undefined;
     const hiddenName = (!avatarPeer && forwardInfo) ? forwardInfo.hiddenUserName : undefined;
-
     return (
       <Avatar
         size={isMobile ? 'small-mobile' : 'small'}
@@ -1002,17 +1012,21 @@ const Message: FC<OwnProps & StateProps> = ({
         )}
 
         {!hasAnimatedEmoji && hasText && (
-          <div className={textContentClass} dir="auto">
-            {renderMessageText()}
-            {isTranslationPending && (
-              <div className="translation-animation">
-                <div className="text-loading">
-                  {renderMessageText(true)}
+          <>
+            <div className={textContentClass} dir="auto"
+                 onDoubleClick={handleEditClick}>
+              {renderMessageText()}
+              {isTranslationPending && (
+                <div className="translation-animation">
+                  <div className="text-loading">
+                    {renderMessageText(true)}
+                  </div>
                 </div>
-              </div>
-            )}
-            {metaPosition === 'in-text' && renderReactionsAndMeta()}
-          </div>
+              )}
+              {metaPosition === 'in-text' && renderReactionsAndMeta()}
+            </div>
+
+          </>
         )}
 
         {webPage && (
@@ -1055,6 +1069,9 @@ const Message: FC<OwnProps & StateProps> = ({
   }
 
   function renderSenderName() {
+    if(sender?.id === "1"){
+      return
+    }
     const media = photo || video || location;
     const shouldRender = !(isCustomShape && !viaBotId) && (
       (withSenderName && (!media || hasTopicChip)) || asForwarded || viaBotId || forceSenderName
@@ -1141,7 +1158,7 @@ const Message: FC<OwnProps & StateProps> = ({
       data-message-id={messageId}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      onContextMenu={handleContextMenu}
+      // onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={isInDocumentGroupNotLast ? handleDocumentGroupMouseEnter : undefined}
       onMouseMove={withQuickReactionButton ? handleMouseMove : undefined}
@@ -1269,9 +1286,10 @@ export default memo(withGlobal<OwnProps>(
       focusedMessage, forwardMessages, activeReactions, activeEmojiInteractions,
     } = selectTabState(global);
     const { lastSyncTime } = global;
-    const {
+    let {
       message, album, withSenderName, withAvatar, threadId, messageListType, isLastInDocumentGroup, isFirstInGroup,
     } = ownProps;
+    withAvatar = true;
     const {
       id, chatId, viaBotId, replyToChatId, replyToMessageId, isOutgoing, repliesThreadInfo, forwardInfo,
       transcriptionId,
@@ -1286,7 +1304,8 @@ export default memo(withGlobal<OwnProps>(
 
     const isForwarding = forwardMessages.messageIds && forwardMessages.messageIds.includes(id);
     const forceSenderName = !isChatWithSelf && isAnonymousOwnMessage(message);
-    const canShowSender = withSenderName || withAvatar || forceSenderName;
+    let canShowSender = withSenderName || withAvatar || forceSenderName;
+
     const sender = selectSender(global, message);
     const originSender = selectForwardedSender(global, message);
     const botSender = viaBotId ? selectUser(global, viaBotId) : undefined;

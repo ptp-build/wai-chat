@@ -77,7 +77,6 @@ import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import Account from '../../../worker/share/Account';
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
@@ -113,24 +112,24 @@ export async function fetchMessages({
   isUp?:boolean
 }) {
   return
-  const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new MsgListReq({
-    lastMessageId:lastMessageId!,
-    chatId:chat.id,
-    limit: MESSAGE_LIST_SLICE,
-    isUp
-  }).pack());
-  if(!pdu){
-    return
-  }
-  const res = MsgListRes.parseMsg(pdu!)
-  if(res.err !== ERR.NO_ERROR){
-    return;
-  }
-  const result = JSON.parse(res!.payload)
-  if(!result){
-    return
-  }
-  return result
+  // const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new MsgListReq({
+  //   lastMessageId:lastMessageId!,
+  //   chatId:chat.id,
+  //   limit: MESSAGE_LIST_SLICE,
+  //   isUp
+  // }).pack());
+  // if(!pdu){
+  //   return
+  // }
+  // const res = MsgListRes.parseMsg(pdu!)
+  // if(res.err !== ERR.NO_ERROR){
+  //   return;
+  // }
+  // const result = JSON.parse(res!.payload)
+  // if(!result){
+  //   return
+  // }
+  // return result
   // const RequestClass = threadId === MAIN_THREAD_ID ? GramJs.messages.GetHistory : GramJs.messages.GetReplies;
   // let result;
   //
@@ -264,7 +263,6 @@ export function sendMessage(
     sendAs,
     shouldUpdateStickerSetsOrder,
     botInfo,
-    aiHistoryList
   }: {
     chat: ApiChat;
     text?: string;
@@ -283,7 +281,6 @@ export function sendMessage(
     sendAs?: ApiUser | ApiChat;
     shouldUpdateStickerSetsOrder?: boolean;
     botInfo?: ApiBotInfo;
-    aiHistoryList?:AiHistoryType[]
   },
   onProgress?: ApiOnProgress,
 ) {
@@ -366,8 +363,7 @@ export function sendMessage(
       attachment,
       media,
       botInfo,
-      aiHistoryList,
-    },onUpdate).process()
+    }).process()
   })();
 
   return queue;
@@ -890,23 +886,23 @@ export async function markMessageListRead({
 
   // Workaround for local message IDs overflowing some internal `Buffer` range check
   const fixedMaxId = Math.min(maxId, MAX_INT_32);
-  if (isChannel && threadId === MAIN_THREAD_ID) {
-    await invokeRequest(new GramJs.channels.ReadHistory({
-      channel: buildInputEntity(chat.id, chat.accessHash) as GramJs.InputChannel,
-      maxId: fixedMaxId,
-    }));
-  } else if (isChannel) {
-    await invokeRequest(new GramJs.messages.ReadDiscussion({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      msgId: threadId,
-      readMaxId: fixedMaxId,
-    }));
-  } else {
-    await invokeRequest(new GramJs.messages.ReadHistory({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      maxId: fixedMaxId,
-    }));
-  }
+  // if (isChannel && threadId === MAIN_THREAD_ID) {
+  //   await invokeRequest(new GramJs.channels.ReadHistory({
+  //     channel: buildInputEntity(chat.id, chat.accessHash) as GramJs.InputChannel,
+  //     maxId: fixedMaxId,
+  //   }));
+  // } else if (isChannel) {
+  //   await invokeRequest(new GramJs.messages.ReadDiscussion({
+  //     peer: buildInputPeer(chat.id, chat.accessHash),
+  //     msgId: threadId,
+  //     readMaxId: fixedMaxId,
+  //   }));
+  // } else {
+  //   await invokeRequest(new GramJs.messages.ReadHistory({
+  //     peer: buildInputPeer(chat.id, chat.accessHash),
+  //     maxId: fixedMaxId,
+  //   }));
+  // }
 
   if (threadId === MAIN_THREAD_ID) {
     void requestChatUpdate({ chat, noLastMessage: true });

@@ -1,6 +1,9 @@
 @import "../../styles/mixins";
 
 #Main.right-column-open .MessageList{
+  .messages-container {
+    width: calc(100% - var(--right-column-width));
+  }
   @media (min-width: 1276px) {
     .messages-container {
       width: calc(100% - var(--right-column-width));

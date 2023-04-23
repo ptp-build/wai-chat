@@ -11,7 +11,7 @@
 #Main{
   @media (min-width: 1276px) {
     .message-content{
-      max-width: 100%;
+      width: calc(100%);
     }
   }
 }
