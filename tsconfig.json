@@ -22,7 +22,6 @@
     "types": ["@cloudflare/workers-types"]
   },
   "include": [
-    "functions",
     "src",
     "tests",
     "plugins",

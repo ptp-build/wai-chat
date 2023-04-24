@@ -8,47 +8,32 @@ import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import MsgCommandChatLab from "./MsgCommandChatLab";
 import {UserStoreRow_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {callApiWithPdu} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import Account from "../share/Account";
-import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
-import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import {DownloadMsgReq, DownloadMsgRes, SendRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
+import ChatMsg from "./ChatMsg";
 
 export default class MsgCommand {
-  private msgDispatcher: MsgDispatcher;
-  constructor(msgDispatcher:MsgDispatcher) {
-    this.msgDispatcher = msgDispatcher;
-  }
-  static async sendText(chatId:string,text:string){
-    const messageId = await MsgDispatcher.genMsgId();
-    MsgDispatcher.newMessage(chatId,messageId,{
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text:text
-        }
-      },
-    })
+  private chatId: string;
+  private chatMsg:ChatMsg
+  constructor(chatId:string) {
+    this.chatId = chatId;
+    this.chatMsg = new ChatMsg(this.chatId)
   }
 
-  static back(global:GlobalState,chatId:string,messageId:number,data:string,path:string){
+  back(global:GlobalState,messageId:number,data:string,path:string){
     if(path.startsWith("/")){
       path = path.substring(1)
     }
-    const btn = data.replace(`${chatId}/${path}/`,"")
+    const btn = data.replace(`${this.chatId}/${path}/`,"")
     const inlineButtons:ApiKeyboardButton[][] = JSON.parse(btn);
-    MsgDispatcher.updateMessage(chatId, messageId, {
+    this.chatMsg.update(messageId,{
       inlineButtons
-    });
+    })
   }
   static buildInlineBackButton(chatId:string,messageId:number,path:string,text:string){
     if(path.startsWith("/")){
@@ -78,28 +63,19 @@ export default class MsgCommand {
       }
     ]
   }
-  static async clearHistory(chatId:string){
-    await MsgDispatcher.newTextMessage(chatId,undefined,'确定要清除么？',[
+  async clearHistory(){
+    await this.chatMsg.setText("确定要清除么?").setInlineButtons([
       [
-        ...MsgCommand.buildInlineCallbackButton(chatId,"clearHistory/confirm","确定","callback"),
-        ...MsgCommand.buildInlineCallbackButton(chatId,"clearHistory/cancel","返回","callback")
+        ...MsgCommand.buildInlineCallbackButton(this.chatId,"clearHistory/confirm","确定","callback"),
+        ...MsgCommand.buildInlineCallbackButton(this.chatId,"clearHistory/cancel","返回","callback")
       ]
-    ])
-
+    ]).reply()
     return true;
   }
 
-  async showMnemonic(){
-    await this.msgDispatcher.sendOutgoingMsg();
-    await this.msgDispatcher.replyText("显示成功")
-    getActions().updateGlobal({
-      showMnemonicModal:true
-    })
-  }
-
-  static async reloadCommands(chatId:string,cmds:ApiBotCommand[]){
+  async reloadCommands(cmds:ApiBotCommand[]){
     let global = getGlobal();
-    let user = selectUser(global,chatId)
+    let user = selectUser(global,this.chatId)
     const botInfo = user?.fullInfo?.botInfo;
     if(botInfo){
       //@ts-ignore
@@ -121,12 +97,13 @@ export default class MsgCommand {
       })
       setGlobal(global)
       global = getGlobal()
-      user = selectUser(global,chatId)
+      user = selectUser(global,this.chatId)
       return true;
     }
   }
-  static async uploadUser(global:GlobalState,chatId:string){
-    const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在上传...")
+  async uploadUser(global:GlobalState){
+    const chatId = this.chatId;
+    const message1 = await this.chatMsg.setText("正在上传...").reply()
 
     const users:UserStoreRow_Type[] = [];
     const ids = [chatId]
@@ -145,19 +122,12 @@ export default class MsgCommand {
       users,
       time:currentTs()
     }).pack())
-    await MsgDispatcher.updateMessage(chatId,message1.id,{
-      content:{
-        text:{
-          text:"上传成功"
-        }
-      }
-    })
+    await this.chatMsg.updateText(message1.id,"上传成功")
   }
-  static async downloadUser(global:GlobalState,chatId:string){
-    const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在下载...")
-
+  async downloadUser(global:GlobalState){
+    const message1 = await this.chatMsg.setText("正在下载...").reply()
     const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-      userIds:[chatId],
+      userIds:[this.chatId],
     }).pack())
     const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
     console.log("downloadUser",downloadUserRes)
@@ -171,50 +141,42 @@ export default class MsgCommand {
 
 
     const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
-      chatId
+      chatId:this.chatId
     }).pack())
     const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
-    console.log("downloadMsgRes",downloadMsgRes,global.messages.byChatId[chatId])
+    console.log("downloadMsgRes",downloadMsgRes,global.messages.byChatId[this.chatId])
     if(downloadMsgRes.messages){
         for (let i = 0; i < downloadMsgRes.messages.length; i++) {
           const {message} = downloadMsgRes.messages[i];
-          if(message.previousLocalId){
-            delete message.previousLocalId
-          }
-          if(selectChatMessage(global,chatId,message!.id)){
-            await MsgDispatcher.updateMessage(chatId,message!.id,message!)
-          }else{
-            await MsgDispatcher.newMessage(chatId,message!.id,message!)
+          if(message){
+            if(message.previousLocalId){
+              delete message.previousLocalId
+            }
+            if(selectChatMessage(global,this.chatId,message!.id)){
+              await this.chatMsg.update(message!.id,message as ApiMessage)
+            }else{
+              await this.chatMsg.sendNewMessage(message!.id,message as ApiMessage)
+            }
           }
         }
     }
 
+    await this.chatMsg.updateText(message1.id,"下载成功")
+  }
 
-    await MsgDispatcher.updateMessage(chatId,message1.id,{
-      content:{
-        text:{
-          text:"下载成功"
-        }
-      }
-    })
+  async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){
+    await new MsgCommandSetting(this.chatId).requestUploadImage(global,messageId,files)
   }
-  async setting(){
-    const chatId = this.msgDispatcher.getChatId()
-    await this.msgDispatcher.sendOutgoingMsg();
-    return await MsgCommandSetting.setting(chatId);
-  }
-  static async requestUploadImage(global:GlobalState,chatId:string,messageId:number,files:FileList | null){
-    await MsgCommandSetting.requestUploadImage(global,chatId,messageId,files)
-  }
-  static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
+
+  async answerCallbackButton(global:GlobalState,messageId:number,data:string){
+    const {chatId} =this;
     if(data === "sign://401"){
       const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
       if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
         MsgDispatcher.showNotification("密码不正确")
         return
       }else{
-        return MsgDispatcher.newTextMessage(chatId,messageId,
-          "请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员",[])
+        await this.chatMsg.setInlineButtons([]).setText("请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员").reply()
       }
     }
     if(data === chatId + "/setting/signGen"){
@@ -225,21 +187,19 @@ export default class MsgCommand {
       }else{
         const ts = currentTs1000();
         const resSign = await Account.getCurrentAccount()?.signMessage(`${ts}_${chatId}`,hashSha256(password))
-        return MsgDispatcher.newTextMessage(chatId,messageId,
-          "签名:```\n"+`sk_${resSign!.sign.toString("hex")}_${ts}_${chatId}`+"```",[])
+        await this.chatMsg.setInlineButtons([]).setText( "签名:```\n"+`sk_${resSign!.sign.toString("hex")}_${ts}_${chatId}`+"```").reply()
       }
     }
 
-    await MsgCommandSetting.answerCallbackButton(global,chatId,messageId,data)
-    await MsgCommandChatGpt.answerCallbackButton(global,chatId,messageId,data)
-    await MsgCommandChatLab.answerCallbackButton(global,chatId,messageId,data)
+    await new MsgCommandSetting(chatId).answerCallbackButton(global,messageId,data)
+    await new MsgCommandChatGpt(chatId).answerCallbackButton(global,messageId,data)
 
     if(data.endsWith("clearHistory/confirm")){
       let global = getGlobal();
       const chatMessages = global.messages.byChatId[chatId];
       const ids = Object.keys(chatMessages.byId).map(Number);
       getActions().sendBotCommand({chatId,command:"/start"})
-      MsgDispatcher.apiUpdate({
+      ChatMsg.apiUpdate({
         "@type":"deleteMessages",
         chatId,
         ids
@@ -247,7 +207,7 @@ export default class MsgCommand {
     }
 
     if(data.endsWith("clearHistory/cancel")){
-      return MsgDispatcher.updateMessage(chatId,messageId, {
+      return this.chatMsg.update(messageId, {
           inlineButtons: []
         }
       )
@@ -260,45 +220,6 @@ export default class MsgCommand {
     if(data.startsWith("requestChatStream/stop/")){
       const [chatId,messageId] = data.replace("requestChatStream/stop/","").split("/").map(Number)
       ControllerPool.stop(chatId,messageId);
-    }
-  }
-
-  static async handleNewMessage(pdu:Pdu){
-    const {msg,text,chatId} = SendRes.parseMsg(pdu)
-    if(text){
-      return MsgDispatcher.newTextMessage(
-        chatId,undefined,
-        text
-      )
-    }else{
-      // @ts-ignore
-      const message:ApiMessage = msg
-      return MsgDispatcher.newMessage(
-        chatId,message.id,
-        message
-      )
-    }
-  }
-  static async handleUpdateMessage(pdu:Pdu){
-    const {msg,chatId} = SendRes.parseMsg(pdu)
-    // @ts-ignore
-    const message:Partial<ApiMessage> = msg
-    return MsgDispatcher.updateMessage(
-      chatId,message.id!,
-      message
-    )
-  }
-  static async handleWsBotOnData(chatId:string,pdu:Pdu){
-    switch (pdu.getCommandId()){
-      case ActionCommands.CID_SendRes:
-        const {action} = SendRes.parseMsg(pdu)
-        switch (action){
-          case "newMessage":
-            return await MsgCommand.handleNewMessage(pdu)
-          case "updateMessage":
-            return await MsgCommand.handleUpdateMessage(pdu)
-        }
-        break
     }
   }
 }

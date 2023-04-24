@@ -1,13 +1,5 @@
-import {
-  ApiAttachment,
-  ApiBotInfo,
-  ApiChat,
-  ApiMessage,
-  ApiMessageEntityTypes,
-  ApiUpdate,
-  OnApiUpdate
-} from "../../api/types";
-import {LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
+import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {
@@ -28,8 +20,6 @@ import {DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import {sleep} from "../../lib/gramjs/Helpers";
 import {Api as GramJs} from "../../lib/gramjs";
 import {blobToDataUri, fetchBlob} from "../../util/files";
-import {parseCodeBlock, parseEntities} from "../share/utils/stringParse";
-import MsgChatGptWorker, {AiHistoryType} from "./MsgChatGpWorker";
 import * as cacheApi from "../../util/cacheApi";
 import {Type} from "../../util/cacheApi";
 import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
@@ -37,7 +27,7 @@ import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
 import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
-import {currentTs} from "../share/utils/utils";
+import ChatMsg from "./ChatMsg";
 
 let messageIds:number[] = [];
 
@@ -47,30 +37,26 @@ export default class MsgWorker {
   private msgSend: ApiMessage;
   private media: GramJs.TypeInputMedia | undefined;
   private attachment?: ApiAttachment;
-  public static onUpdate: (update: ApiUpdate) => void;
-  private aiHistoryList:AiHistoryType[];
+  private chatMsg: ChatMsg;
   constructor({
       chat,
       msgSend,
       attachment,
       media,
       botInfo,
-      aiHistoryList,
     }:{
     chat:ApiChat;
     media: GramJs.TypeInputMedia | undefined;
     msgSend:ApiMessage;
     attachment?:ApiAttachment;
     botInfo?:ApiBotInfo;
-    aiHistoryList?:AiHistoryType[]
-  },onUpdate:OnApiUpdate) {
-    MsgWorker.onUpdate = onUpdate;
-    this.aiHistoryList = aiHistoryList||[]
+  }) {
     this.botInfo = botInfo;
     this.chat = chat;
     this.media = media;
     this.msgSend = msgSend;
     this.attachment = attachment;
+    this.chatMsg = new ChatMsg(chat.id)
   }
 
   static async createWsBot(accountId:number,botApi?:string){
@@ -93,40 +79,29 @@ export default class MsgWorker {
                 console.log("[onData]",{accountId,payload})
                 switch (payload.getCommandId()) {
                   case ActionCommands.CID_SendBotMsgRes:
-                    const {text,msgId,chatId,streamEnd} = SendBotMsgRes.parseMsg(payload)
-                    console.log("[SendBotMsgRes]",text)
-                    if(text){
+                    const {reply,msgId,chatId,streamEnd} = SendBotMsgRes.parseMsg(payload)
+                    console.log("[SendBotMsgRes]",reply)
+                    if(reply){
                       if(msgId){
-                        await MsgWorker.updateMessage(chatId!,msgId,{
+                        await new ChatMsg(chatId!).update(msgId,{
                           content:{
                             text:{
-                              text
+                              text:reply
                             }
                           }
                         })
                       }else{
                         const msgId1 = await MsgWorker.genMessageId();
-                        await MsgWorker.newMessage(chatId!,msgId1,{
-                          chatId:chatId!,
-                          content: {
-                            text:{
-                              text
-                            }
-                          },
-                          date: currentTs(),
-                          id: msgId1,
-                          isOutgoing: false
-                        })
+                        await new ChatMsg(chatId!).setText(reply).reply();
                       }
                     }
                     break
                 }
-                // await MsgCommand.handleWsBotOnData(chatId,payload)
                 break
             }
           }
         })
-        botWs.setWsUrl(botApi)
+        botWs.setWsUrl(botApi ? botApi : CLOUD_WS_URL)
         botWs.setSession(Account.getCurrentAccount()?.getSession()!)
         botWs.connect();
         await botWs.waitForMsgServerState(BotWebSocketState.logged)
@@ -281,7 +256,6 @@ export default class MsgWorker {
     }
     return new UploadMsgReq({messages,...res}).pack()
   }
-
   static async genMessageId(isLocal?:boolean):Promise<number>{
     let msgId = isLocal ? getNextLocalMessageId() : parseInt(getNextLocalMessageId().toString()) % LOCAL_MESSAGE_MIN_ID;
     if(messageIds.length > 10){
@@ -310,6 +284,7 @@ export default class MsgWorker {
     }
     return fileId
   }
+
   async handleMedia(){
     const {msgSend,attachment} = this;
     if(attachment){
@@ -370,110 +345,40 @@ export default class MsgWorker {
       this.msgSend = msgSend;
     }
   }
-  static handleMessageTextCode(msgSend:Partial<ApiMessage>){
-    if(msgSend.content?.text && msgSend.content.text.text){
-      const {entities} = msgSend.content.text
-      // @ts-ignore
-      msgSend.content.text = {
-        ...parseCodeBlock(msgSend.content.text?.text,entities)
-      }
-    }
-    return msgSend
-  }
-  static handleBotCmdText(msgSend:Partial<ApiMessage>,botInfo:ApiBotInfo){
-    const commands:string[] = []
-    if(botInfo && botInfo.commands){
-      botInfo.commands.forEach(cmd=>commands.push(cmd.command))
-    }
-    if(msgSend.content && msgSend.content.text && msgSend.content.text.text){
-      if(msgSend.content.text!.entities && msgSend.content.text!.entities.find(e=>{
-        // @ts-ignore
-        return e.cipher
-      })){
-      }else{
-        // @ts-ignore
-        msgSend.content.text!.entities = [
-          ...msgSend.content.text!.entities||[],
-          ...parseEntities(msgSend.content.text!.text!,commands)
-        ]
-      }
-    }
-    return msgSend;
-  }
-  static updateMessage(chatId:string,messageId:number,message:Partial<ApiMessage>){
-    message = MsgWorker.handleMessageTextCode(message);
-    MsgWorker.onUpdate({
-      '@type': "updateMessage",
-      id: messageId,
-      chatId,
-      message,
-    });
-    return message
-  }
-  static newMessage(chatId:string,messageId:number,message:ApiMessage){
-    message = MsgWorker.handleMessageTextCode(message);
-    MsgWorker.onUpdate({
-      '@type': "newMessage",
-      chatId,
-      id:messageId,
-      message,
-      shouldForceReply:false
-    });
-    return message
-  }
+
   async processOutGoing(){
     const {msgSend} = this;
     const msgId = await MsgWorker.genMessageId();
     let message = {
       ...msgSend,
       id:msgId,
+      isOutGoing:false,
       sendingState: undefined,
     };
-    MsgWorker.onUpdate({
+
+    ChatMsg.apiUpdate({
       '@type': "updateMessageSendSucceeded",
       chatId: msgSend.chatId,
       localId:msgSend.id,
       message,
-    });
+    })
     this.msgSend = message
   }
 
-  isMsgCipher(){
-    return this.msgSend.content.text?.entities?.some((e) => e.type === ApiMessageEntityTypes.Spoiler);
-  }
-  async processBotMsg(){
-    const {botInfo,msgSend} =this;
-    if(
-      msgSend.content.text && msgSend.content.text.text &&
-      botInfo?.aiBot
-    ){
-      return await new MsgChatGptWorker(this.msgSend,botInfo,this.aiHistoryList).process()
-    }
-  }
   async process(){
-    const {msgSend,chat,botInfo} = this;
+    const {msgSend,chat} = this;
 
     try {
       await this.handleMedia();
-      if(botInfo){
-        // @ts-ignore
-        this.msgSend = MsgWorker.handleBotCmdText(this.msgSend,botInfo);
-      }
       await this.processOutGoing();
-      if(this.isMsgCipher()){
-        return
-      }
-      if(this.botInfo){
-        await this.processBotMsg();
-      }
     }catch (error:any){
       console.error(error)
-      MsgWorker.onUpdate({
+      ChatMsg.apiUpdate({
         '@type': 'updateMessageSendFailed',
         chatId: chat.id,
         localId: msgSend.id,
         error: error.message,
-      });
+      })
     }
   }
 }

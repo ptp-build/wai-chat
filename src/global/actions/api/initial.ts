@@ -36,6 +36,8 @@ import {callApiWithPdu} from "../../../worker/msg/utils";
 import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
 import {getPasswordFromEvent} from "../../../worker/share/utils/password";
 import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
+import ChatMsg from "../../../worker/msg/ChatMsg";
+import { GenMsgIdReq, GenMsgIdRes } from '../../../lib/ptp/protobuf/PTPMsg';
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -56,6 +58,11 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
   let account = Account.getInstance(accountId);
   const entropy = await account.getEntropy();
   const session = account.getSession()
+  ChatMsg.setApiUpdate(actions.apiUpdate,async(isLocal?:boolean)=>{
+      const res = await callApiWithPdu(new GenMsgIdReq({isLocal:!!isLocal}).pack())
+      const {messageId} = GenMsgIdRes.parseMsg(res!.pdu)
+      return messageId
+  });
 
   void initApi(actions.apiUpdate, {
     userAgent: navigator.userAgent,
@@ -74,7 +81,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     if(!session){
       const {password} = await getPasswordFromEvent(undefined,true,'showMnemonic',true)
       if(password){
-        await MsgCommandSetting.enableSync(getGlobal(),password,undefined,undefined)
+        await new MsgCommandSetting("").enableSync(getGlobal(),password,undefined)
         return
       }
     }

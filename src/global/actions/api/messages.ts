@@ -404,7 +404,8 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
   return undefined;
 });
 
-addActionHandler('editMessage', (global, actions, payload): ActionReturnType => {
+// @ts-ignore
+addActionHandler('editMessage', async (global, actions, payload): ActionReturnType => {
   const { text, entities, tabId = getCurrentTabId() } = payload;
   const currentMessageList = selectCurrentMessageList(global, tabId);
   if (!currentMessageList) {
@@ -417,7 +418,7 @@ addActionHandler('editMessage', (global, actions, payload): ActionReturnType => 
   if (!chat || !message) {
     return;
   }
-
+  await MsgDispatcher.reRunAi(chatId,message.id,text)
   void callApi('editMessage', {
     chat, message, text, entities, noWebPage: selectNoWebPage(global, chatId, threadId),
   });
@@ -1262,7 +1263,6 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
   replyingToTopId?: number;
   groupedId?: string;
   botInfo?:ApiBotInfo;
-  aiHistoryList?:AiHistoryType[]
 },
 ...[tabId = getCurrentTabId()]: TabArgs<T>) {
 
@@ -1314,8 +1314,7 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
   const user = selectUser(global,params.chat.id);
   params.botInfo = user?.fullInfo?.botInfo ? user?.fullInfo?.botInfo:undefined
 
-  const res = await new MsgDispatcher(global,params).process()
-  params.aiHistoryList = MsgCommandChatGpt.getAiHistoryList(params.chat.id)
+  const res = await new MsgDispatcher(params).process()
   if(!res){
     await callApi('sendMessage', params, progressCallback);
     // @ts-ignore

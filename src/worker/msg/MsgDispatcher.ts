@@ -2,8 +2,6 @@ import {
   ApiAttachment,
   ApiBotInfo,
   ApiChat,
-  ApiFormattedText,
-  ApiKeyboardButtons,
   ApiMessage,
   ApiMessageEntity,
   ApiNewPoll,
@@ -11,18 +9,15 @@ import {
   ApiUser,
   ApiVideo
 } from "../../api/types";
-import {GlobalState} from "../../global/types";
 import {getActions, getGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
-import {currentTs} from "../share/utils/utils";
-import {GenMsgIdReq, GenMsgIdRes, SendBotMsgReq, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
-import MsgCommand from "./MsgCommand";
-import {parseCodeBlock} from "../share/utils/stringParse";
-import MsgWorker from "./MsgWorker";
+import {SendBotMsgReq, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import MsgCommandSetting from "./MsgCommandSetting";
-import {selectUser} from "../../global/selectors";
+import {selectChatMessage} from "../../global/selectors";
+import BotChatGpt from "./bot/BotChatGpt";
+import ChatMsg from "./ChatMsg";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -40,29 +35,18 @@ export type ParamsType = {
   groupedId?: string;
   botInfo?: ApiBotInfo
 }
-export type OptionsType = {
-  senderId?:string,
-  inlineButtons?:ApiKeyboardButtons
-  isLocalMessageId?:boolean,
-}
 
 export default class MsgDispatcher {
   private params: ParamsType;
-  private global: GlobalState;
-  private msgCommand: MsgCommand;
-  constructor(global:GlobalState,params: ParamsType) {
-    this.global = global;
+  private outGoingMsg?:ApiMessage
+  constructor(params: ParamsType) {
     this.params = params;
-    this.msgCommand = new MsgCommand(this)
   }
 
-  static apiUpdate(update:any){
-    const {apiUpdate} = getActions()
-    apiUpdate(update)
+  static showNotification(message:string){
+    getActions().showNotification({message})
   }
-  getMsgSenderAsId(){
-    return this.params.sendAs?.id;
-  }
+
   getMsgText(){
     return this.params.text;
   }
@@ -70,167 +54,19 @@ export default class MsgDispatcher {
   getChatId(){
     return this.params.chat.id;
   }
-  genMsgDate(){
-    return Math.ceil(+(new Date())/1000);
+
+  getBotInfo(){
+    const {botInfo} = this.params;
+    return botInfo ? botInfo : undefined
   }
 
-  static async genMsgId(isLocal?:boolean){
-    // @ts-ignore
-    const {pdu} = await callApiWithPdu(new GenMsgIdReq({isLocal:!!isLocal}).pack())
-    const {messageId} = GenMsgIdRes.parseMsg(pdu)
-    return messageId
-  }
-
-  updateMessageSendSucceeded(localId:number,message:ApiMessage){
-    MsgDispatcher.apiUpdate({
-      '@type': "updateMessageSendSucceeded",
-      localId,
-      chatId: this.params.chat.id,
-      message: message
-    });
-  }
-  updateMessageText(id:number,{text}:{text: any},message:ApiMessage){
-    this.updateMessage(id,{
-      ...message,
-      content:{
-        ...message.content,
-        text: {
-          ...message.content.text,
-          text
-        }
-      }
-    })
-  }
-  updateMessage(id:number,message:Partial<ApiMessage>){
-    return MsgDispatcher.updateMessage(this.getChatId(),id,message)
-  }
-  static updateMessage(chatId:string,messageId:number,message:Partial<ApiMessage>){
-    message = MsgWorker.handleMessageTextCode(message)
-    MsgDispatcher.apiUpdate({
-        '@type': "updateMessage",
-        id: messageId,
-        chatId,
-        message,
-      });
-    return message
-  }
-  static async newCodeMessage(chatId:string,messageId?:number,text?:string){
-    text = "```\n"+text!+"```"
-    return await MsgDispatcher.newTextMessage(chatId,messageId,text,[])
-  }
-
-  static async newJsonMessage(chatId:string,messageId?:number,json?:object){
-    const text = "```json\n"+JSON.stringify(json,null,2)!+"```"
-    return await MsgDispatcher.newTextMessage(chatId,messageId,text,[])
-  }
-
-  static async newTextMessage(chatId:string,messageId?:number,text?:string,inlineButtons?:ApiKeyboardButtons,options?:{isOutgoing?:boolean}){
-    if(!messageId){
-      messageId = await MsgDispatcher.genMsgId();
-    }
-    const global = getGlobal();
-    const user = selectUser(global,chatId)
-    let message:Partial<ApiMessage> = {
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      inlineButtons,
-      content:{
-        text:{
-          text:text||""
-        }
-      },
-      ...options
-    }
-    message = MsgWorker.handleMessageTextCode(message)
-    if(user && user.fullInfo?.botInfo){
-      message = MsgWorker.handleBotCmdText(message,user.fullInfo?.botInfo)
-    }
-    MsgDispatcher.apiUpdate({
-      '@type': "newMessage",
-      chatId,
-      id:messageId,
-      message,
-      shouldForceReply:false
-    });
-    return MsgDispatcher.newMessage(chatId,messageId,message)
-  }
-  static newMessage(chatId:string,messageId:number,message:ApiMessage){
-    const global = getGlobal();
-    const user = selectUser(global,chatId)
-    if(user && user.fullInfo?.botInfo){
-      message = MsgWorker.handleBotCmdText(message,user.fullInfo?.botInfo)
-    }
-    MsgDispatcher.apiUpdate({
-      '@type': "newMessage",
-      chatId,
-      id:messageId,
-      message,
-      shouldForceReply:false
-    });
-    return message
-  }
-  async sendNewMessage(content:{text?:ApiFormattedText},options:OptionsType){
-    const {isLocalMessageId,senderId,inlineButtons} = options || {}
-    const id = await MsgDispatcher.genMsgId(!!isLocalMessageId)
-    const message = {
-      id,
-      content,
-      inlineButtons,
-      chatId: this.getChatId(),
-      date: this.genMsgDate(),
-      senderId:this.getMsgSenderAsId(),
-      isOutgoing:(senderId || this.getMsgSenderAsId()) !== this.getChatId(),
-      sendingState: undefined
-    }
-    if(this.params.botInfo){
-      MsgWorker.handleBotCmdText(message,this.params.botInfo)
-    }
-    return MsgDispatcher.newMessage(this.getChatId(),id,message)
-  }
-  async sendNewTextMessage({text,options}:{text?:string,options?:OptionsType}){
-    const res = parseCodeBlock(text!)
-    // @ts-ignore
-    return await this.sendNewMessage({text:res!,},options)
-  }
-
-  async replyText(text:string){
-    return await this.replyNewTextMessage({text})
-  }
-
-  async replyCode(text:string){
-    return await this.replyNewTextMessage({text:"```\n"+text+"```"})
-  }
-
-  async replyNewTextMessage({text,options}:{text?:string,options?:OptionsType}){
-    return await this.sendNewTextMessage({text,options:{
-      ...options,
-        senderId:this.getChatId()
-      }})
-
-  }
   async sendOutgoingMsg(){
-    return await this.sendNewTextMessage({
-      text: this.getMsgText(),
-    })
+    const chatMsg = new ChatMsg(this.getChatId())
+    return chatMsg.setText(this.getMsgText()!)
+      .setSenderId(getGlobal().currentUserId!)
+      .reply()
   }
-  static buildMsgHistoryClear(chatId:string):ApiMessage{
-    return {
-      id: 0,
-      chatId,
-      isOutgoing: false,
-      date: currentTs(),
-      content: {
-        action: {
-          text: "历史记录已清空",
-          type: 'historyClear',
-          translationValues:[],
-        }
-      }
-    }
-  }
+
   getBotCommands(){
     const {botInfo} = this.params;
     if(botInfo && botInfo.commands){
@@ -241,36 +77,32 @@ export default class MsgDispatcher {
       return []
     }
   }
-  getBot(){
-    const {botInfo} = this.params;
-    return botInfo
-  }
 
-  getBotConfig(){
-    const {botInfo} = this.params;
-    return botInfo ? botInfo.aiBot : undefined
+  private isMsgCipher() {
+    if(this.params.entities){
+      return this.params.entities.find(row=>{
+        return row && Object.keys(row).includes("cipher")
+      })
+    }else{
+      return false
+    }
   }
 
   async processCmd(){
     const sendMsgText = this.getMsgText();
     const commands = this.getBotCommands();
-    console.log("processCmd",this.params.chat.id,sendMsgText,commands)
     if(sendMsgText && commands.includes(sendMsgText)){
       if(this.params.botInfo?.botId === UserIdFirstBot){
         return await this.processFirstBotCmd();
       }
       return await this.processAiBotCmd();
     }
-    console.log("processCmd end")
     return true
   }
 
   async processAiBotCmd(){
     const sendMsgText = this.getMsgText();
-    const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId(),this.params.botInfo!);
-    if(sendMsgText !== "/apiKey"){
-      await this.sendOutgoingMsg();
-    }
+    const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
 
     switch(sendMsgText){
       case "/start":
@@ -295,13 +127,16 @@ export default class MsgDispatcher {
   }
   async processBotApiCmd(){
     const sendMsgText = this.getMsgText();
-    const botApi = MsgCommandChatGpt.getAiBotConfig(getGlobal(),this.getChatId(),"botApi")
+    let botApi = new MsgCommandChatGpt(this.getChatId()).getAiBotConfig("botApi");
+    if(botApi){
+      botApi = botApi as string
+    }
     if(botApi){
       const res = await callApiWithPdu(new SendBotMsgReq({botApi,chatId:this.getChatId(),text:sendMsgText}).pack())
       if(res){
-        const {text} =  SendBotMsgRes.parseMsg(res.pdu)
-        if(text){
-          await MsgDispatcher.newTextMessage(this.getChatId(),undefined,text)
+        const {reply} =  SendBotMsgRes.parseMsg(res.pdu)
+        if(reply){
+          await new ChatMsg(this.getChatId()).setText(reply).reply()
         }
       }
     }
@@ -309,25 +144,84 @@ export default class MsgDispatcher {
   }
   async processFirstBotCmd(){
     const sendMsgText = this.getMsgText();
+    const msgCommandSetting = new MsgCommandSetting(this.getChatId());
     switch(sendMsgText){
       case "/start":
-        await this.sendOutgoingMsg();
-        return MsgCommandSetting.start(this.getChatId())
+        return msgCommandSetting.start()
       case "/setting":
-        return await this.msgCommand.setting();
-      default:
-        return await this.sendOutgoingMsg();
+        return await msgCommandSetting.setting();
     }
   }
   async process(){
     let res;
-    console.log("process",this.getChatId(),this.getMsgText(),this.global.chats.byId[this.getChatId()])
     if(this.getMsgText()?.startsWith("/")){
+      this.outGoingMsg = await this.sendOutgoingMsg();
       res = await this.processCmd();
+    }
+    if(!res){
+      try {
+        if(!this.isMsgCipher() && this.getBotInfo()){
+          const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
+
+          const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
+          const botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
+
+          if(this.getMsgText() && this.getBotInfo()?.aiBot){
+            if(enableAi){
+              this.outGoingMsg = await this.sendOutgoingMsg();
+              res = await new BotChatGpt(this.getBotInfo()?.botId!).process(this.outGoingMsg)
+            }else{
+              this.outGoingMsg = await this.sendOutgoingMsg();
+              const res = await callApiWithPdu(new SendBotMsgReq({
+                botApi,
+                chatId:this.getChatId(),
+                text:this.getMsgText()}
+              ).pack())
+              if(res){
+                const {reply} =  SendBotMsgRes.parseMsg(res.pdu)
+                if(reply){
+                  await new ChatMsg(this.getChatId()).setText(reply).reply()
+                }
+              }
+            }
+          }
+        }
+      }catch (error:any){
+        console.error(error)
+        if(this.outGoingMsg){
+          ChatMsg.apiUpdate({
+            '@type': 'updateMessageSendFailed',
+            chatId: this.getChatId(),
+            localId: this.outGoingMsg.id,
+            error: error.message,
+          })
+        }
+      }
     }
     return res
   }
-  static showNotification(message:string){
-    getActions().showNotification({message})
+  static async reRunAi(chatId:string,messageId:number,text:string){
+    const global = getGlobal();
+    const message = selectChatMessage(global,chatId,messageId)
+    const {chatGptAskHistory} = global
+    const historyList = chatGptAskHistory[chatId]
+    let assistantMsgId;
+    if(historyList){
+      for (let i = 0; i < Object.keys(historyList).length; i++) {
+        const msgIdAssistant = parseInt(Object.keys(historyList)[i])
+        if(historyList[msgIdAssistant]){
+          if(historyList[msgIdAssistant] === messageId){
+            assistantMsgId = msgIdAssistant
+            break
+          }
+        }
+      }
+    }
+    let assistantMsg:ApiMessage|undefined
+    if(assistantMsgId && message){
+      assistantMsg = selectChatMessage(global,chatId,assistantMsgId)
+      message.content.text!.text = text
+      await new BotChatGpt(chatId).process(message,assistantMsg)
+    }
   }
 }

@@ -63,14 +63,14 @@ export interface RemoveMessagesRes_Type {
   err: PTPCommon.ERR;
 }
 export interface SendBotMsgReq_Type {
+  chatId?: string;
   botApi?: string;
   text?: string;
-  chatId?: string;
   chatGpt?: string;
   msgId?: number;
 }
 export interface SendBotMsgRes_Type {
-  text?: string;
+  reply?: string;
   chatId?: string;
   msgId?: number;
   streamEnd?: boolean;

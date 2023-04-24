@@ -5,7 +5,7 @@ import type {TwoFaParams} from '../../../lib/gramjs/client/2fa';
 
 import type {ApiInitialArgs, ApiMediaFormat, ApiOnProgress, ApiSessionData, OnApiUpdate,} from '../../types';
 
-import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, MSG_SERVER, UPLOAD_WORKERS,} from '../../../config';
+import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, UPLOAD_WORKERS,} from '../../../config';
 import {onCurrentUserUpdate,} from './auth';
 import {updater} from '../updater';
 import {setMessageBuilderCurrentUserId} from '../apiBuilders/messages';
@@ -14,18 +14,19 @@ import {buildApiUserFromFull} from '../apiBuilders/users';
 import localDb, {clearLocalDb} from '../localDb';
 import {buildApiPeerId} from '../apiBuilders/peers';
 import {addMessageToLocalDb, log} from '../helpers';
-import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import Account from "../../../worker/share/Account";
-import LocalDatabase from "../../../worker/share/db/LocalDatabase";
-import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import {CurrentUserInfo} from "../../../worker/setting";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
-import {ControllerPool} from "../../../lib/ptp/functions/requests";
-import {StopChatStreamReq} from "../../../lib/ptp/protobuf/PTPOther";
-import {SendBotMsgReq, SendBotMsgRes, UpdateCmdReq, UpdateCmdRes} from "../../../lib/ptp/protobuf/PTPMsg";
-import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
-import {ClientInfo_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
+import ChatMsg from '../../../worker/msg/ChatMsg';
+import {
+  handleAuthNative,
+  handleAuthNativeReq,
+  handleSendBotMsgReq, handleStopChatStreamReq,
+  handleUpdateCmdReq
+} from '../../../worker/msg/client';
+import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
+import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
+
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -45,6 +46,7 @@ export async function init(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) 
     console.log('>>> START INIT API');
   }
   onUpdate = _onUpdate;
+  ChatMsg.setApiUpdate(_onUpdate,MsgWorker.genMessageId)
   const {
     userAgent, platform, sessionData, isTest, isMovSupported, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     mockScenario,accountId,entropy,session
@@ -384,118 +386,8 @@ export async function repairFileReference({
   return false;
 }
 
-const handleAuthNative = async (accountId:number,entropy:string,session?:string,clientInfo?:ClientInfo_Type)=>{
-  const kv = new LocalDatabase();
-  kv.init(localDb);
-  Account.setClientKv(kv)
-  account = Account.getInstance(accountId);
-  account.setClientInfo(clientInfo)
-  await account.setEntropy(entropy)
-  Account.setCurrentAccountId(accountId)
-  if(session){
-    account.saveSession(session)
-
-    const botWs = BotWebSocket.getInstance(accountId)
-    if(!botWs.isLogged() && MSG_SERVER){
-      await MsgWorker.createWsBot(accountId,MSG_SERVER)
-    }
-  }else{
-    account.delSession()
-  }
-}
-
-const handleAuthNativeReq = async (pdu:Pdu)=>{
-  const {accountId,entropy,session} = AuthNativeReq.parseMsg(pdu)
-  await handleAuthNative(accountId,entropy,session);
-}
-const handleStopChatStreamReq = async (pdu:Pdu)=>{
-  const {msgId,chatId} = StopChatStreamReq.parseMsg(pdu)
-  ControllerPool.stop(chatId,msgId)
-}
-
-export const handleSendBotMsgReq = async (pdu:Pdu)=>{
-  const {botApi,chatId,msgId,chatGpt,text} = SendBotMsgReq.parseMsg(pdu)
-  if(botApi){
-    try {
-      if(botApi.startsWith("http")){
-        const res = await fetch(botApi+"/message", {
-          method: "POST",
-          headers:{
-            Authorization: `Bearer ${account.getSession()}`,
-          },
-          body:JSON.stringify({
-            text,
-            chatId,
-          })
-        });
-        if(!res || res.status !== 200){
-          return;
-        }
-        // @ts-ignore
-        const json = await res.json();
-        // @ts-ignore
-        return new SendBotMsgRes({text:json.text}).pack().getPbData()
-      }else{
-        const botWs = BotWebSocket.getInstance(parseInt(chatId!))
-        if(!botWs.isLogged()){
-            await MsgWorker.createWsBot(parseInt(chatId!),botApi)
-        }
-        const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
-          text,
-          chatId,
-          msgId,
-          chatGpt
-        }).pack())
-        return res.getPbData()
-      }
-    }catch (e){
-      console.error(e)
-      return
-    }
-  }
-}
-
-const handleUpdateCmdReq = async (pdu:Pdu)=>{
-  const {botApi,chatId} = UpdateCmdReq.parseMsg(pdu)
-  if(botApi){
-    try {
-      if(botApi.startsWith("http")){
-        const res = await fetch(botApi+"/commands", {
-          method: "GET",
-          headers:{
-            Authorization: `Bearer ${account.getSession()}`,
-          }
-        });
-        if(!res || res.status !== 200){
-          return;
-        }
-        // @ts-ignore
-        const {commands} = await res.json();
-        return new UpdateCmdRes({
-          commands
-        }).pack().getPbData()
-      }else{
-        const botWs = BotWebSocket.getInstance(parseInt(chatId!))
-        if(!botWs.isLogged()){
-          await MsgWorker.createWsBot(parseInt(chatId!),botApi)
-        }
-        const res = await botWs.sendPduWithCallback(new UpdateCmdReq({
-          chatId
-        }).pack())
-        const {commands} = UpdateCmdRes.parseMsg(res)
-        return new UpdateCmdRes({
-          commands
-        }).pack().getPbData()
-      }
-    }catch (e){
-      console.error(e)
-      return
-    }
-  }
-}
-
 export async function sendWithCallback(buff:Uint8Array){
-
+  const account = Account.getCurrentAccount()!
   let pdu = new Pdu(Buffer.from(buff))
   if(DEBUG){
     console.log(pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
@@ -545,4 +437,3 @@ export async function sendWithCallback(buff:Uint8Array){
   }
   return buf;
 }
-
