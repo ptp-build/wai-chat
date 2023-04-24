@@ -26,7 +26,7 @@ export const handleAuthNative = async (accountId:number,entropy:string,session?:
 
     const botWs = BotWebSocket.getInstance(accountId)
     if(!botWs.isLogged() && MSG_SERVER){
-      await MsgWorker.createWsBot(accountId,MSG_SERVER)
+      MsgWorker.createWsBot(accountId,MSG_SERVER)
     }
   }else{
     account.delSession()

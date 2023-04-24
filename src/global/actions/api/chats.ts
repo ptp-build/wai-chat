@@ -102,7 +102,7 @@ import {getFileId} from "../../../lib/gramjs/client/uploadFile";
 import ChatMsg from "../../../worker/msg/ChatMsg";
 
 import {resizeImage} from '../../../util/imageResize';
-
+import MsgCommandChatLab from "../../../worker/msg/MsgCommandChatLab";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -736,13 +736,13 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     if(activeChatFolderRow){
       actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
     }
-    if(promptInit || (id === UserIdChatGpt || id === UserIdChatGpt4)){
-      actions.sendBotCommand({chatId:userId,command:"/initPrompt",tabId})
+    if(promptInit || (id === UserIdChatGpt)){
+      actions.sendBotCommand({chatId:userId,command:"/systemPrompt",tabId})
     }
-    // @ts-ignore
-    actions.openChat({id: userId,shouldReplaceHistory: true,});
-
-
+    if(id !== UserIdChatGpt4){
+      // @ts-ignore
+      actions.openChat({id: userId,shouldReplaceHistory: true,});
+    }
   }catch (e){
     console.error(e)
     global = getGlobal();

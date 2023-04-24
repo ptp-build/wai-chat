@@ -161,9 +161,9 @@ export default class MsgCommandSetting{
         const {address, sign} = await account!.signMessage(ts.toString(), pwd);
         const session = Account.formatSession({address,sign,ts,accountId});
         account!.saveSession(session)
-        await callApiWithPdu(new AuthNativeReq({
-          accountId,entropy:mnemonic.toEntropy(),session
-        }).pack())
+        // await callApiWithPdu(new AuthNativeReq({
+        //   accountId,entropy:mnemonic.toEntropy(),session
+        // }).pack())
         window.location.reload()
       }
     }else{
@@ -224,9 +224,9 @@ export default class MsgCommandSetting{
         inlineButtons:[]
       })
     }
-    await callApiWithPdu(new AuthNativeReq({
-      accountId,entropy,session
-    }).pack())
+    // await callApiWithPdu(new AuthNativeReq({
+    //   accountId,entropy,session
+    // }).pack())
     setTimeout(()=>window.location.reload(),200)
   }
 
