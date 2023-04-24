@@ -11,6 +11,7 @@ A private chatbot based on AI, blockchain encryption technology, and de-Chinese-
 
 ![主界面](./public/screenshot.jpg)
 
+
 </div>
 
 - IOS
