@@ -161,10 +161,30 @@ export default class MsgDispatcher {
     if(!res){
       try {
         if(!this.isMsgCipher() && this.getBotInfo()){
-            if(this.getMsgText() && this.getBotInfo()?.aiBot){
+          const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
+
+          const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
+          const botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
+
+          if(this.getMsgText() && this.getBotInfo()?.aiBot){
+            if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();
               res = await new BotChatGpt(this.getBotInfo()?.botId!).process(this.outGoingMsg)
+            }else{
+              this.outGoingMsg = await this.sendOutgoingMsg();
+              const res = await callApiWithPdu(new SendBotMsgReq({
+                botApi,
+                chatId:this.getChatId(),
+                text:this.getMsgText()}
+              ).pack())
+              if(res){
+                const {reply} =  SendBotMsgRes.parseMsg(res.pdu)
+                if(reply){
+                  await new ChatMsg(this.getChatId()).setText(reply).reply()
+                }
+              }
             }
+          }
         }
       }catch (error:any){
         console.error(error)

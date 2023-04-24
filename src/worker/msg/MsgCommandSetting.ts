@@ -406,7 +406,7 @@ export default class MsgCommandSetting{
                   // @ts-ignore
                   addUsersObj[user!.id] = user!
                   // @ts-ignore
-                  addChatsObj[user!.id] = MsgCommandSetting.buildDefaultChat(user!)
+                  addChatsObj[user!.id] = ChatMsg.buildDefaultChat(user!)
                 }
               }
             }

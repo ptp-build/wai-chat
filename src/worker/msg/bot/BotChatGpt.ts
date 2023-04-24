@@ -64,8 +64,8 @@ export default class BotChatGpt{
             })
           }
         }
-        
-        
+
+
       })
     }
     if(max_history_length > 0){

@@ -2,14 +2,15 @@ import type {RequiredGlobalActions} from '../../index';
 import {addActionHandler, getActions, getGlobal, setGlobal,} from '../../index';
 
 import type {ApiChat, ApiChatFolder, ApiChatMember, ApiError, ApiUser, ApiUserStatus,} from '../../../api/types';
-import {ApiAttachment, MAIN_THREAD_ID} from '../../../api/types';
+import {MAIN_THREAD_ID} from '../../../api/types';
 import {ChatCreationProgress, ManagementProgress, NewChatMembersProgress} from '../../../types';
 import type {ActionReturnType, GlobalState, TabArgs,} from '../../types';
 
 import {
   ALL_FOLDER_ID,
   ARCHIVED_FOLDER_ID,
-  DEBUG, MEDIA_CACHE_NAME_WAI,
+  DEBUG,
+  MEDIA_CACHE_NAME_WAI,
   RE_TG_LINK,
   SERVICE_NOTIFICATIONS_USER_ID,
   TME_WEB_DOMAINS,
@@ -82,21 +83,26 @@ import {selectCurrentLimit} from '../../selectors/limits';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {
-  ChatModelConfig, DEFAULT_CHATGPT_AI_COMMANDS, DEFAULT_AVATARS,
+  ChatModelConfig,
+  DEFAULT_AVATARS,
   DEFAULT_BOT_COMMANDS,
-  DEFAULT_CREATE_USER_BIO, DEFAULT_PROMPT,
-  LoadAllChats, UserIdChatGpt,
-  UserIdFirstBot, UserIdCnPrompt, UserIdEnPrompt, UserIdChatGpt4
+  DEFAULT_CHATGPT_AI_COMMANDS,
+  DEFAULT_CREATE_USER_BIO,
+  DEFAULT_PROMPT,
+  LoadAllChats,
+  UserIdChatGpt,
+  UserIdChatGpt4,
+  UserIdFirstBot
 } from "../../../worker/setting";
-import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
-import {generateRandomBytes, readBigIntFromBuffer} from "../../../lib/gramjs/Helpers";
 import * as cacheApi from '../../../util/cacheApi';
 import {blobToDataUri, fetchBlob} from "../../../util/files";
 import {DownloadRes} from "../../../lib/ptp/protobuf/PTPFile";
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import {getFileId} from "../../../lib/gramjs/client/uploadFile";
-import MsgCommandChatLab from "../../../worker/msg/MsgCommandChatLab";
-import { resizeImage } from '../../../util/imageResize';
+import ChatMsg from "../../../worker/msg/ChatMsg";
+
+import {resizeImage} from '../../../util/imageResize';
+
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -675,7 +681,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     const users:ApiUser[] = [user]
 
     // @ts-ignore
-    const chats:ApiChat[] = [MsgCommandSetting.buildDefaultChat(user)]
+    const chats:ApiChat[] = [ChatMsg.buildDefaultChat(user)]
 
     let activeChatFolder = window.sessionStorage.getItem("activeChatFolder")
     let activeChatFolderRow;

@@ -1,5 +1,5 @@
 import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
-import {LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
+import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {
@@ -101,7 +101,7 @@ export default class MsgWorker {
             }
           }
         })
-        botWs.setWsUrl(botApi)
+        botWs.setWsUrl(botApi ? botApi : CLOUD_WS_URL)
         botWs.setSession(Account.getCurrentAccount()?.getSession()!)
         botWs.connect();
         await botWs.waitForMsgServerState(BotWebSocketState.logged)

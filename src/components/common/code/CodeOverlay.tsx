@@ -66,9 +66,6 @@ const CodeOverlay: FC<OwnProps> = ({
             <i className="icon-word-wrap" />
           </div>
         )}
-        <div className={styles.copy} onClick={handleCopy} title={lang('Save')}>
-            <i className="icon-copy" />
-          </div>
         {!noCopy && (
           <div className={styles.copy} onClick={handleCopy} title={lang('Copy')}>
             <i className="icon-copy" />
