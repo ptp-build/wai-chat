@@ -116,7 +116,6 @@ const ManageReactions: FC<OwnProps & StateProps> = ({
     }
     setIsTouched(true);
   }, [availableActiveReactions, chat, localEnabledReactions]);
-
   return (
     <div className="Management">
       <div className="custom-scroll">

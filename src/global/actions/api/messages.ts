@@ -5,7 +5,7 @@ import type {ActionReturnType, ApiDraft, GlobalState, TabArgs,} from '../../type
 import type {
   ApiAttachment,
   ApiBotInfo,
-  ApiChat,
+  ApiChat, ApiFormattedText,
   ApiMessage,
   ApiMessageEntity,
   ApiNewPoll,
@@ -1599,7 +1599,6 @@ addActionHandler('requestMessageTranslation', (global, actions, payload): Action
   const {
     chatId, id, toLanguageCode = selectLanguageCode(global), tabId = getCurrentTabId(),
   } = payload;
-
   global = updateRequestedMessageTranslation(global, chatId, id, toLanguageCode, tabId);
 
   return global;
@@ -1622,16 +1621,18 @@ addActionHandler('translateMessages', (global, actions, payload): ActionReturnTy
 
   const chat = selectChat(global, chatId);
   if (!chat) return undefined;
-
+  const messages:Record<number, ApiFormattedText> = {}
   messageIds.forEach((id) => {
     global = updateMessageTranslation(global, chatId, id, toLanguageCode, {
       isPending: true,
     });
+    messages[parseInt(id)] = selectChatMessage(global,chatId,id)?.content.text!
   });
 
   callApi('translateText', {
     chat,
     messageIds,
+    messages,
     toLanguageCode,
   });
 

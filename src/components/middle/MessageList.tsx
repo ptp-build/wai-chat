@@ -488,7 +488,6 @@ const MessageList: FC<OwnProps & StateProps> = ({
     } else {
       newScrollTop = scrollHeight - scrollOffset;
     }
-    console.log({scrollTop, scrollHeight, offsetHeight})
 
     resetScroll(container, Math.ceil(newScrollTop));
 

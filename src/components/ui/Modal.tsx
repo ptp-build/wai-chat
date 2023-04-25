@@ -99,7 +99,6 @@ const Modal: FC<OwnProps & StateProps> = ({
       document.body.classList.remove('has-open-dialog');
     };
   }, [isOpen]);
-
   const lang = useLang();
 
   if (!shouldRender) {

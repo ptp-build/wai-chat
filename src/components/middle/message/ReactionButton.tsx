@@ -60,7 +60,6 @@ const ReactionButton: FC<{
       messageId: message.id,
     });
   }, [message, reaction, toggleReaction]);
-
   return (
     <Button
       className={buildClassName(isReactionChosen(reaction) && 'chosen')}

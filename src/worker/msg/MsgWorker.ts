@@ -1,4 +1,4 @@
-import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
@@ -28,6 +28,7 @@ import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/B
 import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
+import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
 
 let messageIds:number[] = [];
 
@@ -58,6 +59,81 @@ export default class MsgWorker {
     this.attachment = attachment;
     this.chatMsg = new ChatMsg(chat.id)
   }
+  static async handleSendBotMsgRes(pdu:Pdu){
+    const {reply,msgId,message,chatId} = SendBotMsgRes.parseMsg(pdu)
+    console.log("[SendBotMsgRes]",reply,message)
+    if(reply){
+      if(msgId){
+        await new ChatMsg(chatId!).update(msgId,{
+          content:{
+            text:{
+              text:reply
+            }
+          }
+        })
+      }else{
+        await new ChatMsg(chatId!).setText(reply).reply();
+      }
+    }
+    if(message){
+      if(msgId){
+        await new ChatMsg(chatId!).update(msgId,message as ApiMessage)
+      }else{
+        await new ChatMsg(chatId!).sendNewMessage(message as ApiMessage);
+      }
+    }
+  }
+  static async handleInitAppRes(pdu:Pdu){
+    let {chats,messages,chatFolders} = InitAppRes.parseMsg(pdu)
+    if(chats){
+      chats = JSON.parse(chats)
+    }
+    if(messages){
+      messages = JSON.parse(messages)
+    }
+    if(chatFolders){
+      chatFolders = JSON.parse(chatFolders)
+    }
+    for (let i = 0; i < chats?.length; i++) {
+      if (chats != null) {
+        const chat = chats[i] as ApiChat;
+        ChatMsg.apiUpdate({
+          "@type":"updateChat",
+          id:chat.id,
+          chat
+        })
+      }
+    }
+
+    for (let i = 0; i < chatFolders?.length; i++) {
+      if (chatFolders != null) {
+        const folder = chatFolders[i] as ApiChatFolder;
+        ChatMsg.apiUpdate({
+          "@type":"updateChatFolder",
+          id:folder.id,
+          folder
+        })
+      }
+    }
+
+    for (let i = 0; i < messages?.length; i++) {
+      if (messages != null) {
+        const message = messages[i] as ApiMessage;
+        await new ChatMsg(message.chatId).sendNewMessage(message)
+      }
+    }
+    console.log("handleInitAppRes",{chats,messages})
+  }
+  static async handleRecvMsg(pdu:Pdu){
+    switch (pdu.getCommandId()) {
+      case ActionCommands.CID_SendBotMsgRes:
+        await MsgWorker.handleSendBotMsgRes(pdu);
+        break
+      case ActionCommands.CID_InitAppRes:
+        await MsgWorker.handleInitAppRes(pdu);
+        break
+    }
+  }
 
   static async createWsBot(accountId:number,botApi?:string){
     if(botApi && botApi.startsWith("ws")){
@@ -77,33 +153,19 @@ export default class MsgWorker {
                 break
               case BotWebSocketNotifyAction.onData:
                 console.log("[onData]",{accountId,payload})
-                switch (payload.getCommandId()) {
-                  case ActionCommands.CID_SendBotMsgRes:
-                    const {reply,msgId,chatId,streamEnd} = SendBotMsgRes.parseMsg(payload)
-                    console.log("[SendBotMsgRes]",reply)
-                    if(reply){
-                      if(msgId){
-                        await new ChatMsg(chatId!).update(msgId,{
-                          content:{
-                            text:{
-                              text:reply
-                            }
-                          }
-                        })
-                      }else{
-                        const msgId1 = await MsgWorker.genMessageId();
-                        await new ChatMsg(chatId!).setText(reply).reply();
-                      }
-                    }
-                    break
-                }
+                await MsgWorker.handleRecvMsg(payload)
                 break
             }
           }
         })
         botWs.setWsUrl(botApi ? botApi : CLOUD_WS_URL)
         botWs.setSession(Account.getCurrentAccount()?.getSession()!)
-        botWs.connect();
+        if(!botWs.isConnect()){
+          botWs.connect();
+        }
+        if(botWs.isConnect() && !botWs.isLogged()){
+          await botWs.login();
+        }
         await botWs.waitForMsgServerState(BotWebSocketState.logged)
       }
     }
@@ -137,8 +199,8 @@ export default class MsgWorker {
           let buf = Buffer.from(new PbUser(user!).pack().getPbData())
           const password = "Wai" + time!.toString();
           // console.log("accountId",account.getAccountId())
-          // console.log("entropy",await account.getEntropy())
-          const cipher = await account.encryptData(buf,password)
+          // console.log("entropy",await Account.getCurrentAccount()!.getEntropy())
+          const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
           const bb = popByteBuffer();
           writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
           writeInt16(bb, 1);
@@ -172,7 +234,7 @@ export default class MsgWorker {
           const password = "Wai"+time.toString();
           // console.log("encode",Buffer.from(buf!).toString("hex"))
           // console.log("cipher",Buffer.from(cipher).toString("hex"))
-          const buf2 = await account.decryptData(Buffer.from(cipher),password)
+          const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
           // console.log("userId",user?.id)
           // console.log("buf",buf)
           // console.log("cipher",cipher)
@@ -199,7 +261,7 @@ export default class MsgWorker {
         const password = "Wai"+time.toString();
         // console.log("encode",Buffer.from(buf!).toString("hex"))
         // console.log("cipher",Buffer.from(cipher).toString("hex"))
-        const buf2 = await account.decryptData(Buffer.from(cipher),password)
+        const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
         messages[i].message = PbMsg.parseMsg(new Pdu(Buffer.from(buf2)))
         messages[i].buf = undefined
         // console.log("userId",user?.id)
@@ -240,7 +302,7 @@ export default class MsgWorker {
         const {time,message} = messages[i]
         let buf = Buffer.from(new PbMsg(message!).pack().getPbData())
         const password = "Wai"+time!.toString();
-        const cipher = await account.encryptData(buf,password)
+        const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
         const bb = popByteBuffer();
         writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
         writeInt16(bb, 1);

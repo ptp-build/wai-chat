@@ -84,6 +84,10 @@ const MediaViewer: FC<StateProps> = ({
   isHidden,
   shouldSkipHistoryAnimations,
 }) => {
+
+  if(message?.content.photo){
+    console.log("[media]\n",JSON.stringify(message?.content))
+  }
   const {
     openMediaViewer,
     closeMediaViewer,

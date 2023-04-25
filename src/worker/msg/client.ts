@@ -51,8 +51,10 @@ async function handleChatGpt(url:string,chatGpt:string,chatId?:string,msgId?:num
         ...JSON.parse(chatGpt)
         ,msgId,
         chatId,
+        stream:true
       },
       onMessage:(content, done) =>{
+        console.log(content)
         let inlineButtons:ApiKeyboardButtons = []
         if(content.startsWith("sign://401/")){
           inlineButtons = [
@@ -139,67 +141,64 @@ async function handleChatGpt(url:string,chatGpt:string,chatId?:string,msgId?:num
 export const handleSendBotMsgReq = async (pdu:Pdu)=>{
   const account = Account.getCurrentAccount()!
   let {botApi,chatId,msgId,chatGpt,text} = SendBotMsgReq.parseMsg(pdu)
-  if(!botApi){
-    botApi = CHATGPT_PROXY_API
-  }
-  if(!botApi){
-    console.error("botApi is null")
-    return
-  }
-  if(botApi){
-    try {
-      if(botApi.startsWith("http")){
-        if(chatGpt){
-          let url =  botApi+"/v1/chat/completions";
-          await handleChatGpt(url,chatGpt,chatId,msgId)
-          return new SendBotMsgRes({
-            reply:"..."
-          }).pack().getPbData()
-        }else{
-          let url = botApi+"/message";
-          try {
-            const res = await fetch(url, {
-              method: "POST",
-              headers:{
-                "Content-Type": "application/json; charset=utf-8",
-                Authorization: `Bearer ${account.getSession()}`,
-              },
-              body:JSON.stringify({
-                chatId,
-                msgId,
-                text
-              })
-            });
-            if(!res || res.status !== 200){
-              return;
-            }
-            return new SendBotMsgRes({
-              reply:await res.text()
-            }).pack().getPbData()
-          }catch (e:any){
-            return new SendBotMsgRes({
-              reply:"Error invoke api," + e.message
-            }).pack().getPbData()
-          }
-        }
-      }else{
-
-        const botWs = BotWebSocket.getInstance(botApi ? parseInt(chatId!) : Account.getCurrentAccountId())
-        if(!botWs.isLogged()){
-          await MsgWorker.createWsBot(botApi ? parseInt(chatId!) : Account.getCurrentAccountId(),botApi)
-        }
-        const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
-          text,
-          chatId,
-          msgId,
-          chatGpt
-        }).pack())
-        return res.getPbData()
+  try {
+    if(botApi && botApi.startsWith("http")){
+      if(!botApi){
+        botApi = CHATGPT_PROXY_API
       }
-    }catch (e){
-      console.error(e)
-      return
+      if(chatGpt){
+        let url =  botApi+"/v1/chat/completions";
+        await handleChatGpt(url,chatGpt,chatId,msgId)
+        return new SendBotMsgRes({
+          reply:"..."
+        }).pack().getPbData()
+      }else{
+        let url = botApi+"/message";
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers:{
+              "Content-Type": "application/json; charset=utf-8",
+              Authorization: `Bearer ${account.getSession()}`,
+            },
+            body:JSON.stringify({
+              chatId,
+              msgId,
+              text
+            })
+          });
+          if(!res || res.status !== 200){
+            return;
+          }
+          return new SendBotMsgRes({
+            reply:await res.text()
+          }).pack().getPbData()
+        }catch (e:any){
+          return new SendBotMsgRes({
+            reply:"Error invoke api," + e.message
+          }).pack().getPbData()
+        }
+      }
+    }else{
+      const connId =botApi ? parseInt(chatId!) : Account.getCurrentAccountId()
+      if(!botApi){
+        botApi = CHATGPT_PROXY_API
+      }
+      const botWs = BotWebSocket.getInstance(connId)
+      if(!botWs.isLogged()){
+        await MsgWorker.createWsBot(connId,botApi)
+      }
+      const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
+        text,
+        chatId,
+        msgId,
+        chatGpt
+      }).pack())
+      return res.getPbData()
     }
+  }catch (e){
+    console.error(e)
+    return
   }
 }
 

@@ -8,6 +8,7 @@ export { default as AuthStep1Req } from './AuthStep1Req';
 export { default as AuthStep1Res } from './AuthStep1Res';
 export { default as AuthStep2Req } from './AuthStep2Req';
 export { default as AuthStep2Res } from './AuthStep2Res';
+export { default as InitAppRes } from './InitAppRes';
 export { default as UpdateProfileReq } from './UpdateProfileReq';
 export { default as UpdateProfileRes } from './UpdateProfileRes';
 export { default as UpdateUsernameReq } from './UpdateUsernameReq';

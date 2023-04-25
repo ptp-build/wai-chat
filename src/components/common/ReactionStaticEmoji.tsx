@@ -32,6 +32,7 @@ const ReactionStaticEmoji: FC<OwnProps> = ({
   observeIntersection,
 }) => {
   const isCustom = 'documentId' in reaction;
+
   const availableReaction = useMemo(() => (
     availableReactions?.find((available) => isSameReaction(available.reaction, reaction))
   ), [availableReactions, reaction]);
@@ -50,7 +51,9 @@ const ReactionStaticEmoji: FC<OwnProps> = ({
       />
     );
   }
-
+  if(!mediaData){
+    return <i className={buildClassName('ReactionStaticEmoji',"shown","open")}>{reaction.emoticon}</i>
+  }
   return (
     <img
       className={buildClassName('ReactionStaticEmoji', transitionClassNames, className)}

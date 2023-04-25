@@ -74,6 +74,7 @@ export interface SendBotMsgRes_Type {
   chatId?: string;
   msgId?: number;
   streamEnd?: boolean;
+  message?: PTPCommon.PbMsg_Type;
 }
 export interface SendReq_Type {
   chatId: string;

@@ -101,6 +101,7 @@ type OwnProps = {
   onClosePoll?: () => void;
   onShowSeenBy?: () => void;
   onShowReactors?: () => void;
+  onShare?: () => void;
   onAboutAds?: () => void;
   onSponsoredHide?: () => void;
   onTranslate?: () => void;
@@ -180,6 +181,7 @@ const MessageContextMenu: FC<OwnProps> = ({
   onToggleReaction,
   onCopyMessages,
   onAboutAds,
+  onShare,
   onSponsoredHide,
   onTranslate,
   onShowOriginal,
@@ -325,11 +327,13 @@ const MessageContextMenu: FC<OwnProps> = ({
         style={menuStyle}
         ref={scrollableRef}
       >
-        {/*{true && <MenuItem icon="language" onClick={onTranslate}>{lang('TranslateMessage')}</MenuItem>}*/}
-        {/*{true && <MenuItem icon="language" onClick={onShowOriginal}>{lang('ShowOriginalButton')}</MenuItem>}*/}
-        {/*{true && (*/}
-        {/*  <MenuItem icon="web" onClick={onSelectLanguage}>{lang('lng_settings_change_lang')}</MenuItem>*/}
-        {/*)}*/}
+        {/* <MenuItem icon="share-filled" onClick={onShare}>{lang('分享')}</MenuItem> */}
+
+        {canTranslate && <MenuItem icon="language" onClick={onTranslate}>{lang('TranslateMessage')}</MenuItem>}
+        {canShowOriginal && <MenuItem icon="language" onClick={onShowOriginal}>{lang('显示原文')}</MenuItem>}
+        {canSelectLanguage && (
+         <MenuItem icon="web" onClick={onSelectLanguage}>{lang('翻译')}</MenuItem>
+        )}
         <MenuItem icon="download" icon_rotate_180 onClick={handleSaveMsgToCloud}>{lang('保存到云端')}</MenuItem>
         <MenuItem icon="allow-speak" onClick={onSpeak}>{lang('朗读')}</MenuItem>
 
@@ -431,6 +435,8 @@ const MessageContextMenu: FC<OwnProps> = ({
         {/*   </> */}
         {/* )} */}
          {isSponsoredMessage && <MenuItem icon="help" onClick={onAboutAds}>{lang('SponsoredMessageInfo')}</MenuItem>}
+
+
         {/* {isSponsoredMessage && onSponsoredHide && ( */}
         {/*   <MenuItem icon="stop" onClick={onSponsoredHide}>{lang('HideAd')}</MenuItem> */}
         {/* )} */}

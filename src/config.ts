@@ -246,7 +246,7 @@ export const SUPPORTED_TRANSLATION_LANGUAGES = [
   'it', 'ja', 'ko', 'pl', 'pt', 'ru', 'es', 'uk',
   // Unnofficial
   'af', 'sq', 'am', 'hy', 'az', 'eu', 'bn', 'bs', 'bg',
-  'ceb', 'zh-CN', 'zh-TW', 'co', 'hr', 'cs', 'da', 'eo',
+  'ceb', 'zh-TW', 'co', 'hr', 'cs', 'da', 'eo',
   'et', 'fi', 'fy', 'gl', 'ka', 'el', 'gu', 'ht', 'ha',
   'haw', 'he', 'iw', 'hi', 'hmn', 'hu', 'is', 'ig', 'ga',
   'jv', 'kn', 'kk', 'km', 'rw', 'ku', 'ky', 'lo', 'la',
@@ -264,7 +264,7 @@ export const RE_MENTION_TEMPLATE = '(@[\\w\\d_-]+)';
 export const RE_TG_LINK = /^tg:(\/\/)?/i;
 export const RE_TME_LINK = /^(https?:\/\/)?([-a-zA-Z0-9@:%_+~#=]{1,32}\.)?t\.me/i;
 export const RE_TELEGRAM_LINK = /^(https?:\/\/)?telegram\.org\//i;
-export const TME_LINK_PREFIX = 'https://t.me/';
+export const TME_LINK_PREFIX = 'https://wai.chat/';
 export const USERNAME_PURCHASE_ERROR = 'USERNAME_PURCHASE_AVAILABLE';
 export const PURCHASE_USERNAME = 'auction';
 export const TME_WEB_DOMAINS = new Set(['t.me', 'web.t.me', 'k.t.me', 'z.t.me']);

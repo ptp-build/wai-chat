@@ -1,3 +1,5 @@
+import html2canvas from "html2canvas";
+import jsPDF from 'jspdf';
 
 export function generateRandomString(length:number) {
   let result = '';
@@ -286,14 +288,12 @@ function downloadText(text:string, filename:string,type = "text/json") {
   document.body.removeChild(element);
 }
 
-export async function blobToArrayBuffer(blob:Blob):Promise<ArrayBuffer> {
-  return new Promise((resolve) => {
+function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener('loadend', () => {
-      // @ts-ignore
-      resolve(reader.result);
-    });
     reader.readAsArrayBuffer(blob);
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = reject;
   });
 }
 
@@ -305,4 +305,22 @@ export async function blobToBuffer(blob:Blob) {
 export function isPositiveInteger(str: string): boolean {
   const reg = /^[1-9]\d*$/; // 正则表达式
   return reg.test(str);
+}
+
+export function showBodyLoading(showLoading: boolean): void {
+  const body = document.querySelector("body");
+  if (showLoading) {
+    body.classList.add("loading_cursor");
+  } else {
+    body.classList.remove("loading_cursor");
+  }
+}
+
+export function downloadFromLink(name:string,url:string){
+  let link = document.createElement('a');
+  link.download = name; // set the image download name
+  link.href = url; // set the data URL as the link URL
+  document.body.appendChild(link); // add the link to the DOM
+  link.click(); // click the link to trigger the download
+  document.body.removeChild(link); // remove the link from the DOM
 }

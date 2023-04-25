@@ -496,7 +496,6 @@ export default class MsgCommandSetting{
   }
 
   async uploadMsgList(messages:MessageStoreRow_Type[]){
-
     if(messages.length > 0){
       const res = await callApiWithPdu(new UploadMsgReq({
         messages,
@@ -504,9 +503,9 @@ export default class MsgCommandSetting{
         time:currentTs(),
       }).pack())
       if(!res){
-        getActions().showNotification({message:"更新失败"})
+        getActions().showNotification({message:"上传失败"})
       }else{
-        getActions().showNotification({message:"更新成功"})
+        getActions().showNotification({message:"上传成功"})
       }
     }
   }

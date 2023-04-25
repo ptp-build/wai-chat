@@ -8,3 +8,29 @@
 .rotate_180{
   transform: rotate(180deg);
 }
+
+.loading_cursor * {
+  cursor: wait!important;
+}
+
+.share-image-wrap{
+  min-height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .share-image{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    img{
+      max-width: 80%;
+    }
+  }
+}
+.share-image-actions{
+  margin-top:8px;
+  button,a{
+    margin-top:8px;
+  }
+}

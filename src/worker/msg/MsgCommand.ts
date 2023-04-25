@@ -155,7 +155,7 @@ export default class MsgCommand {
             if(selectChatMessage(global,this.chatId,message!.id)){
               await this.chatMsg.update(message!.id,message as ApiMessage)
             }else{
-              await this.chatMsg.sendNewMessage(message!.id,message as ApiMessage)
+              await this.chatMsg.sendNewMessage(message as ApiMessage)
             }
           }
         }

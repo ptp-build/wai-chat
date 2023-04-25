@@ -1,5 +1,5 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {currentTs, isPositiveInteger} from "../share/utils/utils";
+import {downloadFromLink, isPositiveInteger, showBodyLoading} from "../share/utils/utils";
 import {ApiKeyboardButtons} from "../../api/types";
 import {GlobalState} from "../../global/types";
 import {getGlobal, setGlobal} from "../../global";
@@ -10,7 +10,8 @@ import {
   ChatModelConfig,
   DEFAULT_BOT_COMMANDS,
   DEFAULT_CHATGPT_AI_COMMANDS,
-  STOP_HANDLE_MESSAGE
+  STOP_HANDLE_MESSAGE,
+  WaterMark
 } from "../setting";
 import {callApiWithPdu} from "./utils";
 import {StopChatStreamReq} from "../../lib/ptp/protobuf/PTPOther";
@@ -21,6 +22,7 @@ import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {requestUsage} from "../../lib/ptp/functions/requests";
 import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
 import ChatMsg from "./ChatMsg";
+import {generateImageFromDiv} from "../share/utils/canvas";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
@@ -46,6 +48,10 @@ export default class MsgCommandChatGpt{
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/toggleClearHistory',disableClearHistory ? "允许清除历史记录":"关闭清除历史记录"),
         ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/clearHistory',"清除历史记录")),
       ],
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/export/image',"导出 Image"),
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/export/markdown',"导出 Markdown"),
+      ],
     ]
     if(CLOUD_MESSAGE_API){
       res.push(
@@ -68,6 +74,53 @@ export default class MsgCommandChatGpt{
     return res
   }
 
+  async export(messageId:number,type:string){
+    const global = getGlobal();
+    const {chatGptAskHistory} = global
+    const messageIds = []
+    Object.keys(chatGptAskHistory[this.chatId]).forEach(id=>{
+      const userMsgId = chatGptAskHistory[this.chatId][id]
+      messageIds.push(userMsgId)
+      messageIds.push(parseInt(id))
+    })
+
+    if(messageIds.length == 0){
+      return MsgDispatcher.showNotification("not found ai message")
+    }
+    showBodyLoading(true)
+    const file_name = "chat_"+this.chatId
+    switch (type){
+      case "pdf":
+      case "image":
+        const url = await generateImageFromDiv(
+          messageIds.map(id=>`message${id}`),
+          20,
+          "#99BA92",
+          WaterMark,
+          type
+        );
+        if(type === 'image'){
+          downloadFromLink(file_name+".png",url);
+        }else{
+          downloadFromLink(file_name+".pdf",url);
+        }
+        break
+      case "markdown":
+        const messages = messageIds.map((id,i)=>{
+          const message = selectChatMessage(global,this.chatId,id)
+          if( i%2 === 0){
+            return `Q:\n-----------\n${message?.content.text?.text}\n`
+          }else{
+            return `A:\n-----------\n${message?.content.text?.text}\n\n`
+          }
+        }).join("\n")
+        const blob = new Blob([messages], { type: 'text/plain' });
+        downloadFromLink(file_name+".md",URL.createObjectURL(blob));
+        break
+    }
+    showBodyLoading(false)
+    return STOP_HANDLE_MESSAGE
+  }
   async toggleClearHistory(messageId:number){
     const disableClearHistory = this.getAiBotConfig('disableClearHistory')
     await this.changeAiBotConfig({
@@ -462,6 +515,10 @@ export default class MsgCommandChatGpt{
         return
       case `${chatId}/setting/ai/toggleClearHistory`:
         await this.toggleClearHistory(messageId)
+        return
+      case `${chatId}/setting/export/markdown`:
+      case `${chatId}/setting/export/image`:
+        await this.export(messageId,data.replace(`${chatId}/setting/export/`,""))
         return
       case `${chatId}/setting/uploadUser`:
         await new MsgCommand(chatId).uploadUser(global)

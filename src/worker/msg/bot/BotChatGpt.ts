@@ -6,6 +6,7 @@ import {callApiWithPdu} from "../utils";
 import {SendBotMsgReq, SendBotMsgRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import MsgCommandChatGpt from "../MsgCommandChatGpt";
 import ChatMsg from "../ChatMsg";
+import {CHATGPT_PROXY_API} from "../../../config";
 
 export type AiHistoryType = {
   role:"user"|"system"|"assistant",
@@ -64,12 +65,13 @@ export default class BotChatGpt{
             })
           }
         }
-
-
       })
     }
+
     if(max_history_length > 0){
       historyList = historyList.slice(Math.max(0,historyList.length - max_history_length))
+    }else{
+      historyList = []
     }
     let content = text;
     const aiHistoryList:AiHistoryType[] = [
@@ -85,7 +87,7 @@ export default class BotChatGpt{
 
   async process(outGoingMsg:ApiMessage,assistantMsg?:ApiMessage){
     this.outGoingMsg = outGoingMsg
-    const botApi = this.msgCommandChatGpt.getAiBotConfig("botApi") as string;
+    let botApi = this.msgCommandChatGpt.getAiBotConfig("botApi") as string;
     let thinkingMsg;
     if(assistantMsg){
       await this.chatMsg.updateText(assistantMsg.id,"...")
@@ -94,6 +96,9 @@ export default class BotChatGpt{
       thinkingMsg = await this.chatMsg.setThinking().reply()
     }
     try {
+      if(!botApi){
+        botApi = CHATGPT_PROXY_API
+      }
       const res = await callApiWithPdu(new SendBotMsgReq({
         botApi,
         chatId: this.botId,

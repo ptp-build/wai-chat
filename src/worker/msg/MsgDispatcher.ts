@@ -164,25 +164,30 @@ export default class MsgDispatcher {
           const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
 
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
-          const botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
+          let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
 
           if(this.getMsgText() && this.getBotInfo()?.aiBot){
             if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();
               res = await new BotChatGpt(this.getBotInfo()?.botId!).process(this.outGoingMsg)
             }else{
+              if(!botApi){
+                return
+              }
               this.outGoingMsg = await this.sendOutgoingMsg();
-              const res = await callApiWithPdu(new SendBotMsgReq({
+
+              const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
                 botApi,
                 chatId:this.getChatId(),
                 text:this.getMsgText()}
               ).pack())
-              if(res){
-                const {reply} =  SendBotMsgRes.parseMsg(res.pdu)
+              if(SendBotMsgReqRes){
+                const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
                 if(reply){
                   await new ChatMsg(this.getChatId()).setText(reply).reply()
                 }
               }
+              return this.outGoingMsg
             }
           }
         }

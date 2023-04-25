@@ -189,6 +189,9 @@ export interface PbMsg_Type {
   senderId?: string;
   isForwardingAllowed?: boolean;
   previousLocalId?: number;
+  views?: number;
+  repliesThreadInfo?: PbRepliesThreadInfo_Type;
+  reactions?: PbReactions_Type;
 }
 
 export interface PbPhoto_Type {
@@ -201,6 +204,31 @@ export interface PbPhoto_Type {
 export interface PbQrCode_Type {
   type: QrCodeType;
   data: Buffer;
+}
+
+export interface PbReaction_Type {
+  emoticon: string;
+}
+
+export interface PbReactionCount_Type {
+  chosenOrder?: number;
+  count: number;
+  reaction: PbReaction_Type;
+}
+
+export interface PbReactions_Type {
+  canSeeList?: boolean;
+  results?: PbReactionCount_Type[];
+}
+
+export interface PbRepliesThreadInfo_Type {
+  isComments: boolean;
+  threadId: number;
+  chatId: string;
+  originChannelId: string;
+  messagesCount: number;
+  lastMessageId: number;
+  recentReplierIds?: string[];
 }
 
 export interface PbSettings_Type {

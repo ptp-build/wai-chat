@@ -39,7 +39,20 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           chat: omit(update.chat, ['lastReadInboxMessageId']),
         };
       }
-
+      const listActiveIds = global.chats.listIds.active
+      if(!listActiveIds.includes(update.chat.id)){
+        listActiveIds.push(update.chat.id)
+        global = {
+          ...global,
+          chats:{
+            ...global.chats,
+            listIds:{
+              ...global.chats.listIds,
+              active:listActiveIds
+            }
+          }
+        }
+      }
       global = updateChat(global, update.id, update.chat, update.newProfilePhoto);
       setGlobal(global);
 

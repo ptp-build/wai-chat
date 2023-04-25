@@ -1,14 +1,18 @@
-import type { FC } from '../../../lib/teact/teact';
-import React, {
-  memo, useCallback, useEffect, useMemo, useState,
-} from '../../../lib/teact/teact';
-import { getActions, getGlobal, withGlobal } from '../../../global';
+import type {FC} from '../../../lib/teact/teact';
+import React, {memo, useCallback, useEffect, useMemo, useState,} from '../../../lib/teact/teact';
+import {getActions, getGlobal, withGlobal} from '../../../global';
 
-import type { MessageListType } from '../../../global/types';
+import type {MessageListType} from '../../../global/types';
 import type {
-  ApiAvailableReaction, ApiStickerSetInfo, ApiMessage, ApiStickerSet, ApiChatReactions, ApiReaction, ApiThreadInfo,
+  ApiAvailableReaction,
+  ApiChatReactions,
+  ApiMessage,
+  ApiReaction,
+  ApiStickerSet,
+  ApiStickerSetInfo,
+  ApiThreadInfo,
 } from '../../../api/types';
-import type { IAlbum, IAnchorPosition } from '../../../types';
+import type {IAlbum, IAnchorPosition} from '../../../types';
 
 import {
   selectActiveDownloadIds,
@@ -25,13 +29,20 @@ import {
   selectStickerSet,
 } from '../../../global/selectors';
 import {
-  isActionMessage, isChatChannel,
-  isChatGroup, isOwnMessage, areReactionsEmpty, isUserId, isMessageLocal, getMessageVideo, getChatMessageLink,
+  areReactionsEmpty,
+  getChatMessageLink,
+  getMessageVideo,
+  isActionMessage,
+  isChatChannel,
+  isChatGroup,
+  isMessageLocal,
+  isOwnMessage,
+  isUserId,
 } from '../../../global/helpers';
-import { SERVICE_NOTIFICATIONS_USER_ID } from '../../../config';
-import { IS_TRANSLATION_SUPPORTED } from '../../../util/environment';
+import {SERVICE_NOTIFICATIONS_USER_ID} from '../../../config';
+import {IS_TRANSLATION_SUPPORTED} from '../../../util/environment';
 import buildClassName from '../../../util/buildClassName';
-import { copyTextToClipboard } from '../../../util/clipboard';
+import {copyTextToClipboard} from '../../../util/clipboard';
 
 import useShowTransition from '../../../hooks/useShowTransition';
 import useFlag from '../../../hooks/useFlag';
@@ -43,6 +54,7 @@ import ReportModal from '../../common/ReportModal';
 import PinMessageModal from '../../common/PinMessageModal';
 import MessageContextMenu from './MessageContextMenu';
 import ConfirmDialog from '../../ui/ConfirmDialog';
+import ShareModal from "../../common/ShareModal";
 
 export type OwnProps = {
   isOpen: boolean;
@@ -59,6 +71,8 @@ export type OwnProps = {
 };
 
 type StateProps = {
+  aiAssitantMsgId?:number,
+  aiUserMsgId?:number,
   availableReactions?: ApiAvailableReaction[];
   customEmojiSetsInfo?: ApiStickerSetInfo[];
   customEmojiSets?: ApiStickerSet[];
@@ -99,6 +113,8 @@ type StateProps = {
 };
 
 const ContextMenuContainer: FC<OwnProps & StateProps> = ({
+  aiAssitantMsgId,
+  aiUserMsgId,
   availableReactions,
   isOpen,
   messageListType,
@@ -182,6 +198,7 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isClosePollDialogOpen, openClosePollDialog, closeClosePollDialog] = useFlag();
 
@@ -263,13 +280,17 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
     onClose();
   }, [onClose]);
 
+  const closeShareModal = useCallback(() => {
+    setIsShareModalOpen(false);
+    onClose();
+  }, [onClose]);
   const closePinModal = useCallback(() => {
     setIsPinModalOpen(false);
     onClose();
   }, [onClose]);
 
   const handleSpeak = useCallback(() => {
-    onSpeak({ messageId: message.id });
+    onSpeak({ messageId: message.id,chatId:message.chatId });
     closeMenu();
   },  [message.id, closeMenu]);
 
@@ -427,7 +448,13 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
     });
     closeMenu();
   }, [closeMenu, message, showOriginalMessage]);
-
+  const handleShare = useCallback(() => {
+    setIsMenuOpen(false);
+    setTimeout(()=>{
+      setIsShareModalOpen(true)
+    },500)
+  },[setIsShareModalOpen])
+  console.log({isShareModalOpen})
   const handleSelectLanguage = useCallback(() => {
     openMessageLanguageModal({
       chatId: message.chatId,
@@ -481,9 +508,9 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
         canRevote={canRevote}
         canClosePoll={canClosePoll}
         canShowSeenBy={canShowSeenBy}
-        canTranslate={canTranslate}
+        canTranslate={false}
         canShowOriginal={canShowOriginal}
-        canSelectLanguage={canSelectLanguage}
+        canSelectLanguage={true}
         hasCustomEmoji={hasCustomEmoji}
         customEmojiSets={customEmojiSets}
         isDownloading={isDownloading}
@@ -517,6 +544,7 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
         onTranslate={handleTranslate}
         onShowOriginal={handleShowOriginal}
         onSelectLanguage={handleSelectLanguage}
+        onShare={handleShare}
       />
       <DeleteMessageModal
         isOpen={isDeleteModalOpen}
@@ -529,6 +557,15 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
         isOpen={isReportModalOpen}
         onClose={closeReportModal}
         messageIds={reportMessageIds}
+      />
+
+      <ShareModal
+        messageId={message.id}
+        aiAssitantMsgId={aiAssitantMsgId}
+        aiUserMsgId={aiUserMsgId}
+        chatId={message.chatId}
+        isOpen={isShareModalOpen}
+        onClose={closeShareModal}
       />
       <PinMessageModal
         isOpen={isPinModalOpen}
@@ -607,13 +644,29 @@ export default memo(withGlobal<OwnProps>(
       : undefined;
 
     const { canTranslate: isTranslationEnabled, language, doNotTranslate } = global.settings.byKey;
+    const { chatGptAskHistory } = global;
+    const history = chatGptAskHistory[message.chatId]
+    let aiAssitantMsgId,aiUserMsgId;
 
+    if(history[message.id]){
+      aiAssitantMsgId = message.id
+      aiUserMsgId = history[message.id]
+    }else{
+      Object.keys(history).forEach(id=>{
+        if(history[id] === message.id){
+          aiUserMsgId = message.id
+          aiAssitantMsgId = id
+        }
+      })
+    }
     const canTranslateLanguage = !detectedLanguage
       || (!doNotTranslate.includes(detectedLanguage) && language !== detectedLanguage);
     const canTranslate = IS_TRANSLATION_SUPPORTED && isTranslationEnabled && message.content.text
       && canTranslateLanguage && !isLocal && !isScheduled && !isAction && !hasTranslation && !message.emojiOnlyCount;
 
     return {
+      aiAssitantMsgId,
+      aiUserMsgId,
       availableReactions: global.availableReactions,
       noOptions,
       canSendNow: isScheduled,

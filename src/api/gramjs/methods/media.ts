@@ -57,10 +57,16 @@ export default async function downloadMedia(
   let id;
   const t = url.split("?")
   const t1 = t[0].split(":");
+
   if(url.indexOf("progressive") > 0 || t1[0].indexOf("-") > 1){
-    id = t1[t1.length - 1];
+    if(t1[0].indexOf("avatar-") === 0){
+      id = t[1]
+    } else if(t1[0].indexOf("profile-") === 0){
+      id = t[1]
+    }else{
+      id = t1[t1.length - 1];
+    }
   }else{
-    // "profile623415?7116860199581299000"
     if(url.indexOf("profile") === 0){
       if(url.indexOf("?") > -1){
         id = url.split("?")[1]

@@ -89,3 +89,9 @@ message UpdateUsernameRes{
   required Common.ERR err = 100;
 }
 
+message InitAppRes{
+  optional string chats = 1;
+  optional string messages = 2;
+  optional string chatFolders = 3;
+  optional Common.ERR err = 100;
+}

@@ -129,4 +129,5 @@ message SendBotMsgRes{
   optional string chatId = 2;
   optional uint32 msgId = 3;
   optional bool streamEnd = 4;
+  optional Common.PbMsg message = 5;
 }

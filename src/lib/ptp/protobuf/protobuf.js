@@ -632,6 +632,9 @@ var $conv_message = $createConverter([
                 AuthStep2Res: {
                     '$': {"100":["err","uint32",0]}
                 },
+                InitAppRes: {
+                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"100":["err","uint32",0]}
+                },
                 UpdateProfileReq: {
                     '$': {"1":["firstName","string",""],"2":["lastName","string",""],"3":["about","string",""]}
                 },
@@ -724,13 +727,25 @@ var $conv_message = $createConverter([
                     '$': {"1":["type","string",""],"2":["offset","uint32",0],"3":["length","uint32",0],"4":["documentId","string",""],"5":["userId","string",""],"6":["url","string",""],"7":["language","string",""],"8":["cipher","string",""],"9":["hint","string",""]}
                 },
                 PbMsg: {
-                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0]}
+                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0],"9":["views","uint32",0],"10":["repliesThreadInfo","default.PTP.Common.PbRepliesThreadInfo",null],"11":["reactions","default.PTP.Common.PbReactions",null]}
                 },
                 PbPhoto: {
                     '$': {"1":["id","string",""],"2":["thumbnail","default.PTP.Common.PbThumbnail",null],"3":["sizes","<default.PTP.Common.PbSizes",null],"4":["isSpoiler","bool",false]}
                 },
                 PbQrCode: {
                     '$': {"1":["type","uint32",1],"2":["data","bytes",[]]}
+                },
+                PbReaction: {
+                    '$': {"2":["emoticon","string",""]}
+                },
+                PbReactionCount: {
+                    '$': {"1":["chosenOrder","uint32",0],"2":["count","uint32",0],"3":["reaction","default.PTP.Common.PbReaction",null]}
+                },
+                PbReactions: {
+                    '$': {"1":["canSeeList","bool",false],"2":["results","<default.PTP.Common.PbReactionCount",null]}
+                },
+                PbRepliesThreadInfo: {
+                    '$': {"1":["isComments","bool",false],"3":["threadId","uint32",0],"4":["chatId","string",""],"5":["originChannelId","string",""],"6":["messagesCount","uint32",0],"7":["lastMessageId","uint32",0],"8":["recentReplierIds","<string",null]}
                 },
                 PbSettings: {
                     '$': {"1":["isAutoArchived","bool",false],"2":["canReportSpam","bool",false],"3":["canAddContact","bool",false],"4":["canBlockContact","bool",false]}
@@ -830,7 +845,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false]}
+                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false],"5":["message","default.PTP.Common.PbMsg",null]}
                 },
                 SendReq: {
                     '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}

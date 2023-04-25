@@ -19,10 +19,10 @@ import type {
   ApiVideo,
   OnApiUpdate,
 } from '../../types';
-import {MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
+import {ApiKeyboardButtons, MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
 
 import {
-  ALL_FOLDER_ID,
+  ALL_FOLDER_ID, CHATGPT_PROXY_API,
   DEBUG,
   GIF_MIME_TYPE,
   MAX_INT_32,
@@ -77,6 +77,9 @@ import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import Account from '../../../worker/share/Account';
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
+import {ControllerPool, requestChatStream} from "../../../lib/ptp/functions/requests";
+import ChatMsg from "../../../worker/msg/ChatMsg";
+import {ChatModelConfig} from "../../../worker/setting";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
@@ -86,6 +89,7 @@ type TranslateTextParams = ({
 } | {
   chat: ApiChat;
   messageIds: number[];
+  messages?:Record<number, ApiFormattedText>
 }) & {
   toLanguageCode: string;
 };
@@ -1677,12 +1681,43 @@ export async function translateText(params: TranslateTextParams) {
   let result;
   const isMessageTranslation = 'chat' in params;
   if (isMessageTranslation) {
-    const { chat, messageIds, toLanguageCode } = params;
-    result = await invokeRequest(new GramJs.messages.TranslateText({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      id: messageIds,
-      toLang: toLanguageCode,
-    }));
+    const { chat, messageIds,messages, toLanguageCode } = params;
+    // result = await invokeRequest(new GramJs.messages.TranslateText({
+    //   peer: buildInputPeer(chat.id, chat.accessHash),
+    //   id: messageIds,
+    //   toLang: toLanguageCode,
+    // }));
+
+    const chatId = chat.id
+
+    const res = await requestChatStream(
+      CHATGPT_PROXY_API+"/v1/chat/completions",
+      {
+        body:{
+          ...ChatModelConfig,
+          apiKey:"",
+          systemPrompt:"你现在是一名专业的翻译官",
+          messages:[
+            {
+              role:"user",
+              content:`我需要将：${messages[messageIds[0]].text},翻译成:${toLanguageCode},你的回答格式是：原文:xxx\n译文:xxx,不要做过多解释`
+            }
+          ],
+          chatId,
+          msgId:0,
+          stream:false
+        },
+      })
+    if(res){
+      result = {
+        result:[
+          {
+            text:res,
+            entities:[]
+          }
+        ]
+      }
+    }
   } else {
     const { text, toLanguageCode } = params;
     result = await invokeRequest(new GramJs.messages.TranslateText({

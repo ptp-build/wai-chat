@@ -94,7 +94,7 @@ export default class ChatMsg {
     this.senderId = senderId
     return this
   }
-  
+
   async genMsgId(isLocal?:boolean){
     return ChatMsg.genMessageId(isLocal)
   }
@@ -119,7 +119,7 @@ export default class ChatMsg {
       inlineButtons,
       content:content!,
     }
-    return this.sendNewMessage(message.id,message)
+    return this.sendNewMessage(message)
   }
 
   async updateMessageSendSucceeded(localId:number,message:ApiMessage){
@@ -140,7 +140,11 @@ export default class ChatMsg {
     });
     return message
   }
-  async sendNewMessage(id:number,message:ApiMessage){   
+  async sendNewMessage(message:ApiMessage){
+    const id = message.id
+    if(!id){
+      message.id = await ChatMsg.genMessageId()
+    }
     ChatMsg.apiUpdate({
       '@type': "newMessage",
       chatId:this.chatId,

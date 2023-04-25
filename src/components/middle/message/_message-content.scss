@@ -12,6 +12,7 @@
   @media (min-width: 1276px) {
     .message-content{
       width: calc(100%);
+      max-width: calc(100vw - 38vw);
     }
   }
 }

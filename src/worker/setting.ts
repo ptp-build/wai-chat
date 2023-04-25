@@ -18,7 +18,7 @@ export const DEFAULT_PROMPT = '你现在是一个优秀的助手，请用中文�
 export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
 
-
+export const WaterMark = 'https://wai.chat'
 const ENABLE_GPT4 = true;
 
 export const ALL_CHAT_GPT_MODELS = [
@@ -240,12 +240,11 @@ export let LoadAllChats = {
 }
 export const TEXT_AI_THINKING = "..."
 export const BYPASS_API = [
+  "translateText",
   "editChatFolder","sortChatFolders","deleteChatFolder",
   "requestWebView","uploadContactProfilePhoto",
   "sendMessage","editMessage","deleteMessages","downloadMedia","destroy","fetchMessages","answerCallbackButton",
   "uploadProfilePhoto","fetchChats","sendWithCallback","msgClientLogin","updateProfile","updateUsername"
 ]
-
-export const BOTTOM_INPUT_LEFT_MARGIN = 'width:4px;'
 
 export const STOP_HANDLE_MESSAGE = true

@@ -41,7 +41,7 @@ import {
   selectSender,
   selectChatScheduledMessages,
   selectTabState,
-  selectRequestedTranslationLanguage,
+  selectRequestedTranslationLanguage, selectChatMessage,
 } from '../../selectors';
 import { compact, findLast } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
@@ -78,13 +78,19 @@ addActionHandler('setScrollOffset', (global, actions, payload): ActionReturnType
 });
 
 addActionHandler('onSpeak', (global, actions, payload): ActionReturnType => {
-  const { messageId, tabId = getCurrentTabId() } = payload;
+  const { messageId,chatId, tabId = getCurrentTabId() } = payload;
   const utterance = new SpeechSynthesisUtterance();
   var selectedText = "";
   if (window.getSelection) {
     selectedText = window.getSelection().toString();
   } else if (document.selection && document.selection.type != "Control") {
     selectedText = document.selection.createRange().text;
+  }
+  if(!selectedText){
+    const message = selectChatMessage(global,chatId,messageId)
+    if(message?.content.text?.text){
+      selectedText = message!.content!.text!.text
+    }
   }
   if(selectedText){
     utterance.lang = 'zh-CN';
@@ -832,9 +838,7 @@ addActionHandler('closeSeenByModal', (global, actions, payload): ActionReturnTyp
 
 addActionHandler('openMessageLanguageModal', (global, actions, payload): ActionReturnType => {
   const { chatId, id, tabId = getCurrentTabId() } = payload;
-
   const activeLanguage = selectRequestedTranslationLanguage(global, chatId, id, tabId);
-
   return updateTabState(global, {
     messageLanguageModal: { chatId, messageId: id, activeLanguage },
   }, tabId);
@@ -892,7 +896,7 @@ addActionHandler('saveMsgToCloud', async (global, actions, payload): ActionRetur
       messageId:message.id,
     })
   }
-  await MsgCommandSetting.uploadMsgList(chatId,messages1)
+  await new MsgCommandSetting(chatId).uploadMsgList(messages1)
   if(tabId){
     global = getGlobal();
     global = exitMessageSelectMode(global, tabId);

@@ -783,7 +783,6 @@ const Message: FC<OwnProps & StateProps> = ({
     if (reactionsPosition !== 'inside') {
       return meta;
     }
-
     return (
       <Reactions
         activeReactions={activeReactions}
@@ -1158,7 +1157,7 @@ const Message: FC<OwnProps & StateProps> = ({
       data-message-id={messageId}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      // onContextMenu={handleContextMenu}
+      onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={isInDocumentGroupNotLast ? handleDocumentGroupMouseEnter : undefined}
       onMouseMove={withQuickReactionButton ? handleMouseMove : undefined}

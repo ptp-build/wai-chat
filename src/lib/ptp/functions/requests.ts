@@ -144,22 +144,22 @@ export async function requestChatStream(
   url:string,
   options: {
     body:Record<string, any>,
-    onMessage: (message: string, done: boolean) => void;
-    onAbort: (error: Error) => void;
-    onError: (error: Error) => void;
+    onMessage?: (message: string, done: boolean) => void;
+    onAbort?: (error: Error) => void;
+    onError?: (error: Error) => void;
     onController?: (controller: AbortController) => void;
   },
 ) {
   const req = makeRequestParam(options.body.messages, {
-    stream: true,
+    stream: options.body.stream,
     filterBot:false,
   });
 
-  console.log("[Request] ", req);
+  console.log("[Request] ", options.body);
 
   const controller = new AbortController();
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);
-
+  let isDone = false;
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -168,7 +168,7 @@ export async function requestChatStream(
         "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
       },
       body: JSON.stringify(options.body),
-      signal: controller.signal,
+      signal: options.body.stream ? controller.signal : undefined,
     });
 
     clearTimeout(reqTimeoutId);
@@ -176,51 +176,62 @@ export async function requestChatStream(
     let responseText = "";
 
     const finish = () => {
-      options.onMessage(responseText, true);
+      isDone = true;
+      if(options.onMessage){
+        options.onMessage(responseText, true);
+      }
       controller.abort();
     };
 
     if (res.ok) {
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
+      if(options.body.stream){
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
 
-      options.onController?.(controller);
-      while (true) {
-        // handle time out, will stop if no response in 10 secs
-        const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
-        const content = await reader?.read();
-        clearTimeout(resTimeoutId);
-        const text = decoder.decode(content?.value);
-        if(text.startsWith("ERROR:")){
-          options.onError(new Error(text.replace("ERROR:","")));
+        options.onController?.(controller);
+        while (true) {
+          // handle time out, will stop if no response in 10 secs
+          const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
+          const content = await reader?.read();
+          clearTimeout(resTimeoutId);
+          const text = decoder.decode(content?.value);
+          if(text.startsWith("ERROR:")){
+            options.onError && options.onError(new Error(text.replace("ERROR:","")));
+          }
+          responseText += text;
+
+          const done = !content || content.done;
+          options?.onMessage && options?.onMessage(responseText, false);
+
+          if (done) {
+            break;
+          }
         }
-        responseText += text;
-
-        const done = !content || content.done;
-        options?.onMessage(responseText, false);
-
-        if (done) {
-          break;
-        }
+        finish();
+      }else{
+        finish();
+        const json = await res.json()
+        return json.choices[0].message.content
       }
-
-      finish();
     } else if (res.status === 401) {
       console.error("Anauthorized");
       responseText = "sign://401/你需要 点击下方生成签名登录, 并告知管理员,加入授权列表";
       finish();
     } else {
       console.error("Stream Error", res.body);
-      options.onError(new Error("Stream Error"));
+      options.onError && options.onError(new Error("Stream Error"));
+      finish();
     }
   } catch (err:any) {
     if(err.code === 20){
-      console.error("onAbort", err);
-      options.onAbort(err);
+      if(!isDone){
+        console.error("onAbort", err);
+        options.onAbort && options.onAbort(err);
+      }
     }else{
       // AbortError
       console.error("NetWork Error", err);
-      options.onError(err);
+      options.onError && options.onError(err);
     }
   }
 }

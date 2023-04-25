@@ -212,6 +212,31 @@ message PbContent {
   optional PbAudio audio = 6;
 }
 
+message PbRepliesThreadInfo {
+  required bool isComments = 1;
+  required uint32 threadId = 3;
+  required string chatId = 4;
+  required string originChannelId = 5;
+  required uint32 messagesCount = 6;
+  required uint32 lastMessageId = 7;
+  repeated string recentReplierIds = 8;
+}
+
+message PbReaction{
+  required string emoticon = 2;
+}
+
+message PbReactionCount{
+  optional uint32 chosenOrder = 1;
+  required uint32 count = 2;
+  required PbReaction reaction = 3;
+}
+
+message PbReactions{
+  optional bool canSeeList = 1;
+  repeated PbReactionCount results = 2;
+}
+
 message PbMsg {
   required uint32 id = 1;
   required string chatId = 2;
@@ -221,6 +246,9 @@ message PbMsg {
   optional string senderId = 6;
   optional bool isForwardingAllowed = 7;
   optional double previousLocalId = 8;
+  optional uint32 views = 9;
+  optional PbRepliesThreadInfo repliesThreadInfo = 10;
+  optional PbReactions reactions = 11;
 }
 
 message PbChatFolder {
