@@ -633,7 +633,7 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 InitAppRes: {
-                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"100":["err","uint32",0]}
+                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"4":["users","string",""],"100":["err","uint32",0]}
                 },
                 UpdateProfileReq: {
                     '$': {"1":["firstName","string",""],"2":["lastName","string",""],"3":["about","string",""]}

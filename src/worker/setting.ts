@@ -7,7 +7,7 @@ export const UserIdChatGpt = "1012";
 export const UserIdChatGpt4 = "1013";
 
 export const DEFAULT_AVATARS:Record<string, string> = {
-  [UserIdFirstBot]:'icon-square-dev-512x512.png',
+  [UserIdFirstBot]:'avatar/wai.png',
   [UserIdChatGpt]:'avatar/ChatGPT_logo.png',
   [UserIdChatGpt4]:'avatar/chatgpt4.png'
 }

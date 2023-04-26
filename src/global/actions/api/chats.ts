@@ -529,7 +529,6 @@ addActionHandler('deleteChannel', (global, actions, payload): ActionReturnType =
   }
 });
 
-
 const getAvatarPhoto = async (id:string,url:string)=>{
   const res = await fetch(url)
   const ab = await res.arrayBuffer()
@@ -556,6 +555,7 @@ const getAvatarPhoto = async (id:string,url:string)=>{
     "width": 640,
     "height":  640,
   }
+
   await cacheApi.save(MEDIA_CACHE_NAME_WAI, id, blob);
 
   return {
@@ -614,7 +614,6 @@ addActionHandler('createChat', async (global, actions, payload)=> {
       userId = id
     }
 
-    const chatGptApiKey = localStorage.getItem("cg-key") ? localStorage.getItem("cg-key") : ""
     const init_system_content = promptInit || DEFAULT_PROMPT
     let avatarHash = "";
     let photos = []
@@ -739,10 +738,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     if(promptInit || (id === UserIdChatGpt)){
       actions.sendBotCommand({chatId:userId,command:"/systemPrompt",tabId})
     }
-    if(id !== UserIdChatGpt4){
-      // @ts-ignore
-      actions.openChat({id: userId,shouldReplaceHistory: true,});
-    }
+    actions.openChat({id: userId,shouldReplaceHistory: true,});
   }catch (e){
     console.error(e)
     global = getGlobal();
@@ -2069,9 +2065,6 @@ const initChats = (firstLoad?:boolean)=>{
     const global = getGlobal();
     if(!global.users.byId[UserIdChatGpt]){
       await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
-    }
-    if(!global.users.byId[UserIdChatGpt4]){
-      await MsgCommandChatLab.createChatGpt(UserIdChatGpt4,"ChatGpt4")
     }
   },500)
 }

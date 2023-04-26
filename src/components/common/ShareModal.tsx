@@ -86,7 +86,6 @@ const ShareModel: FC<OwnProps> = ({
       setReadyToForward(true)
     }
   }, [imageUrl]);
-  console.log({isOpen})
 
   const lang = useLang();
   return (

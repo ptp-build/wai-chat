@@ -454,7 +454,6 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
       setIsShareModalOpen(true)
     },500)
   },[setIsShareModalOpen])
-  console.log({isShareModalOpen})
   const handleSelectLanguage = useCallback(() => {
     openMessageLanguageModal({
       chatId: message.chatId,

@@ -14,7 +14,6 @@ import {
 import {throttle} from '../../../util/schedulers';
 import {selectChat, selectIsCurrentUserPremium, selectUser} from '../../selectors';
 import type {ActionReturnType, RequiredGlobalState} from '../../types';
-import {AiReplyHistoryRole, AiReplyHistoryType} from "../../types";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -99,10 +98,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
             }
           })
           break;
-        case "loadChats":
-        case "createBot":
-          actions.loadAllChats({ listType: 'active', shouldReplace: true });
-          return
         case "removeBot":
           if(global.chats.listIds && global.chats.listIds.active){
             let listIds_active = global.chats.listIds.active
@@ -126,86 +121,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           }
           return
       }
-
-      const chat_listIds_active = global.chats.listIds.active || []
-      if(data.chats){
-        for (let i = 0; i < data.chats.length; i++) {
-          const chat1 = data.chats[i]
-          const chat = selectChat(global,chat1.id)
-          if(!chat_listIds_active.includes(chat1.id)){
-            chat_listIds_active.push(chat1.id)
-          }
-          if(chat){
-            global = replaceChats(global,{
-              ...global.chats.byId,
-              [chat1.id]:{
-                ...chat,
-                ...chat1,
-              }
-            });
-          }else{
-            const chatFolders = global.chatFolders;
-            if(!chatFolders.byId["1"].includedChatIds.includes(chat1.id)){
-              chatFolders.byId["1"].includedChatIds.push(chat1.id)
-            }
-            global = {
-              ...global,
-              chats:{
-                ...global.chats,
-                byId:{
-                  ...global.chats.byId,
-                  [chat1.id]:{
-                    ...chat1,
-                  }
-                }
-              },
-              chatFolders
-            }
-          }
-        }
-      }
-      if(data.users){
-        for (let i = 0; i < data.users.length; i++) {
-          const user1 = data.users[i]
-          const user = selectUser(global,user1.id)
-          if(user){
-            global = replaceUsers(global,{
-              ...global.users.byId,
-              [user1.id]:{
-                ...user,
-                ...user1,
-              }
-            });
-          }else{
-            global = addUsers(global,{
-              [user1.id]:{
-                ...user1,
-              }
-            });
-            if(user1.fullInfo && user1.fullInfo.botInfo){
-              global = addUserStatuses(global,{
-                [user1.id]:{
-                  type:'userStatusEmpty'
-                }
-              });
-            }
-          }
-        }
-      }
-      actions.updateGlobal({
-        chats:{
-          ...global.chats,
-          listIds:{
-            ...global.chats.listIds,
-            active:chat_listIds_active
-          },
-          totalCount:{
-            all:chat_listIds_active.length
-          }
-        },
-        users:global.users,
-        chatFolders:global.chatFolders,
-      })
       break
     case 'deleteContact': {
       return deleteContact(global, update.id);
@@ -226,8 +141,20 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           };
         }
       });
-
-      return updateUser(global, update.id, update.user);
+      if(selectUser(global,update.id)){
+        return updateUser(global, update.id, update.user);
+      }else{
+        if(update.user.fullInfo && update.user.fullInfo.botInfo){
+          global = addUserStatuses(global,{
+            [update.user.id]:{
+              type:'userStatusEmpty'
+            }
+          });
+        }
+        return addUsers(global, {
+          [update.id]:update.user
+        });
+      }
     }
 
     case 'updateRequestUserUpdate': {

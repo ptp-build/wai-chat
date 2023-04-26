@@ -1,4 +1,13 @@
-import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUpdate, OnApiUpdate} from "../../api/types";
+import {
+  ApiAttachment,
+  ApiBotInfo,
+  ApiChat,
+  ApiChatFolder,
+  ApiMessage,
+  ApiUpdate,
+  ApiUser,
+  OnApiUpdate
+} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
@@ -15,7 +24,6 @@ import {
   writeInt32
 } from "../../lib/ptp/protobuf/BaseMsg";
 import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
-import {account} from "../../api/gramjs/methods/client";
 import {DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import {sleep} from "../../lib/gramjs/Helpers";
 import {Api as GramJs} from "../../lib/gramjs";
@@ -84,16 +92,34 @@ export default class MsgWorker {
     }
   }
   static async handleInitAppRes(pdu:Pdu){
-    let {chats,messages,chatFolders} = InitAppRes.parseMsg(pdu)
+    let {chats,users,messages,chatFolders} = InitAppRes.parseMsg(pdu)
     if(chats){
       chats = JSON.parse(chats)
     }
+
+    if(users){
+      users = JSON.parse(users)
+    }
+
     if(messages){
       messages = JSON.parse(messages)
     }
+
     if(chatFolders){
       chatFolders = JSON.parse(chatFolders)
     }
+
+    for (let i = 0; i < users?.length; i++) {
+      if (users != null) {
+        const user = users[i] as ApiUser;
+        ChatMsg.apiUpdate({
+          "@type":"updateUser",
+          id:user.id,
+          user
+        })
+      }
+    }
+
     for (let i = 0; i < chats?.length; i++) {
       if (chats != null) {
         const chat = chats[i] as ApiChat;
