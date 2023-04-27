@@ -50,8 +50,8 @@ export const ALL_CHAT_GPT_MODELS = [
 
 export const ChatModelConfig:PbChatGptModelConfig_Type = {
   model: "gpt-3.5-turbo",
-  temperature: 1,
-  max_tokens: 1000,
+  temperature: 0.5,
+  max_tokens: 500,
   presence_penalty: 0,
 }
 

@@ -272,6 +272,8 @@ message PbChatGpBotConfig {
   optional string api_key = 2;
   optional uint32 max_history_length = 3;
   optional PbChatGptModelConfig modelConfig = 4;
+  optional string inputTextDemo = 5;
+  optional string outputTextDemo = 6;
 }
 
 message PbChatGptModelConfig {

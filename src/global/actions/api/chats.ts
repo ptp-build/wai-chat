@@ -654,7 +654,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
             chatGptConfig:{
               init_system_content,
               api_key:"",
-              max_history_length:10,
+              max_history_length:0,
               modelConfig:{
                 ...ChatModelConfig,
                 ...(userId === UserIdChatGpt4 ? {model:"gpt-4"} : {})
