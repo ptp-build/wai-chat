@@ -86,11 +86,11 @@ export default class MsgCommandChatGpt{
           ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadMsg',"更新消息"):[]),
         ],
       )
-      // res.push(
-      //   [
-      //     ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
-      //   ],
-      // )
+      res.push(
+        [
+          ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
+        ],
+      )
     }
     // res.push(
     //   [
@@ -468,7 +468,7 @@ ${desc}
     return [
       [
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',botApi ? "修改Api": "设置Api"),
-        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/disableApi',"禁用Api"):[]),
+        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,this.outGoingMsgId + '/setting/ai/disableApi',"禁用Api"):[]),
         ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/updateCmd',"更新命令"):[]),
       ],
       [
@@ -723,16 +723,27 @@ ${desc}
       const outGoingMsgId = data.split('/')[data.split("/").length - 3]
       await this.chatMsg.setText("点击 复制机器人 进入下一步")
         .setInlineButtons([
-          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/copyBot/confirm`,"复制机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`setting/copyBot/confirm`,"复制机器人"),
           MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
         ])
         .reply()
       return
     }
 
+    if(data.endsWith(`setting/ai/disableApi`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 4]
+      this.setOutGoingMsgId(Number(outGoingMsgId));
+      await this.chatMsg.setText("点击 禁用 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`setting/ai/disableApi/confirm`,"禁用"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
 
     switch (data){
-      case `${chatId}/setting/ai/disableApi`:
+      case `${chatId}/setting/ai/disableApi/confirm`:
         await this.disableApi(messageId)
         return
       case `${chatId}/setting/ai/setApi`:

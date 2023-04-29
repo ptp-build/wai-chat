@@ -47,6 +47,10 @@ export const DEFAULT_BOT_COMMANDS = [
     "command": "setting",
     "description": "设置面板"
   },
+  {
+    "command": "help",
+    "description": "帮助"
+  },
 ]
 
 export const DEFAULT_CHATGPT_AI_COMMANDS = [
@@ -85,10 +89,6 @@ export const DEFAULT_CHATGPT_AI_COMMANDS = [
   {
     "command": "usage",
     "description": "账户余额"
-  },
-  {
-    "command": "help",
-    "description": "帮助"
   },
 ]
 
