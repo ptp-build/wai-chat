@@ -94,5 +94,6 @@ message InitAppRes{
   optional string messages = 2;
   optional string chatFolders = 3;
   optional string users = 4;
+  optional string topCats = 5;
   optional Common.ERR err = 100;
 }

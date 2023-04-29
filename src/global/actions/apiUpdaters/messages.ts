@@ -76,6 +76,7 @@ const handleMessageEntities = (global:GlobalState,chatId:string,message:ApiMessa
     }
   }
   message.isOutgoing = false
+  console.log("handleMessageEntities",message)
   return message
 }
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
@@ -85,7 +86,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         chatId, id, message, shouldForceReply,
       } = update;
       message = handleMessageEntities(global,chatId,message)
-      
+
       global = updateWithLocalMedia(global, chatId, id, message);
       global = updateListedAndViewportIds(global, actions, message as ApiMessage);
 

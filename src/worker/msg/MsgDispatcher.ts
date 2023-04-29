@@ -103,16 +103,24 @@ export default class MsgDispatcher {
   async processAiBotCmd(){
     const sendMsgText = this.getMsgText();
     const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
-
+    msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id)
     switch(sendMsgText){
       case "/start":
         return await msgCommandChatGpt.start();
+      case "/help":
+        return await msgCommandChatGpt.help();
+      case "/welcome":
+        return await msgCommandChatGpt.welcome();
+      case "/template":
+        return await msgCommandChatGpt.template();
+      case "/templateSubmit":
+        return await msgCommandChatGpt.templateSubmit();
       case "/setting":
-        return msgCommandChatGpt.setting()
+        return msgCommandChatGpt.setting(this.outGoingMsg!.id)
       case "/reset":
         return await msgCommandChatGpt.reset();
       case "/aiModel":
-        return await msgCommandChatGpt.aiModel();
+        return await msgCommandChatGpt.aiModel(this.outGoingMsg!.id);
       case "/systemPrompt":
         return await msgCommandChatGpt.systemPrompt();
       case "/apiKey":
@@ -120,7 +128,7 @@ export default class MsgDispatcher {
       case "/maxHistoryLength":
         return await msgCommandChatGpt.maxHistoryLength();
       case "/usage":
-        return await msgCommandChatGpt.usage();
+        return await msgCommandChatGpt.usage(this.outGoingMsg!.id);
       default:
         return await this.processBotApiCmd();
     }
@@ -149,12 +157,13 @@ export default class MsgDispatcher {
       case "/start":
         return msgCommandSetting.start()
       case "/setting":
-        return await msgCommandSetting.setting();
+        return await msgCommandSetting.setting(this.outGoingMsg!.id);
     }
   }
   async process(){
     let res;
     if(this.getMsgText()?.startsWith("/")){
+      if(!['/apiKey','/maxHistoryLength'].includes(this.getMsgText()!))
       this.outGoingMsg = await this.sendOutgoingMsg();
       res = await this.processCmd();
     }

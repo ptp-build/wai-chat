@@ -320,7 +320,7 @@ export function getChatSlowModeOptions(chat?: ApiChat) {
 }
 
 export function isChatArchived(chat: ApiChat) {
-  return chat.folderId === ARCHIVED_FOLDER_ID;
+  return chat && chat.folderId === ARCHIVED_FOLDER_ID;
 }
 
 export function selectIsChatMuted(

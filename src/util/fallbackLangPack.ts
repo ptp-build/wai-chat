@@ -944,7 +944,7 @@ export default {
   },
   'DialogList.SearchSectionDialogs': {
     key: 'DialogList.SearchSectionDialogs',
-    value: 'Chats and Contacts',
+    value: 'Chats',
   },
   SearchMessages: {
     key: 'SearchMessages',

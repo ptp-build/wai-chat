@@ -1,19 +1,14 @@
 import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type {ApiUserStatus} from '../../../api/types';
+import type {ApiUser, ApiUserStatus} from '../../../api/types';
 
-import {
-  addUsers,
-  addUserStatuses,
-  deleteContact,
-  replaceChats,
-  replaceUsers,
-  replaceUserStatuses,
-  updateUser,
-} from '../../reducers';
+import {addUsers, addUserStatuses, deleteContact, replaceUsers, replaceUserStatuses, updateUser,} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
-import {selectChat, selectIsCurrentUserPremium, selectUser} from '../../selectors';
-import type {ActionReturnType, RequiredGlobalState} from '../../types';
+import {selectIsCurrentUserPremium, selectUser} from '../../selectors';
+import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../types';
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -39,12 +34,94 @@ function flushStatusUpdates() {
   pendingStatusUpdates = {};
 }
 
+function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_Type){
+  // console.log("updateUserStoreData",userStoreDataRes)
+  if (userStoreDataRes){
+    const {chatFolders,...userStoreData} = userStoreDataRes;
+    return {
+      ...global,
+      userStoreData
+    }
+  }else{
+    return global
+  }
+
+}
+
+function handleUpdateBots(global:GlobalState,user:ApiUser){
+  const user1 = selectUser(global,user.id)
+  if(!user1){
+    const statusById:Record<string, ApiUserStatus> = {}
+    statusById[user.id] = {
+      type:'userStatusEmpty'
+    }
+    global = addUserStatuses(global,statusById);
+    global = addUsers(global,{
+      [user.id]:user
+    })
+  }else{
+    return updateUser(global, user.id,{
+      ...user1,
+      avatarHash:user.avatarHash,
+      firstName:user.firstName,
+      fullInfo:{
+        ...user1.fullInfo,
+        bio:user.fullInfo?.bio,
+        botInfo: {
+          ...user1.fullInfo?.botInfo!,
+          description:user.fullInfo?.botInfo?.description,
+          aiBot:{
+            ...user1.fullInfo?.botInfo!.aiBot,
+            chatGptConfig:{
+              ...user1.fullInfo?.botInfo!.aiBot!.chatGptConfig!,
+              welcome:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.welcome,
+              template:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.template,
+              templateSubmit:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.templateSubmit,
+              init_system_content:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.init_system_content
+            }
+          }
+        }
+      }
+    });
+  }
+  return global
+}
 
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
   switch (update['@type']) {
     case "updateGlobalUpdate":
       const {data} = update
       switch (data.action){
+        case "updateBots":
+          return handleUpdateBots(global,data.payload.user);
+        case "onLogged":
+          let {userStoreData} = global
+          if(!userStoreData){
+            userStoreData = {
+              time:0,
+              chatIds:Object.keys(global.chats.listIds.active),
+              chatFolders:JSON.stringify(global.chatFolders)
+            }
+          }else{
+            userStoreData = {
+              ...userStoreData,
+              chatFolders:JSON.stringify(global.chatFolders)
+            }
+          }
+          callApiWithPdu(new SyncReq({
+            userStoreData,
+          }).pack()).catch(console.error)
+          break
+        case "updateUserStoreData":
+          return updateUserStoreData(global,data.payload!.userStoreData)
+        case "updateTopCats":
+          return {
+            ...global,
+            topCats:{
+              ...global.topCats,
+              ...data.payload!.topCats
+            }
+          }
         case "updateChatGptHistory":
           const chatId = data.payload!.chatId;
           return {
@@ -144,13 +221,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       if(selectUser(global,update.id)){
         return updateUser(global, update.id, update.user);
       }else{
-        if(update.user.fullInfo && update.user.fullInfo.botInfo){
-          global = addUserStatuses(global,{
-            [update.user.id]:{
-              type:'userStatusEmpty'
-            }
-          });
-        }
         return addUsers(global, {
           [update.id]:update.user
         });

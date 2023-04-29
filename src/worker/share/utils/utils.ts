@@ -1,6 +1,3 @@
-import html2canvas from "html2canvas";
-import jsPDF from 'jspdf';
-
 export function generateRandomString(length:number) {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

@@ -1,19 +1,27 @@
-
 import {
-  ApiAction, ApiAudio, ApiBotInfo,
+  ApiAction,
+  ApiAudio,
+  ApiBotInfo,
   ApiContact,
   ApiDocument,
-  ApiFormattedText, ApiGame, ApiInvoice,
-  ApiKeyboardButtons, ApiLocation,
+  ApiFormattedText,
+  ApiGame,
+  ApiInvoice,
+  ApiKeyboardButtons,
+  ApiLocation,
   ApiMessage,
-  ApiPhoto, ApiPoll,
-  ApiSticker, ApiUpdate, ApiUser,
-  ApiVideo, ApiVoice, ApiWebPage, OnApiUpdate
+  ApiPhoto,
+  ApiPoll,
+  ApiSticker,
+  ApiUpdate,
+  ApiUser,
+  ApiVideo,
+  ApiVoice,
+  ApiWebPage,
+  OnApiUpdate
 } from "../../api/types";
-import { GenMsgIdReq, GenMsgIdRes } from "../../lib/ptp/protobuf/PTPMsg";
 import {currentTs} from "../share/utils/utils";
-import {handleBotCmdText, handleMessageTextCode} from "./msgHelper";
-import MsgWorker from "./MsgWorker";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_CHATGPT_AI_COMMANDS} from "../setting";
 
 export default class ChatMsg {
   static _apiUpdate:OnApiUpdate;
@@ -96,7 +104,8 @@ export default class ChatMsg {
   }
 
   async genMsgId(isLocal?:boolean){
-    return ChatMsg.genMessageId(isLocal)
+    this.id = ChatMsg.genMessageId(isLocal)
+    return this.id
   }
 
   async reply(){
@@ -154,8 +163,96 @@ export default class ChatMsg {
     });
     return message
   }
+  static buildDefaultBotUser({
+    userId,firstName,avatarHash,bio,
+    init_system_content,welcome,outputText,template,
+    photos,
+  }:{
+    userId:string,firstName:string,bio:string,
+    init_system_content?:string,
+    avatarHash?:string,
+    welcome?:string,
+    template?:string,
+    outputText?:string,
+    photos?:ApiPhoto[]
+  }){
 
-  static buildDefaultChat(user:ApiUser){
+    if(!avatarHash){
+      avatarHash = ""
+    }
+
+    if(!init_system_content){
+      init_system_content = ""
+    }
+    if(!welcome){
+      welcome = ""
+    }
+
+    if(!template){
+      template = ""
+    }
+
+    if(!outputText){
+      outputText = ""
+    }
+    return {
+      id:userId,
+      avatarHash,
+      firstName,
+      photos:photos || [],
+      usernames: [
+        {
+          "username": "Bot_"+userId,
+          "isActive": true,
+          "isEditable": true
+        }
+      ],
+      "canBeInvitedToGroup": false,
+      "hasVideoAvatar": false,
+      "type": "userTypeBot",
+      "phoneNumber": "",
+      isMin:false,
+      noStatus: true,
+      isSelf:false,
+      accessHash:"",
+      isPremium: false,
+      fullInfo: {
+        "isBlocked": false,
+        "noVoiceMessages": false,
+        bio,
+        botInfo: {
+          aiBot:{
+            enableAi:true,
+            chatGptConfig:{
+              init_system_content,
+              api_key:"",
+              max_history_length:0,
+              template,
+              welcome,
+              outputText,
+              modelConfig:{
+                model: "gpt-3.5-turbo",
+                temperature: 0.5,
+                max_tokens: 1000,
+                presence_penalty: 0,
+              }
+            }
+          },
+          botId: userId,
+          "description": bio,
+          "menuButton": {
+            "type": "commands"
+          },
+          commands:[...DEFAULT_BOT_COMMANDS,...DEFAULT_CHATGPT_AI_COMMANDS].map(cmd=>{
+            // @ts-ignore
+            cmd.botId = userId;
+            return cmd
+          })
+        }
+      }
+    }
+  }
+  static buildDefaultChat(user:Partial<ApiUser>){
     return {
       "id": user.id,
       "title":  user.firstName,

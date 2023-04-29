@@ -110,6 +110,10 @@ export interface PbChatGpBotConfig_Type {
   api_key?: string;
   max_history_length?: number;
   modelConfig?: PbChatGptModelConfig_Type;
+  welcome?: string;
+  template?: string;
+  outputText?: string;
+  templateSubmit?: string;
 }
 
 export interface PbChatGptModelConfig_Type {
@@ -280,13 +284,6 @@ export interface PbUsernames_Type {
   isEditable?: boolean;
 }
 
-export interface PbUserSetting_Type {
-  chatFolders?: PbChatFolder_Type[];
-  chatFolderOrderedIds?: number[];
-  myBotIds?: string[];
-  myGroups?: string[];
-}
-
 export interface PbVoice_Type {
   id: string;
   waveform?: number[];
@@ -303,8 +300,10 @@ export interface UserMessageStoreData_Type {
 export interface UserStoreData_Type {
   chatIds?: string[];
   chatIdsDeleted?: string[];
-  chatFolders: string;
-  time: number;
+  chatFolders?: string;
+  time?: number;
+  myBots?: string[];
+  myGroups?: string[];
 }
 
 export interface UserStoreRow_Type {

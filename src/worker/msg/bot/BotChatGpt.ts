@@ -73,7 +73,12 @@ export default class BotChatGpt{
     }else{
       historyList = []
     }
+
     let content = text;
+    const templateSubmit = this.msgCommandChatGpt.getChatGptConfig("templateSubmit") as string
+    if(templateSubmit){
+      content = templateSubmit.replace("${text}",text)
+    }
     const aiHistoryList:AiHistoryType[] = [
       ...historyList,
       {

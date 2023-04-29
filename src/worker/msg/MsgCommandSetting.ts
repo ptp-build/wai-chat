@@ -26,7 +26,7 @@ import {Decoder} from "@nuintun/qrcode";
 import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {CLOUD_MESSAGE_API} from "../../config";
+import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
 import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdFirstBot} from "../setting";
 import ChatMsg from "./ChatMsg";
 
@@ -41,19 +41,28 @@ export default class MsgCommandSetting{
   }
   async start(){
     const {chatId} = this;
+    if(DEBUG){
+      console.log("> chatFolders",JSON.stringify(getGlobal().chatFolders,null,2))
+      console.log("> users",getGlobal().users)
+      console.log("> chats",getGlobal().chats)
+      console.log("> userStoreData",getGlobal().userStoreData)
+      console.log("> topCats",getGlobal().topCats)
+    }
+    //@ts-ignore
     await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
     return this.chatMsg.setText(DEFAULT_START_TIPS).reply()
   }
 
-  async setting() {
+  async setting(outGoingMsgId:number) {
     const {chatId} = this;
+    //@ts-ignore
     await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
     return  this.chatMsg.setText("设置面板")
-      .setInlineButtons(this.getInlineButtons())
+      .setInlineButtons(this.getInlineButtons(outGoingMsgId))
       .reply()
   }
 
-  getInlineButtons():ApiKeyboardButtons{
+  getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
     const {chatId} = this;
     const res:ApiKeyboardButtons = []
     res.push([
@@ -63,38 +72,24 @@ export default class MsgCommandSetting{
         type:"callback"
       },
     ])
-    if(CLOUD_MESSAGE_API){
-      res.push([
-        {
-          text:"云同步",
-          data:`${chatId}/setting/cloud`,
-          type:"callback"
-        },
-        {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
-          type:"callback"
-        },
-      ])
-    }else{
-      res.push([
-        {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
-          type:"callback"
-        },
-      ])
-    }
+
     res.push([
       {
-        text:"生成签名",
-        data:`${chatId}/setting/signGen`,
+        text:"清除历史记录",
+        data:`${chatId}/setting/clearHistory`,
         type:"callback"
       },
     ])
+    // res.push([
+    //   {
+    //     text:"生成签名",
+    //     data:`${chatId}/setting/signGen`,
+    //     type:"callback"
+    //   },
+    // ])
     res.push([
       {
-        data:`${chatId}/setting/cancel`,
+        data:`${chatId}/${outGoingMsgId}/setting/cancel`,
         text:"取消",
         type:"callback"
       },
@@ -275,6 +270,7 @@ export default class MsgCommandSetting{
         await new MsgCommand(chatId).clearHistory()
         break
       case `${chatId}/setting/reloadCommand`:
+        //@ts-ignore
         await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
         break
       case `${chatId}/setting/uploadFolder`:
@@ -314,11 +310,6 @@ export default class MsgCommandSetting{
           showMnemonicModal:true
         })
         break
-      case `${chatId}/setting/cancel`:
-        await this.chatMsg.update(messageId,{
-          inlineButtons:[],
-        })
-        break
       case `${chatId}/setting/disableSync`:
         await this.disableSync(global,messageId)
         break
@@ -335,6 +326,7 @@ export default class MsgCommandSetting{
     let global = getGlobal();
     const chats = global.chats.byId
     const chatIds = Object.keys(chats).filter(id=>id !== "1");
+    //@ts-ignore
     const chatIdsDeleted:string[] = global.chatIdsDeleted;
     console.log("【local】",{chatIds,chatIdsDeleted})
     const userStoreData:UserStoreData_Type|undefined = isUpload ?{
@@ -420,7 +412,6 @@ export default class MsgCommandSetting{
           global = {...global,chatFolders}
           setGlobal({
             ...global,
-            chatIdsDeleted:chatIdsDeleted || [],
           })
         }
       }else{

@@ -99,6 +99,11 @@ const LeftMain: FC<OwnProps> = ({
     }, BUTTON_CLOSE_DELAY_MS);
   }, []);
 
+  const handleSelectProfile = useCallback(() => {
+    onSettingsScreenSelect(SettingsScreens.EditProfile);
+    onContentChange(LeftColumnContent.Settings);
+  }, [onContentChange]);
+
   const handleSelectFolder = useCallback(() => {
     onSettingsScreenSelect(SettingsScreens.Folders);
     onContentChange(LeftColumnContent.Settings);
@@ -170,6 +175,7 @@ const LeftMain: FC<OwnProps> = ({
         content={content}
         contactsFilter={contactsFilter}
         onSearchQuery={onSearchQuery}
+        onSelectProfile={handleSelectProfile}
         onSelectFolder={handleSelectFolder}
         onSelectSettings={handleSelectSettings}
         onSelectContacts={handleSelectContacts}

@@ -10,6 +10,7 @@ import {
   ChatModelConfig,
   DEFAULT_BOT_COMMANDS,
   DEFAULT_CHATGPT_AI_COMMANDS,
+  SERVER_BOT_USER_ID_START,
   STOP_HANDLE_MESSAGE,
   WaterMark
 } from "../setting";
@@ -27,25 +28,39 @@ import {generateImageFromDiv} from "../share/utils/canvas";
 export default class MsgCommandChatGpt{
   private chatId: string;
   private chatMsg: ChatMsg;
+  private outGoingMsgId: number | undefined;
   constructor(chatId:string) {
     this.chatId = chatId
     this.chatMsg = new ChatMsg(chatId)
   }
-
-  getInlineButtons():ApiKeyboardButtons{
+  setOutGoingMsgId(outGoingMsgId?:number){
+    this.outGoingMsgId = outGoingMsgId
+  }
+  isMyBot(){
+    const global = getGlobal();
+    const {userStoreData} = global
+    const {myBots} = userStoreData || {}
+    const i = parseInt(this.chatId)
+    if(i < parseInt(SERVER_BOT_USER_ID_START)){
+      return true;
+    }
+    return myBots && myBots.includes(this.chatId)
+  }
+  getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
     const chatId = this.chatId
+    const isMyBot = this.isMyBot()
     const isEnableAi = this.getAiBotConfig('enableAi')
     const disableClearHistory = this.getAiBotConfig('disableClearHistory')
     const res = [
-      [
+        isMyBot ? [
         ...MsgCommand.buildInlineCallbackButton(
           chatId,
-          `setting/ai/enable/${ isEnableAi ? 0 : 1 }`,
+          `${outGoingMsgId}/setting/ai/enable/${ isEnableAi ? 0 : 1 }`,
           isEnableAi ? "关闭 Ai" : "启用 Ai"
         ),
-      ],
+      ]:[],
       [
-        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/toggleClearHistory',disableClearHistory ? "允许清除历史记录":"关闭清除历史记录"),
+        ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId+'/setting/ai/toggleClearHistory',disableClearHistory ? "允许清除历史记录":"关闭清除历史记录"),
         ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/clearHistory',"清除历史记录")),
       ],
       [
@@ -54,34 +69,54 @@ export default class MsgCommandChatGpt{
       ],
     ]
     if(CLOUD_MESSAGE_API){
+      if(isMyBot){
+        const t = MsgCommand.buildInlineOpenProfileBtn(chatId,"修改机器人")
+        // @ts-ignore
+        res.push([...t])
+      }
       res.push(
         [
-          ...MsgCommand.buildInlineCallbackButton(chatId,'setting/uploadUser',"上传机器人"),
-          ...MsgCommand.buildInlineCallbackButton(chatId,'setting/downloadUser',"下载机器人"),
+          ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/copyBot',"复制机器人"),
         ],
       )
+      res.push(
+        [
+          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/uploadUser',"上传机器人"):[]),
+          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadUser',"更新机器人"):[]),
+          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadMsg',"更新消息"):[]),
+        ],
+      )
+      // res.push(
+      //   [
+      //     ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
+      //   ],
+      // )
     }
-    res.push(
-      [
-          ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
-      ],
-    )
-    res.push(
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/signGen',"生成签名"),
-      ],
-    )
+    // res.push(
+    //   [
+    //     ...MsgCommand.buildInlineCallbackButton(chatId,'setting/signGen',"生成签名"),
+    //   ],
+    // )
+
+    res.push([
+      {
+        data:`${chatId}/${outGoingMsgId ? `${outGoingMsgId}/`:""}setting/cancel`,
+        text:"取消",
+        type:"callback"
+      },
+    ])
     return res
   }
 
   async export(messageId:number,type:string){
     const global = getGlobal();
     const {chatGptAskHistory} = global
-    const messageIds = []
-    Object.keys(chatGptAskHistory[this.chatId]).forEach(id=>{
-      const userMsgId = chatGptAskHistory[this.chatId][id]
+    const messageIds:number[] = []
+    Object.keys(chatGptAskHistory[this.chatId]).forEach((id)=>{
+      const msgId = parseInt(id)
+      const userMsgId = chatGptAskHistory[this.chatId][msgId]
       messageIds.push(userMsgId)
-      messageIds.push(parseInt(id))
+      messageIds.push(msgId)
     })
 
     if(messageIds.length == 0){
@@ -121,20 +156,22 @@ export default class MsgCommandChatGpt{
     showBodyLoading(false)
     return STOP_HANDLE_MESSAGE
   }
-  async toggleClearHistory(messageId:number){
+  async toggleClearHistory(messageId:number,outGoingMsgId:number){
     const disableClearHistory = this.getAiBotConfig('disableClearHistory')
     await this.changeAiBotConfig({
       "disableClearHistory":!disableClearHistory
     })
     await this.chatMsg.update(messageId,{
-      inlineButtons:this.getInlineButtons()
+      inlineButtons:this.getInlineButtons(outGoingMsgId)
     })
   }
-  async setting(){
+
+  async setting(outGoingMsgId:number){
     await this.reloadCommands()
     const text = `设置面板`
-    return this.chatMsg.setText(text).setInlineButtons(this.getInlineButtons()).reply();
+    return this.chatMsg.setText(text).setInlineButtons(this.getInlineButtons(outGoingMsgId)).reply();
   }
+
   async start(){
     const {chatId} = this
     if(DEBUG){
@@ -142,41 +179,135 @@ export default class MsgCommandChatGpt{
       console.log({user:global.users.byId[chatId],messages:global.messages.byChatId[chatId]})
     }
     await this.reloadCommands();
+    const botInfo = this.getBotInfo();
+    const desc = botInfo?.description
+
+    const welcome = this.getChatGptConfig("welcome") as string
+    const template = this.getChatGptConfig("template") as string
+
+    const text = `
+${desc}
+
+/help 获取帮助
+`;
+    await this.chatMsg.setText(text).reply();
+    if(welcome){
+      await new ChatMsg(this.chatId).setText(welcome).reply();
+    }
+    if(template){
+      await new ChatMsg(this.chatId).setText("你可以复制修改发送下面的例子:\n\n```\n"+template+"```").reply();
+    }
+
+    return STOP_HANDLE_MESSAGE
+  }
+
+  async help(){
     const commands = this.getCommands();
-    const text = `你可以通过发送以下命令来控制我：\n\n` + commands.map(cmd=>{
+    const help = commands.map(cmd=>{
       return `/${cmd.command} ${cmd.description}`
-    }).join("\n") + "\n";
-    return this.chatMsg.setText(text).reply();
+    }).join("\n");
+    return await this.chatMsg.setText("\n你可以通过以下指令来控制我:\n\n"+help)
+      .setInlineButtons([
+        MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,'取消')
+      ]).reply();
   }
+  formatEditableText(val?:string,tips?:string){
+    return "```\n"+(val||" ")+"```\n\n"+tips
+  }
+  async welcome(){
+    const welcome = this.getChatGptConfig("welcome") as string
+    return await this.chatMsg.setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(this.chatId,"welcome","点击修改"),
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+    ]).setText(this.formatEditableText(welcome,"欢迎语:当输入 /start 时显示")).reply();
+  }
+
+  async template(){
+    const template = this.getChatGptConfig("template") as string
+    return await this.chatMsg.setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(this.chatId,"template","点击修改"),
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+    ]).setText(this.formatEditableText(template,"用于提示用户的提问例子。" + (template ? "" : `
+
+如:
+
+- 主题：在线学习的好处
+- 长度：500字
+- 风格：信息性
+    `))).reply();
+  }
+
+  async templateSubmit(){
+    let templateSubmit = this.getChatGptConfig("templateSubmit") as string
+    let tips = "\n\n如:"
+    tips += "\n```\n请将: ${text}，翻译成：中文 , 输出格式为:{\"reply\":\"\"}```"
+    tips += "\n假设你的提问是：hello , 那么您将得到输出：{\"reply\":\"你好\"}"
+
+    if(!this.isMyBot()){
+      tips += "\n\n你可以 /setting > 复制机器人 修改此选项"
+      if(!templateSubmit){
+        templateSubmit =  "未设置";
+      }
+    }
+    return await this.chatMsg.setInlineButtons(this.isMyBot() ? [
+      MsgCommand.buildInlineCallbackButton(this.chatId,"templateSubmit","点击修改"),
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+    ]:[
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+    ]).setText(this.formatEditableText(templateSubmit,"用于提问模版或者强制输出格式。" + tips)).reply();
+  }
+
   async systemPrompt(){
-    const {chatId} = this
-    const init_system_content = this.getChatGptConfig("init_system_content")
-
-    return this.chatMsg.setText("```\n"+init_system_content+"```").setInlineButtons([
-      [
-        {
-          text:"点击修改 系统 Prompt",
-          type:"callback",
-          data:`${chatId}/init_system_content`
-        }
-      ]
-    ]).reply();
+    let init_system_content = this.getChatGptConfig("init_system_content") as string
+    let tips = ""
+    if(!this.isMyBot()){
+      tips += "\n\n你可以 /setting > 复制机器人 修改此选项"
+      if(!init_system_content){
+        init_system_content = "未设置"
+      }
+    }
+    return this.chatMsg.setText(this.formatEditableText(init_system_content,"用于提问模版,一般用于指定机器人角色,每次提问都会带入." + tips))
+      .setInlineButtons(this.isMyBot() ?[
+        MsgCommand.buildInlineCallbackButton(this.chatId,`init_system_content`,"点击修改"),
+        MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+      ]:[
+        MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
+      ]).reply();
   }
-
   getAiBotConfig(key:'enableAi'|'botApi'|'commandsFromApi'|'chatGptConfig'|'disableClearHistory'){
-    const global = getGlobal();
-    const user = selectUser(global,this.chatId);
+    const botInfo = this.getBotInfo();
     if(
-      user?.fullInfo &&
-      user?.fullInfo.botInfo &&
-      user?.fullInfo.botInfo.aiBot
+      botInfo &&
+      botInfo.aiBot
     ){
-      return user?.fullInfo.botInfo.aiBot[key]
+      return botInfo.aiBot[key]
     }else{
       return undefined
     }
   }
-  getChatGptConfig(key:'api_key'|'max_history_length'|'init_system_content'|'modelConfig'){
+  getBotInfo(){
+    const global = getGlobal();
+    const user = selectUser(global,this.chatId);
+    if(
+      user?.fullInfo &&
+      user?.fullInfo.botInfo
+    ){
+      return user?.fullInfo.botInfo
+    }else{
+      return undefined
+    }
+  }
+
+  getChatGptConfig(key:
+    'api_key'|
+    'max_history_length'|
+    'init_system_content'|
+    'modelConfig'|
+    'welcome'|
+    'template'|
+    'outputText' |
+    'templateSubmit'
+  ){
     const aiBotConfig = this.getAiBotConfig("chatGptConfig") as PbChatGpBotConfig_Type
     if(aiBotConfig && aiBotConfig[key] !== undefined){
       return aiBotConfig[key]
@@ -257,16 +388,33 @@ export default class MsgCommandChatGpt{
     return STOP_HANDLE_MESSAGE
   }
 
-  async usage(){
+  async usage(outGoingMsgId:number){
     const api_key = this.getChatGptConfig("api_key")
     const msg = await this.chatMsg.setThinking().reply();
+    const inlineButtons = [
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+    ]
     try {
       // @ts-ignore
       const {text} = await requestUsage(api_key)
-      await this.chatMsg.updateText(msg.id,text)
+      await this.chatMsg.update(msg.id,{
+        content:{
+          text:{
+            text
+          }
+        },
+        inlineButtons
+      })
     }catch (e){
       console.error(e)
-      await this.chatMsg.updateText(msg.id,"查询失败")
+      await this.chatMsg.update(msg.id,{
+        content:{
+          text:{
+            text:"查询失败"
+          }
+        },
+        inlineButtons
+      })
     }
     return STOP_HANDLE_MESSAGE
   }
@@ -295,7 +443,10 @@ export default class MsgCommandChatGpt{
         [chatId]:{}
       }
     })
-    await this.chatMsg.setText("重置成功").reply()
+    await this.chatMsg.setText("重置将清除每次请求携带AI对话记录,此功能只对 /maxHistoryLength > 0  有效，但不会删除消息记录").setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(this.chatId,`ai/reset/confirm`,"确定"),
+      MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消")
+    ]).reply()
     return STOP_HANDLE_MESSAGE
   }
   async enableAi(){
@@ -402,26 +553,28 @@ export default class MsgCommandChatGpt{
       ]
     })
   }
-  getAiModelInlineButtons(){
+  getAiModelInlineButtons(outGoingMsgId:number){
     const chatId = this.chatId;
     const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
-    const models =   ALL_CHAT_GPT_MODELS.filter(({name})=>name !== modelConfig.model).map(({name})=>{
-      return MsgCommand.buildInlineCallbackButton(chatId,"model/switch/"+name,"# "+name)
+    const models = ALL_CHAT_GPT_MODELS.filter(({name})=>name !== modelConfig.model).map(({name})=>{
+      return MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId+"/model/switch/"+name,"# "+name)
     })
     return [
-      [...MsgCommand.buildInlineCallbackButton(chatId,"model/property/temperature","> 随机性 (temperature): "+modelConfig.temperature)],
-      [...MsgCommand.buildInlineCallbackButton(chatId,"model/property/max_tokens","> 单次回复限制 (max_tokens): "+modelConfig.max_tokens)],
-      [...MsgCommand.buildInlineCallbackButton(chatId,"model/property/presence_penalty","> 话题新鲜度 (presence_penalty): "+modelConfig.presence_penalty)],
+      [...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId+"/model/property/temperature","> 随机性 (temperature): "+modelConfig.temperature)],
+      [...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId+"/model/property/max_tokens","> 单次回复限制 (max_tokens): "+modelConfig.max_tokens)],
+      [...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId+"/model/property/presence_penalty","> 话题新鲜度 (presence_penalty): "+modelConfig.presence_penalty)],
       [...MsgCommand.buildInlineButton(chatId,"切换其他模型","unsupported")],
-      ...models
+      ...models,
+      [...MsgCommand.buildInlineCallbackButton(chatId,`${outGoingMsgId}/`+"setting/cancel","取消")],
     ]
   }
-  async aiModel(){
+  async aiModel(outGoingMsgId:number){
     const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
-    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons();
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons(outGoingMsgId);
     return this.chatMsg.setText(`当前模型:【${modelConfig.model}】`).setInlineButtons(inlineButtons).reply()
   }
-  async handleChangeModelConfig(messageId:number,key:'model'|'temperature'|'max_tokens'|'presence_penalty'){
+  async handleChangeModelConfig(messageId:number,key:'model'|'temperature'|'max_tokens'|'presence_penalty',data:string){
+    const outGoingMsgId = data.split("/")[data.split("/").length - 4]
     const val:any = this.getChatGptModelConfig(key)
     let title = "";
     let placeholder = "";
@@ -466,20 +619,28 @@ export default class MsgCommandChatGpt{
         [key]:Number(value)
       })
     }
-    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons()
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons(Number(outGoingMsgId))
     this.chatMsg.update(messageId,{
       inlineButtons
     })
 
   }
   async switchModel(messageId:number,data:string){
+    const outGoingMsgId = data.split("/")[data.split("/").length - 4]
     const chatId = this.chatId;
-    const model = data.replace(`${chatId}/model/switch/`,"")
+    const model = data.replace(`${chatId}/${outGoingMsgId}/model/switch/`,"")
     this.changeChatGptModelConfig({
       model
     })
-    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons()
-    await this.chatMsg.setText(`当前模型:【${model}】`).setInlineButtons(inlineButtons).reply()
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons(Number(outGoingMsgId))
+    await new ChatMsg(this.chatId).update(messageId,{
+      inlineButtons,
+      content:{
+        text:{
+          text:`当前模型:【${model}】`
+        }
+      }
+    })
   }
   async answerCallbackButton(global:GlobalState,messageId:number,data:string){
     const chatId = this.chatId;
@@ -487,20 +648,90 @@ export default class MsgCommandChatGpt{
       await new MsgCommand(chatId).back(global,messageId,data,"setting/ai/back")
       return
     }
-    if(data.startsWith(`${chatId}/model/switch`)){
+    if(data.includes(`/model/switch/`)){
       await this.switchModel(messageId,data)
       return
     }
+
+    if(data.endsWith(`setting/ai/toggleClearHistory`)){
+      const outGoingMsgId = data.split("/")[data.split("/").length - 4]
+      await this.toggleClearHistory(messageId,Number(outGoingMsgId))
+      return
+    }
+    if(data.endsWith(`model/property/temperature`)){
+      await this.handleChangeModelConfig(messageId,"temperature",data)
+      return
+    }
+
+    if(data.endsWith(`model/property/max_tokens`)){
+      await this.handleChangeModelConfig(messageId,"max_tokens",data)
+      return
+    }
+
+    if(data.endsWith(`model/property/presence_penalty`)){
+      await this.handleChangeModelConfig(messageId,"presence_penalty",data)
+      return
+    }
+
+    if(data.includes(`setting/ai/enable`)){
+      const isEnable = data.endsWith("setting/ai/enable/1")
+      const outGoingMsgId = data.split("/")[data.split("/").length - 5]
+
+      this.changeAiBotConfig({
+        enableAi:isEnable
+      })
+      await this.reloadCommands()
+      await this.chatMsg.update(messageId,{
+        inlineButtons:this.getInlineButtons(Number(outGoingMsgId))
+      })
+      return
+    }
+    if(data.endsWith(`setting/uploadUser`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("Wai遵循本地优先策略,上传机器人将会覆盖云端资料,点击 上传机器人 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/uploadUser/confirm`,"上传机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
+
+    if(data.endsWith(`setting/downloadUser`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("Wai遵循本地优先策略,更新机器人将会覆盖本地,点击 更新机器人 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/downloadUser/confirm`,"更新机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
+
+    if(data.endsWith(`setting/downloadMsg`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("Wai遵循本地优先策略,更新消息将会从云端已保存的消息覆盖到本地,点击 更新消息 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/downloadMsg/confirm`,"更新消息"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
+
+    if(data.endsWith(`setting/copyBot`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("点击 复制机器人 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/copyBot/confirm`,"复制机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
+
+
     switch (data){
-      case `${chatId}/model/property/temperature`:
-        await this.handleChangeModelConfig(messageId,"temperature")
-        return
-      case `${chatId}/model/property/max_tokens`:
-        await this.handleChangeModelConfig(messageId,"max_tokens")
-        return
-      case `${chatId}/model/property/presence_penalty`:
-        await this.handleChangeModelConfig(messageId,"presence_penalty")
-        return
       case `${chatId}/setting/ai/disableApi`:
         await this.disableApi(messageId)
         return
@@ -513,18 +744,21 @@ export default class MsgCommandChatGpt{
       case `${chatId}/setting/ai/customApi`:
         await this.customApi(messageId)
         return
-      case `${chatId}/setting/ai/toggleClearHistory`:
-        await this.toggleClearHistory(messageId)
-        return
       case `${chatId}/setting/export/markdown`:
       case `${chatId}/setting/export/image`:
         await this.export(messageId,data.replace(`${chatId}/setting/export/`,""))
         return
-      case `${chatId}/setting/uploadUser`:
-        await new MsgCommand(chatId).uploadUser(global)
-        break
-      case `${chatId}/setting/downloadUser`:
-        await new MsgCommand(chatId).downloadUser(global)
+      case `${chatId}/setting/uploadUser/confirm`:
+        await new MsgCommand(chatId).uploadUser(global,messageId)
+        return
+      case `${chatId}/setting/downloadUser/confirm`:
+        await new MsgCommand(chatId).downloadUser(global,messageId)
+        return
+      case `${chatId}/setting/downloadMsg/confirm`:
+        await new MsgCommand(chatId).downloadMsg(global,messageId)
+        return
+      case `${chatId}/setting/copyBot/confirm`:
+        await new MsgCommand(chatId).copyBot(global)
         break
       case `${chatId}/setting/ai/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
@@ -549,11 +783,17 @@ export default class MsgCommandChatGpt{
           msgId:messageId
         }).pack())
         break
+      case `${chatId}/welcome`:
+      case `${chatId}/template`:
+      case `${chatId}/templateSubmit`:
       case `${chatId}/init_system_content`:
         global = getGlobal();
         const e = document.querySelector("#message"+messageId+" pre.text-entity-pre");
         if(e){
           const btn = document.querySelector("#message"+messageId+" .InlineButtons .inline-button-text");
+          // @ts-ignore
+          document.querySelector("#message"+messageId+" pre.text-entity-pre .code-overlay")!.style.display = "block";
+
           // @ts-ignore
           if(e.contentEditable === "true"){
             // @ts-ignore
@@ -563,6 +803,8 @@ export default class MsgCommandChatGpt{
             // @ts-ignore
             e.blur();
           }else{
+            // @ts-ignore
+            document.querySelector("#message"+messageId+" pre.text-entity-pre .code-overlay")!.style.display = "none";
             // @ts-ignore
             btn.innerText = "保存修改"
             // @ts-ignore
@@ -575,12 +817,41 @@ export default class MsgCommandChatGpt{
             });
             e.addEventListener('blur', ()=>{
               // @ts-ignore
+              // @ts-ignore
+              btn.innerText = "点击修改"
+              // @ts-ignore
               e.contentEditable = false
               // @ts-ignore
-              const init_system_content = e.innerText
-              this.changeChatGptConfig({
-                init_system_content
-              })
+              const val = e.innerText
+              if(val && val.trim() === "未设置"){
+                return
+              }
+              if(!val){
+                return;
+              }
+              const key = data.split("/")[data.split("/").length -1]
+              switch (key){
+                case "welcome":
+                  this.changeChatGptConfig({
+                    welcome:val.trim()
+                  })
+                  break
+                case "template":
+                  this.changeChatGptConfig({
+                    template:val.trim()
+                  })
+                  break
+                case "templateSubmit":
+                  this.changeChatGptConfig({
+                    templateSubmit:val.trim()
+                  })
+                  break
+                case "init_system_content":
+                  this.changeChatGptConfig({
+                    init_system_content:val.trim()
+                  })
+                  break
+              }
             });
           }
 
@@ -600,17 +871,6 @@ export default class MsgCommandChatGpt{
           })
         }
         break;
-      case `${chatId}/setting/ai/enable/1`:
-      case `${chatId}/setting/ai/enable/0`:
-        const isEnable = data === `${chatId}/setting/ai/enable/1`;
-        this.changeAiBotConfig({
-          enableAi:isEnable
-        })
-        await this.reloadCommands()
-        await this.chatMsg.update(messageId,{
-          inlineButtons:this.getInlineButtons()
-        })
-        break
     }
   }
   getCommands(){
@@ -632,6 +892,7 @@ export default class MsgCommandChatGpt{
     return commands
   }
   private async reloadCommands() {
+    // @ts-ignore
     await new MsgCommand(this.chatId).reloadCommands(this.getCommands())
   }
 }

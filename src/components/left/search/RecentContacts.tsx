@@ -92,7 +92,6 @@ const RecentContacts: FC<OwnProps & StateProps> = ({
         <div className="search-section pt-1">
           <h3 className="section-heading mt-0 recent-chats-header" dir={lang.isRtl ? 'rtl' : undefined}>
             {lang('Recent')}
-
             <Button
               round
               size="smaller"
@@ -122,7 +121,6 @@ export default memo(withGlobal<OwnProps>(
     const usersById = global.users.byId;
     const { recentlyFoundChatIds } = global;
     const { animationLevel } = global.settings.byKey;
-
     return {
       topUserIds,
       usersById,

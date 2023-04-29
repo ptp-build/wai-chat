@@ -75,28 +75,13 @@ rm -rf $DIR_DIR_TS
 mv $GEN_DIR_TS $DIR_DIR_TS
 echo copy to $DIR_DIR_TS
 
-#
-#DIR_DIR_TS1=$PROJECT_DIR/../ptp-ai-chat/src/lib/ptp/protobuf/
-#echo copy to $DIR_DIR_TS1
-#rm -rf $DIR_DIR_TS1
-#cp -a $DIR_DIR_TS $DIR_DIR_TS1
-#
-#
-#DIR_DIR_TS2=$PROJECT_DIR/../bot-wai-chat/src/lib/ptp/protobuf/
-#echo copy to $DIR_DIR_TS2
-#rm -rf $DIR_DIR_TS2
-#cp -a $DIR_DIR_TS $DIR_DIR_TS2
-#
-#
-#DIR_DIR_TS2=$PROJECT_DIR/../bot-wai-chat/src/lib/ptp/protobuf/
-#echo copy to $DIR_DIR_TS2
-#rm -rf $DIR_DIR_TS2
-#cp -a $DIR_DIR_TS $DIR_DIR_TS2
 
-DIR_DIR_TS3=$PROJECT_DIR/../wai-chat-bot/src/lib/ptp/protobuf/
-mkdir -p $DIR_DIR_TS3
-echo copy to $DIR_DIR_TS3
-rm -rf $DIR_DIR_TS3
-cp -a $DIR_DIR_TS $DIR_DIR_TS3
+sync_dir() {
+  mkdir -p $1
+  echo copy to $1
+  rm -rf $1
+  cp -a $DIR_DIR_TS $1
+}
 
-
+sync_dir $PROJECT_DIR/../wai-chat-bot/src/lib/ptp/protobuf/
+sync_dir $PROJECT_DIR/../wai-chat-rpa/src/lib/ptp/protobuf/

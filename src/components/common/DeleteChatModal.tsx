@@ -153,19 +153,20 @@ const DeleteChatModal: FC<OwnProps & StateProps> = ({
   }
 
   function renderContent() {
-    if (isChannel && chat.isCreator) {
-      return (
-        <p>
-          {renderText(lang('ChatList.DeleteAndLeaveGroupConfirmation', chatTitle), ['simple_markdown', 'emoji'])}
-        </p>
-      );
-    }
-
-    if ((isChannel && !chat.isCreator) || isBasicGroup || isSuperGroup) {
-      return <p>{renderText(lang('ChannelLeaveAlertWithName', chatTitle), ['simple_markdown', 'emoji'])}</p>;
-    }
-
-    return <p>{renderText(lang('ChatList.DeleteChatConfirmation', contactName), ['simple_markdown', 'emoji'])}</p>;
+    return "确定要删除？"
+    // if (isChannel && chat.isCreator) {
+    //   return (
+    //     <p>
+    //       {renderText(lang('ChatList.DeleteAndLeaveGroupConfirmation', chatTitle), ['simple_markdown', 'emoji'])}
+    //     </p>
+    //   );
+    // }
+    //
+    // if ((isChannel && !chat.isCreator) || isBasicGroup || isSuperGroup) {
+    //   return <p>{renderText(lang('ChannelLeaveAlertWithName', chatTitle), ['simple_markdown', 'emoji'])}</p>;
+    // }
+    //
+    // return <p>{renderText(lang('ChatList.DeleteChatConfirmation', contactName), ['simple_markdown', 'emoji'])}</p>;
   }
 
   function renderActionText() {

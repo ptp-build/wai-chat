@@ -49,6 +49,7 @@ export interface InitAppRes_Type {
   messages?: string;
   chatFolders?: string;
   users?: string;
+  topCats?: string;
   err?: PTPCommon.ERR;
 }
 export interface UpdateProfileReq_Type {

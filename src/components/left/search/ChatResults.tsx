@@ -29,6 +29,7 @@ import DateSuggest from './DateSuggest';
 import Link from '../../ui/Link';
 import NothingFound from '../../common/NothingFound';
 import PickerSelectedItem from '../../common/PickerSelectedItem';
+import BotUser from "./BotUser";
 
 export type OwnProps = {
   searchQuery?: string;
@@ -39,6 +40,7 @@ export type OwnProps = {
 };
 
 type StateProps = {
+  showBotUsers?:boolean;
   currentUserId?: string;
   localContactIds?: string[];
   localChatIds?: string[];
@@ -58,12 +60,14 @@ const LESS_LIST_ITEMS_AMOUNT = 5;
 const runThrottled = throttle((cb) => cb(), 500, false);
 
 const ChatResults: FC<OwnProps & StateProps> = ({
+  showBotUsers,
   searchQuery, searchDate, dateSearchQuery, currentUserId,
   localContactIds, localChatIds, localUserIds, globalChatIds, globalUserIds,
   foundIds, globalMessagesByChatId, chatsById, fetchingStatus, lastSyncTime,
   onReset, onSearchDateSelect,
 }) => {
   const {
+    openTopBotChat,
     openChat, addRecentlyFoundChatId, searchMessagesGlobal, setGlobalSearchChatId,
   } = getActions();
 
@@ -89,6 +93,7 @@ const ChatResults: FC<OwnProps & StateProps> = ({
 
   const handleChatClick = useCallback(
     (id: string) => {
+      openTopBotChat({id})
       openChat({ id, shouldReplaceHistory: true });
 
       if (id !== currentUserId) {
@@ -103,7 +108,8 @@ const ChatResults: FC<OwnProps & StateProps> = ({
   );
 
   const handlePickerItemClick = useCallback((id: string) => {
-    setGlobalSearchChatId({ id });
+    // setGlobalSearchChatId({ id });
+    handleChatClick(id)
   }, [setGlobalSearchChatId]);
 
   const localResults = useMemo(() => {
@@ -186,9 +192,18 @@ const ChatResults: FC<OwnProps & StateProps> = ({
 
   const nothingFound = fetchingStatus && !fetchingStatus.chats && !fetchingStatus.messages
     && !localResults.length && !globalResults.length && !foundMessages.length;
-
   if (!searchQuery && !searchDate) {
-    return <RecentContacts onReset={onReset} />;
+    if(showBotUsers){
+      return(
+        <>
+          <BotUser searchQuery={""} onReset={onReset} activeTab={0}/>
+        </>
+      )
+    }else{
+      return(
+        <RecentContacts onReset={onReset} />
+      )
+    }
   }
 
   return (
@@ -214,13 +229,13 @@ const ChatResults: FC<OwnProps & StateProps> = ({
           description={lang('ChatList.Search.NoResultsDescription')}
         />
       )}
-      {Boolean(localResults.length) && (
+      {Boolean(localUserIds) && localUserIds?.length > 0 && (
         <div
           className="chat-selection no-selection no-scrollbar"
           dir={lang.isRtl ? 'rtl' : undefined}
           ref={chatSelectionRef}
         >
-          {localResults.map((id) => (
+          {localUserIds!.map((id) => (
             <PickerSelectedItem
               chatOrUserId={id}
               onClick={handlePickerItemClick}
@@ -293,11 +308,6 @@ export default memo(withGlobal<OwnProps>(
     const { byId: chatsById } = global.chats;
 
     const { userIds: localContactIds } = global.contactList || {};
-    // if (!localContactIds) {
-    //   return {
-    //     chatsById,
-    //   };
-    // }
     const {
       currentUserId, messages, lastSyncTime,
     } = global;
@@ -308,8 +318,10 @@ export default memo(withGlobal<OwnProps>(
     const { chatIds: localChatIds, userIds: localUserIds } = localResults || {};
     const { byChatId: globalMessagesByChatId } = messages;
     const foundIds = resultsByType?.text?.foundIds;
-
+    const {topCats} = global
+    const {cats} = topCats
     return {
+      showBotUsers:!!cats,
       currentUserId,
       localContactIds,
       localChatIds,

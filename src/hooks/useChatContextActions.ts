@@ -51,7 +51,7 @@ const useChatContextActions = ({
     } = getActions();
 
     const actionOpenInNewTab = IS_MULTITAB_SUPPORTED && {
-      title: '在新标签页打开', 
+      title: '在新标签页打开',
       icon: 'open-in-new-tab',
       handler: () => {
         openChatInNewTab({ chatId: chat.id });

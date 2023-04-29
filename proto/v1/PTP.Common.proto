@@ -260,20 +260,16 @@ message PbChatFolder {
   repeated string excludedChatIds = 6;
 }
 
-message PbUserSetting {
-  repeated PbChatFolder chatFolders = 1;
-  repeated uint32 chatFolderOrderedIds = 2;
-  repeated string myBotIds = 3;
-  repeated string myGroups = 4;
-}
 
 message PbChatGpBotConfig {
   optional string init_system_content = 1;
   optional string api_key = 2;
   optional uint32 max_history_length = 3;
   optional PbChatGptModelConfig modelConfig = 4;
-  optional string inputTextDemo = 5;
-  optional string outputTextDemo = 6;
+  optional string welcome = 5;
+  optional string template = 6;
+  optional string outputText = 7;
+  optional string templateSubmit = 8;
 }
 
 message PbChatGptModelConfig {
@@ -313,8 +309,10 @@ message UserStoreRow{
 message UserStoreData{
   repeated string chatIds = 1;
   repeated string chatIdsDeleted = 2;
-  required string chatFolders = 3;
-  required uint64 time = 7;
+  optional string chatFolders = 3;
+  optional uint64 time = 7;
+  repeated string myBots = 8;
+  repeated string myGroups = 9;
 }
 
 message UserMessageStoreData{

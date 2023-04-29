@@ -644,7 +644,7 @@ export default memo(withGlobal<OwnProps>(
 
     const { canTranslate: isTranslationEnabled, language, doNotTranslate } = global.settings.byKey;
     const { chatGptAskHistory } = global;
-    const history = chatGptAskHistory[message.chatId]
+    const history = chatGptAskHistory[message.chatId] | {}
     let aiAssitantMsgId,aiUserMsgId;
 
     if(history[message.id]){

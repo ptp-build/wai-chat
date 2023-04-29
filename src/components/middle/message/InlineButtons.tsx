@@ -47,14 +47,20 @@ const InlineButtons: FC<OwnProps> = ({ message, onClick }) => {
   return (
     <div className="InlineButtons">
       {message.inlineButtons!.map((row) => (
-        <div className="row">
+        <div className="row" onDoubleClick={(e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          return false
+        }}>
           {row.map((button) => (
             <Button
               size="tiny"
               ripple
               disabled={button.type === 'unsupported'}
               // eslint-disable-next-line react/jsx-no-bind
-              onClick={() => onClick({ messageId: message.id, button })}
+              onClick={(e) => {
+                onClick({ messageId: message.id, button })
+              }}
             >
               <span className="inline-button-text">{renderText(lang(button.text))}</span>
               {renderIcon(button)}

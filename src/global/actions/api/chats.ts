@@ -9,6 +9,7 @@ import type {ActionReturnType, GlobalState, TabArgs,} from '../../types';
 import {
   ALL_FOLDER_ID,
   ARCHIVED_FOLDER_ID,
+  CLOUD_MESSAGE_API,
   DEBUG,
   MEDIA_CACHE_NAME_WAI,
   RE_TG_LINK,
@@ -83,26 +84,26 @@ import {selectCurrentLimit} from '../../selectors/limits';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {
-  ChatModelConfig,
+  CurrentUserInfo,
   DEFAULT_AVATARS,
-  DEFAULT_BOT_COMMANDS,
-  DEFAULT_CHATGPT_AI_COMMANDS,
   DEFAULT_CREATE_USER_BIO,
   DEFAULT_PROMPT,
   LoadAllChats,
-  UserIdChatGpt,
-  UserIdChatGpt4,
+  SERVER_BOT_USER_ID_START, TopCats,
   UserIdFirstBot
 } from "../../../worker/setting";
 import * as cacheApi from '../../../util/cacheApi';
 import {blobToDataUri, fetchBlob} from "../../../util/files";
 import {DownloadRes} from "../../../lib/ptp/protobuf/PTPFile";
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
-import {getFileId} from "../../../lib/gramjs/client/uploadFile";
 import ChatMsg from "../../../worker/msg/ChatMsg";
 
 import {resizeImage} from '../../../util/imageResize';
-import MsgCommandChatLab from "../../../worker/msg/MsgCommandChatLab";
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {GenUserIdReq, GenUserIdRes} from "../../../lib/ptp/protobuf/PTPUser";
+import {currentTs1000} from "../../../worker/share/utils/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {UserStoreData} from "../../../lib/ptp/protobuf/PTPCommon";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -142,6 +143,44 @@ addActionHandler('preloadTopChatMessages', async (global, actions): Promise<void
   }
 });
 
+addActionHandler('openTopBotChat', (global, actions, payload): ActionReturnType => {
+  const {
+    id, threadId = MAIN_THREAD_ID,
+  } = payload;
+  if (!id) {
+    return;
+  }
+  const user = global.users.byId[id]
+  if(user && !global.chats.byId[id]){
+    //@ts-ignore
+    global = updateChat(global,id,ChatMsg.buildDefaultChat(user));
+    global = updateChatListIds(global,'active',[id])
+    let totalChatCount = 0;
+    if(global.chats.listIds.active){
+      totalChatCount = global.chats.listIds.active.length
+    }
+    global = updateChatListSecondaryInfo(
+      global,
+      'active',
+      {
+        totalChatCount
+      })
+    const chatIdsDeleted = global.userStoreData?.chatIdsDeleted || []
+    const userStoreData = {
+      ...global.userStoreData,
+      chatIds:global.chats.listIds.active,
+      time:currentTs1000(),
+      chatIdsDeleted:chatIdsDeleted.filter((chatId:string)=>chatId !== id)
+    }
+    global = {
+      ...global,
+      userStoreData
+    }
+    setGlobal(global)
+    callApiWithPdu(new SyncReq({userStoreData}).pack()).catch(console.error)
+  }
+})
+
 addActionHandler('openChat', (global, actions, payload): ActionReturnType => {
   const {
     id, threadId = MAIN_THREAD_ID,
@@ -151,8 +190,8 @@ addActionHandler('openChat', (global, actions, payload): ActionReturnType => {
   }
 
   const { currentUserId } = global;
-  const chat = selectChat(global, id);
 
+  const chat = selectChat(global, id);
   if (chat?.hasUnreadMark) {
     actions.toggleChatUnread({ id });
   }
@@ -583,12 +622,129 @@ const getAvatarPhoto = async (id:string,url:string)=>{
     ],
   }
 }
+
+export const getUserId = async (global:GlobalState)=>{
+  let userId: string;
+  let userIds = Object.keys(global.users.byId)
+
+  if(!CLOUD_MESSAGE_API){
+    if(userIds.length > 0){
+      userIds = [...userIds]
+      userIds.filter(id=>Number(id) < Number(SERVER_BOT_USER_ID_START))
+        .sort((a,b)=>parseInt(b) - parseInt(a))
+      userId = (parseInt(userIds[0]) + 1).toString()
+    }else{
+      userId = (parseInt(UserIdFirstBot) + 1).toString()
+    }
+  }else{
+    const res = await callApiWithPdu(new GenUserIdReq().pack())
+    if(!res){
+      throw new Error("Network Error")
+    }
+    const genUserIdRes = GenUserIdRes.parseMsg(res.pdu)
+    userId = genUserIdRes.userId.toString()
+  }
+  return userId.toString()
+}
+export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
+  if(!user.id){
+    user.id = await getUserId(global)
+  }
+  const userId = user.id;
+  if(user.fullInfo && user.fullInfo.botInfo){
+    user.fullInfo.botInfo.botId = userId;
+    if(user.fullInfo.botInfo.commands){
+      user.fullInfo.botInfo.commands = user.fullInfo.botInfo.commands!.map(cmd=>{
+        cmd.botId = userId
+        return cmd
+      });
+    }
+  }
+  const tabId = getCurrentTabId()
+  global = getGlobal();
+
+  const {chatFolders} = global;
+  // @ts-ignore
+  const users:ApiUser[] = [user]
+
+  // @ts-ignore
+  const chats:ApiChat[] = [ChatMsg.buildDefaultChat(user)]
+
+  let activeChatFolder = window.sessionStorage.getItem("activeChatFolder")
+  let activeChatFolderRow;
+  const chatFolderById:Record<string, ApiChatFolder> = {};
+  if(activeChatFolder){
+    Object.values(chatFolders.byId).forEach((row:ApiChatFolder)=>{
+      if(chatFolders.orderedIds![parseInt(activeChatFolder!)]){
+        const activeFolderId = chatFolders.orderedIds![parseInt(activeChatFolder!)]
+        if(row.id === activeFolderId){
+          if(!row.includedChatIds){
+            row.includedChatIds = []
+          }
+          row.includedChatIds.push(userId)
+          chatFolderById[row.id] = row;
+          activeChatFolderRow = row;
+        }
+      }
+    })
+  }
+
+  const userStatusesById:Record<string,ApiUserStatus> = {
+    [user.id] : {
+      "type": "userStatusEmpty"
+    }
+  }
+
+  global = addUsers(global, buildCollectionByKey(users, 'id'));
+  global = addChats(global, buildCollectionByKey(chats, 'id'));
+  global = updateChatListIds(global, "active", chats.map(chat=>chat.id));
+  global = addUserStatuses(global, userStatusesById);
+
+  global = {
+    ...global,
+    chatFolders:{
+      ...global.chatFolders,
+      byId:{
+        ...global.chatFolders.byId,
+        ...chatFolderById
+      }
+    }
+  }
+  let {userStoreData} = global
+  if(!userStoreData){
+    userStoreData = {
+      myBots:[userId],
+    }
+  }else{
+    if(!userStoreData.myBots){
+      userStoreData.myBots = []
+    }
+    userStoreData.myBots.push(userId)
+  }
+  userStoreData.chatFolders = JSON.stringify(global.chatFolders)
+  userStoreData.chatIds = global.chats.listIds.active
+  userStoreData.time = currentTs1000()
+  global = {
+    ...global,
+    userStoreData
+  }
+  setGlobal(global)
+  if(CLOUD_MESSAGE_API){
+    callApiWithPdu(new SyncReq({userStoreData:getGlobal().userStoreData}).pack()).catch(console.error)
+  }
+
+  if(activeChatFolderRow){
+    // @ts-ignore
+    actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
+  }
+  actions.openChat({id: userId,shouldReplaceHistory: true,});
+  actions.sendBotCommand({chatId:userId,command:"/start",tabId})
+}
 addActionHandler('createChat', async (global, actions, payload)=> {
   const {
-    title, id,promptInit,about, tabId = getCurrentTabId(),
+    title,about, tabId = getCurrentTabId(),
   } = payload;
 
-  let userIds = Object.keys(global.users.byId)
 
   global = updateTabState(global, {
     chatCreation: {
@@ -598,147 +754,22 @@ addActionHandler('createChat', async (global, actions, payload)=> {
   setGlobal(global);
 
   try{
-    let userId: string;
-    let userIdInt = parseInt(UserIdFirstBot)
-    if(!id){
-      if(userIds.length > 0){
-        userIds = [...userIds,...global.chatIdsDeleted]
-        userIds.sort((a,b)=>parseInt(b) - parseInt(a))
-        userIdInt = parseInt(userIds[0]) + 1
-      }
-      if(userIdInt < 100000){
-        userIdInt = 100000
-      }
-      userId = userIdInt.toString()
-    }else{
-      userId = id
-    }
-
-    const init_system_content = promptInit || DEFAULT_PROMPT
-    let avatarHash = "";
-    let photos = []
-    if(DEFAULT_AVATARS[userId]){
-      avatarHash = getFileId();
-      const avatarUrl = DEFAULT_AVATARS[userId]
-      const photo = await getAvatarPhoto(avatarHash,avatarUrl);
-      photos.push(photo)
-    }
-    const user = {
-      "canBeInvitedToGroup": false,
-      "hasVideoAvatar": false,
-      "type": "userTypeBot",
-      id:userId,
-      "phoneNumber": "",
-      isMin:false,
-      "noStatus": true,
-      isSelf:false,
-      avatarHash,
-      accessHash:"",
-      isPremium: false,
+    const user = ChatMsg.buildDefaultBotUser({
+      userId:"",
+      avatarHash:"",
       firstName: title,
-      photos,
-      usernames: [
-        {
-          "username": "Bot_"+userId,
-          "isActive": true,
-          "isEditable": true
-        }
-      ],
-      fullInfo: {
-        "isBlocked": false,
-        "noVoiceMessages": false,
-        bio: about || DEFAULT_CREATE_USER_BIO,
-        botInfo: {
-          aiBot:{
-            enableAi:true,
-            chatGptConfig:{
-              init_system_content,
-              api_key:"",
-              max_history_length:0,
-              modelConfig:{
-                ...ChatModelConfig,
-                ...(userId === UserIdChatGpt4 ? {model:"gpt-4"} : {})
-              }
-            }
-          },
-          botId: userId,
-          "description": about || DEFAULT_CREATE_USER_BIO,
-          "menuButton": {
-            "type": "commands"
-          },
-          commands:[...DEFAULT_BOT_COMMANDS,...DEFAULT_CHATGPT_AI_COMMANDS].map(cmd=>{
-            // @ts-ignore
-            cmd.botId = userId;
-            return cmd
-          })
-        }
-      }
-    }
-    global = getGlobal()
-    const {chatFolders} = global;
-    // @ts-ignore
-    const users:ApiUser[] = [user]
-
-    // @ts-ignore
-    const chats:ApiChat[] = [ChatMsg.buildDefaultChat(user)]
-
-    let activeChatFolder = window.sessionStorage.getItem("activeChatFolder")
-    let activeChatFolderRow;
-    const chatFolderById:Record<string, ApiChatFolder> = {};
-    if(activeChatFolder){
-      Object.values(chatFolders.byId).forEach((row:ApiChatFolder)=>{
-        if(chatFolders.orderedIds![parseInt(activeChatFolder!)]){
-          const activeFolderId = chatFolders.orderedIds![parseInt(activeChatFolder!)]
-          if(row.id === activeFolderId){
-
-            if(!row.includedChatIds){
-              row.includedChatIds = []
-            }
-            row.includedChatIds.push(userId)
-            chatFolderById[row.id] = row;
-            activeChatFolderRow = row;
-          }
-        }
-      })
-    }
-
-    const userStatusesById:Record<string,ApiUserStatus> = {
-      [user.id] : {
-        "type": "userStatusEmpty"
-      }
-    }
-
+      photos:[],
+      bio:about || DEFAULT_CREATE_USER_BIO,
+      init_system_content:DEFAULT_PROMPT,
+    }) as ApiUser
+    await createBot(global,actions,user);
     global = getGlobal();
-    global = addUsers(global, buildCollectionByKey(users, 'id'));
-    global = addChats(global, buildCollectionByKey(chats, 'id'));
-    global = updateChatListIds(global, "active", chats.map(chat=>chat.id));
-    global = addUserStatuses(global, userStatusesById);
     global = updateTabState(global, {
       chatCreation: {
         ...selectTabState(global, tabId).chatCreation,
         progress: ChatCreationProgress.Complete,
       },
     }, tabId);
-
-    setGlobal({
-      ...global,
-      chatFolders:{
-        ...global.chatFolders,
-        byId:{
-          ...global.chatFolders.byId,
-          ...chatFolderById
-        }
-
-      }
-    })
-
-    if(activeChatFolderRow){
-      actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
-    }
-    if(promptInit || (id === UserIdChatGpt)){
-      actions.sendBotCommand({chatId:userId,command:"/systemPrompt",tabId})
-    }
-    actions.openChat({id: userId,shouldReplaceHistory: true,});
   }catch (e){
     console.error(e)
     global = getGlobal();
@@ -746,7 +777,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
       chatCreation: {
         ...selectTabState(global, tabId).chatCreation,
         progress: ChatCreationProgress.Error,
-        error: '创建失败',
+        error: '创建失败,请稍后再试',
       },
     }, tabId);
     setGlobal(global);
@@ -1022,6 +1053,7 @@ addActionHandler('sortChatFolders', async (global, actions, payload): Promise<vo
       },
     };
     setGlobal(global);
+
   }
 });
 
@@ -2057,14 +2089,12 @@ addActionHandler('toggleTopicPinned', (global, actions, payload): ActionReturnTy
 
 
 const initChats = (firstLoad?:boolean)=>{
-
   setTimeout(async ()=>{
     if(firstLoad){
-      getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
-    }
-    const global = getGlobal();
-    if(!global.users.byId[UserIdChatGpt]){
-      await MsgCommandChatLab.createChatGpt(UserIdChatGpt)
+      getActions().openChat({id: UserIdFirstBot,shouldReplaceHistory: true,});
+      setTimeout(async ()=>{
+        getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
+      },500)
     }
   },500)
 }
@@ -2083,19 +2113,31 @@ export async function loadChats<T extends GlobalState>(
   try {
     let result: { folderIds?: number[],chatFolders?: any[]; users?: any; userStatusesById?: any; chats?: any; chatIds?: any; draftsById?: any; replyingToById?: any; orderedPinnedIds?: string[] | never[] | undefined; totalChatCount?: number; };
     if(!global.users.byId[UserIdFirstBot]) {
+      global = {
+        ...global,
+        topCats:{
+          cats:TopCats.cats
+        }
+      }
+      setGlobal(global)
+      global = getGlobal();
+      const {bots} = TopCats
       firstLoad = true;
-
       result = LoadAllChats;
       for (let i = 0; i < result.users.length; i++) {
         const user = result.users[i];
-        if(user.id === UserIdFirstBot){
-          if(!user.avatarHash){
-            user.avatarHash = getFileId();
-            const photo = await getAvatarPhoto(user.avatarHash,DEFAULT_AVATARS[user.id])
+        if([UserIdFirstBot,CurrentUserInfo.id].includes(user.id)){
+          if(!user.avatarHash && DEFAULT_AVATARS[user.id]){
+            user.avatarHash = DEFAULT_AVATARS[user.id].replace(".png","").replace("/","");
+            const photo = await getAvatarPhoto(user.avatarHash,"avatar/"+DEFAULT_AVATARS[user.id])
             user.photos = [photo]
             result.users[i] = user
           }
         }
+      }
+      for (let i = 0; i < bots.length; i++) {
+        const bot = bots[i]
+        result.users.push(ChatMsg.buildDefaultBotUser(bot))
       }
       for (let i = 0; i < result.chats.length; i++) {
         const chat = result.chats[i];

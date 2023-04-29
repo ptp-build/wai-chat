@@ -1,19 +1,16 @@
-import type { FC } from '../../../lib/teact/teact';
-import React, {
-  useState, useCallback, useEffect, memo,
-} from '../../../lib/teact/teact';
-import { getActions, withGlobal } from '../../../global';
+import type {FC} from '../../../lib/teact/teact';
+import React, {memo, useCallback, useEffect, useState,} from '../../../lib/teact/teact';
+import {getActions, withGlobal} from '../../../global';
 
-import { ChatCreationProgress } from '../../../types';
+import {ChatCreationProgress} from '../../../types';
 
-import { selectTabState } from '../../../global/selectors';
+import {selectTabState} from '../../../global/selectors';
 import useLang from '../../../hooks/useLang';
 import useHistoryBack from '../../../hooks/useHistoryBack';
 
 import InputText from '../../ui/InputText';
 import FloatingActionButton from '../../ui/FloatingActionButton';
 import Spinner from '../../ui/Spinner';
-import AvatarEditable from '../../ui/AvatarEditable';
 import Button from '../../ui/Button';
 import ListItem from '../../ui/ListItem';
 import PrivateChatInfo from '../../common/PrivateChatInfo';
@@ -107,12 +104,9 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
     }
     createChat({
       title,
-      promptInit:about
+      about
     });
-    setTimeout(() => {
-      onReset();
-    }, 500);
-  }, [title, createChannel, about, photo, memberIds, channelTitleEmptyError]);
+  }, [title,createChannel, about, photo, memberIds, channelTitleEmptyError]);
 
   useEffect(() => {
     if (creationProgress === ChatCreationProgress.Complete) {
@@ -152,16 +146,12 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
           label={"名称"}
           error={error === chatTitleEmptyError || error === channelTitleEmptyError ? error : undefined}
         />
-        {isChannel && (
-          <>
-            <TextArea
-              value={about}
-              onChange={handleDescriptionChange}
-              label={"初始化 prompt"}
-            />
-            <p className="note">{"每次请求都会带入该prompt"}</p>
-          </>
-        )}
+
+        <TextArea
+          value={about}
+          onChange={handleDescriptionChange}
+          label={"机器人描述(可选)"}
+        />
 
         {renderedError && (
           <p className="error">{renderedError}</p>

@@ -574,7 +574,7 @@ interface ApiKeyboardButtonSwitchBotInline {
   isSamePeer?: boolean;
 }
 
-interface ApiKeyboardButtonUserProfile {
+export interface ApiKeyboardButtonUserProfile {
   type: 'userProfile';
   text: string;
   userId: string;

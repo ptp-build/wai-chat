@@ -292,8 +292,9 @@ export async function requestUsage(apiKey:string) {
   const ONE_DAY = 2 * 24 * 60 * 60 * 1000;
   const now = new Date(Date.now() + ONE_DAY);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startDate = formatDate(startOfMonth);
+  const startDate = "2023-03-01";
   const endDate = formatDate(now);
+
   const res = await requestOpenaiClient(`usage?start_date=${startDate}&end_date=${endDate}`,{apiKey})
   return await res.json();
 }

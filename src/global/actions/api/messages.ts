@@ -5,7 +5,8 @@ import type {ActionReturnType, ApiDraft, GlobalState, TabArgs,} from '../../type
 import type {
   ApiAttachment,
   ApiBotInfo,
-  ApiChat, ApiFormattedText,
+  ApiChat,
+  ApiFormattedText,
   ApiMessage,
   ApiMessageEntity,
   ApiNewPoll,
@@ -35,7 +36,7 @@ import {
   addChatMessagesById,
   addChats,
   addUsers,
-  leaveChat,
+  deleteChat,
   removeRequestedMessageTranslation,
   replaceScheduledMessages,
   replaceTabThreadParam,
@@ -97,15 +98,14 @@ import {ensureProtocol} from '../../../util/ensureProtocol';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import Account from "../../../worker/share/Account";
-import {replaceSubstring} from "../../../worker/share/utils/utils";
+import {currentTs1000, replaceSubstring} from "../../../worker/share/utils/utils";
 import {blobToBuffer, fetchBlob} from "../../../util/files";
 import {popByteBuffer, toUint8Array, writeBytes, writeInt16} from "../../../lib/ptp/protobuf/BaseMsg";
 import {resizeImage} from "../../../util/imageResize";
-import {UserIdChatGpt, UserIdFirstBot} from "../../../worker/setting";
 import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
-import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
-import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -603,7 +603,6 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
   if (!chat) {
     return;
   }
-  if([UserIdFirstBot,UserIdChatGpt].includes(chatId)) return
   // await callApi('deleteHistory', { chat, shouldDeleteForAll });
 
   global = getGlobal();
@@ -613,19 +612,59 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
   }
 
   global = getGlobal();
-  const {chatIdsDeleted} = global;
-  if(!chatIdsDeleted.includes(chatId)){
-    chatIdsDeleted.push(chatId)
+  global = deleteChat(global, chatId);
+  const {chatFolders} = global
+  let {userStoreData} = global;
+
+  Object.values(chatFolders.byId).forEach(folder=>{
+    if(!folder.includedChatIds){
+      folder.includedChatIds = []
+    }
+    if(folder.includedChatIds.includes(chatId)){
+      folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+    }
+    if(userStoreData && userStoreData.chatIdsDeleted){
+      userStoreData.chatIdsDeleted.forEach(chatId=>{
+        if(folder.includedChatIds.includes(chatId)){
+          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+        }
+      })
+    }
+    const includedChatIds = []
+    folder.includedChatIds.forEach(chatId=>{
+      if(global.chats.listIds.active.includes(chatId)){
+        includedChatIds.push(chatId)
+      }
+    })
+    folder.includedChatIds = includedChatIds
+  })
+
+  if(!userStoreData){
+    userStoreData = {}
   }
+  if(!userStoreData.chatIdsDeleted){
+    userStoreData.chatIdsDeleted = []
+  }
+  userStoreData.chatIdsDeleted.push(chatId)
+  userStoreData.time = currentTs1000();
+  userStoreData.chatIds = global.chats.listIds.active;
+
   global = {
     ...global,
+    userStoreData,
+    chatFolders:{
+      ...global.chatFolders,
+      byId:chatFolders.byId
+    },
     messagesDeleted:{
       ...global.messagesDeleted,
       [chatId]:[]
     }
   }
-  global = leaveChat(global, chatId);
+  userStoreData.chatFolders = JSON.stringify(global.chatFolders)
   setGlobal(global);
+  callApiWithPdu(new SyncReq({userStoreData:global.userStoreData}).pack()).catch(console.error)
+
 });
 
 addActionHandler('reportMessages', async (global, actions, payload): Promise<void> => {

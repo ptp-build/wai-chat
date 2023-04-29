@@ -11,9 +11,10 @@ import { IS_IOS, IS_MAC_OS } from '../util/environment';
 
 export const INITIAL_GLOBAL_STATE: GlobalState = {
   messagesDeleted:{},
+  userStoreData:{},
+  topCats:{},
   aiReplyHistory:{},
   chatGptAskHistory:{},
-  chatIdsDeleted:[],
   showMnemonicModal:false,
   showPickBotModal:false,
   attachMenu: { bots: {} },

@@ -31,6 +31,13 @@ export function getUserFirstOrLastName(user?: ApiUser) {
   }
 }
 
+export function getUserDesc(user?: ApiUser) {
+  if (!user) {
+    return undefined;
+  }
+  return user.fullInfo?.bio
+}
+
 export function getUserFullName(user?: ApiUser) {
   if (!user) {
     return undefined;

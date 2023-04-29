@@ -66,17 +66,18 @@ export async function updateProfile({
   //   lastName: lastName || '',
   //   about: about || '',
   // }), true);
-
-  let pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new UpdateProfileReq({
-      firstName: firstName || '',
-      lastName: lastName || '',
-      about: about || '',
-  }).pack())
-  if(!pdu){
-    return false
-  }
-  const {err} = UpdateProfileRes.parseMsg(pdu)
-  return err === ERR.NO_ERROR
+  // //
+  // // let pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new UpdateProfileReq({
+  // //     firstName: firstName || '',
+  // //     lastName: lastName || '',
+  // //     about: about || '',
+  // // }).pack())
+  // // if(!pdu){
+  // //   return false
+  // // }
+  // const {err} = UpdateProfileRes.parseMsg(pdu)
+  // return err === ERR.NO_ERROR
+  return true;
 }
 
 export async function checkUsername(username: string) {

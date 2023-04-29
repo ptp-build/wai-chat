@@ -1,13 +1,11 @@
-import type { FC } from '../../../lib/teact/teact';
-import React, {
-  memo, useCallback, useState, useMemo, useRef,
-} from '../../../lib/teact/teact';
-import { getActions, withGlobal } from '../../../global';
+import type {FC} from '../../../lib/teact/teact';
+import React, {memo, useCallback, useMemo, useRef, useState,} from '../../../lib/teact/teact';
+import {getActions, withGlobal} from '../../../global';
 
-import { GlobalSearchContent } from '../../../types';
+import {GlobalSearchContent} from '../../../types';
 
-import { selectTabState } from '../../../global/selectors';
-import { parseDateString } from '../../../util/dateFormat';
+import {selectTabState} from '../../../global/selectors';
+import {parseDateString} from '../../../util/dateFormat';
 import useKeyboardListNavigation from '../../../hooks/useKeyboardListNavigation';
 import useLang from '../../../hooks/useLang';
 import useHistoryBack from '../../../hooks/useHistoryBack';
@@ -15,13 +13,9 @@ import useHistoryBack from '../../../hooks/useHistoryBack';
 import TabList from '../../ui/TabList';
 import Transition from '../../ui/Transition';
 import ChatResults from './ChatResults';
-import ChatMessageResults from './ChatMessageResults';
-import MediaResults from './MediaResults';
-import LinkResults from './LinkResults';
-import FileResults from './FileResults';
-import AudioResults from './AudioResults';
 
 import './LeftSearch.scss';
+import BotUser from "./BotUser";
 
 export type OwnProps = {
   searchQuery?: string;
@@ -31,6 +25,9 @@ export type OwnProps = {
 };
 
 type StateProps = {
+  tabs:{type:number,title:string}[],
+  cats:{title:string,botIds:string[]}[],
+  topSearchPlaceHolder?:string,
   currentContent?: GlobalSearchContent;
   chatId?: string;
 };
@@ -52,11 +49,11 @@ const CHAT_TABS = [
 const TRANSITION_RENDER_COUNT = Object.keys(GlobalSearchContent).length / 2;
 
 const LeftSearch: FC<OwnProps & StateProps> = ({
+  tabs,
   searchQuery,
   searchDate,
   isActive,
   currentContent = GlobalSearchContent.ChatList,
-  chatId,
   onReset,
 }) => {
   const {
@@ -65,13 +62,18 @@ const LeftSearch: FC<OwnProps & StateProps> = ({
   } = getActions();
 
   const lang = useLang();
-  const [activeTab, setActiveTab] = useState(currentContent);
+  const [activeTab, setActiveTab] = useState(0);
   const dateSearchQuery = useMemo(() => parseDateString(searchQuery), [searchQuery]);
 
   const handleSwitchTab = useCallback((index: number) => {
-    const tab = TABS[index];
-    setGlobalSearchContent({ content: tab.type });
-    setActiveTab(index);
+    if(tabs && tabs[index]){
+      const tab = tabs[index];
+      setGlobalSearchContent({ content: tab.type });
+      setActiveTab(index);
+    }else{
+      setGlobalSearchContent({ content: 0 });
+      setActiveTab(0);
+    }
   }, [setGlobalSearchContent]);
 
   const handleSearchDateSelect = useCallback((value: Date) => {
@@ -86,28 +88,21 @@ const LeftSearch: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const containerRef = useRef<HTMLDivElement>(null);
   const handleKeyDown = useKeyboardListNavigation(containerRef, isActive, undefined, '.ListItem-button', true);
-
+  const renderCount = tabs.length+1
   return (
     <div className="LeftSearch" ref={containerRef} onKeyDown={handleKeyDown}>
-      {/*<TabList activeTab={activeTab} tabs={chatId ? CHAT_TABS : TABS} onSwitchTab={handleSwitchTab} />*/}
+      {
+        tabs.length > 1 && <TabList activeTab={currentContent} tabs={tabs} onSwitchTab={handleSwitchTab} />
+      }
+
       <Transition
         name={lang.isRtl ? 'slide-optimized-rtl' : 'slide-optimized'}
-        renderCount={TRANSITION_RENDER_COUNT}
+        renderCount={renderCount}
         activeKey={currentContent}
       >
         {(() => {
           switch (currentContent) {
-            case GlobalSearchContent.ChatList:
-              if (chatId) {
-                return (
-                  <ChatMessageResults
-                    searchQuery={searchQuery}
-                    dateSearchQuery={dateSearchQuery}
-                    onReset={onReset}
-                    onSearchDateSelect={handleSearchDateSelect}
-                  />
-                );
-              }
+            case 0:
               return (
                 <ChatResults
                   searchQuery={searchQuery}
@@ -117,29 +112,8 @@ const LeftSearch: FC<OwnProps & StateProps> = ({
                   onSearchDateSelect={handleSearchDateSelect}
                 />
               );
-            case GlobalSearchContent.Media:
-              return <MediaResults searchQuery={searchQuery} />;
-            case GlobalSearchContent.Links:
-              return <LinkResults searchQuery={searchQuery} />;
-            case GlobalSearchContent.Files:
-              return <FileResults searchQuery={searchQuery} />;
-            case GlobalSearchContent.Music:
-              return (
-                <AudioResults
-                  key="audio"
-                  searchQuery={searchQuery}
-                />
-              );
-            case GlobalSearchContent.Voice:
-              return (
-                <AudioResults
-                  key="voice"
-                  isVoice
-                  searchQuery={searchQuery}
-                />
-              );
             default:
-              return undefined;
+              return <BotUser searchQuery={searchQuery} onReset={onReset} activeTab={currentContent}/>;
           }
         })()}
       </Transition>
@@ -150,7 +124,22 @@ const LeftSearch: FC<OwnProps & StateProps> = ({
 export default memo(withGlobal<OwnProps>(
   (global): StateProps => {
     const { currentContent, chatId } = selectTabState(global).globalSearch;
-
-    return { currentContent, chatId };
+    const {topCats} = global
+    const {cats} = topCats
+    const tabs = cats ? cats!.map((row,i)=>{
+      return {type:i,title:row.title}
+    }):[
+      {
+        type: 0,
+        title:"全部"
+      }
+    ]
+    tabs[0].title = "全部"
+    return {
+      cats:cats || [],
+      tabs,
+      currentContent,
+      chatId
+    };
   },
 )(LeftSearch));

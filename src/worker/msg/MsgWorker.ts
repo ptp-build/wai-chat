@@ -1,13 +1,4 @@
-import {
-  ApiAttachment,
-  ApiBotInfo,
-  ApiChat,
-  ApiChatFolder,
-  ApiMessage,
-  ApiUpdate,
-  ApiUser,
-  OnApiUpdate
-} from "../../api/types";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUser} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
@@ -37,6 +28,7 @@ import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
 import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
+import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
 
 let messageIds:number[] = [];
 
@@ -67,6 +59,28 @@ export default class MsgWorker {
     this.attachment = attachment;
     this.chatMsg = new ChatMsg(chat.id)
   }
+  static async handleTopCatsRes(pdu:Pdu){
+    const {payload} = TopCatsRes.parseMsg(pdu);
+    if(payload){
+      const topCats = JSON.parse(payload)
+      if(topCats){
+        await MsgWorker.handleTopCats(topCats)
+      }
+    }
+  }
+  static async handleSyncRes(pdu:Pdu){
+    // debugger
+    const {userStoreData} = SyncRes.parseMsg(pdu);
+    ChatMsg.apiUpdate({
+      "@type":"updateGlobalUpdate",
+      data:{
+        action:"updateUserStoreData",
+        payload:{
+          userStoreData
+        },
+      }
+    })
+  }
   static async handleSendBotMsgRes(pdu:Pdu){
     const {reply,msgId,message,chatId} = SendBotMsgRes.parseMsg(pdu)
     console.log("[SendBotMsgRes]",reply,message)
@@ -91,67 +105,114 @@ export default class MsgWorker {
       }
     }
   }
+  static async handleTopCats(topCats:any){
+    const {cats,time,bots,topSearchPlaceHolder} = topCats;
+    if (bots != null) {
+      for (let i = 0; i < bots?.length; i++) {
+        const bot = bots[i];
+        //@ts-ignore
+        const user: ApiUser = ChatMsg.buildDefaultBotUser({
+          ...bot
+        })
+        ChatMsg.apiUpdate({
+          "@type": "updateGlobalUpdate",
+          data: {
+            action: "updateBots",
+            payload: {user}
+          }
+        })
+
+      }
+    }
+    const topCats1:any = {}
+    if(topSearchPlaceHolder){
+      topCats1.topSearchPlaceHolder = topSearchPlaceHolder;
+    }
+    if(cats){
+      topCats1.cats = cats;
+    }
+
+    if(time){
+      topCats1.time = time;
+    }
+    ChatMsg.apiUpdate({
+      "@type":"updateGlobalUpdate",
+      data:{
+        action:"updateTopCats",
+        payload:{
+          topCats:topCats1
+        },
+      }
+    })
+  }
   static async handleInitAppRes(pdu:Pdu){
-    let {chats,users,messages,chatFolders} = InitAppRes.parseMsg(pdu)
-    if(chats){
-      chats = JSON.parse(chats)
-    }
-
-    if(users){
-      users = JSON.parse(users)
-    }
-
-    if(messages){
-      messages = JSON.parse(messages)
-    }
-
-    if(chatFolders){
-      chatFolders = JSON.parse(chatFolders)
-    }
-
-    for (let i = 0; i < users?.length; i++) {
-      if (users != null) {
-        const user = users[i] as ApiUser;
-        ChatMsg.apiUpdate({
-          "@type":"updateUser",
-          id:user.id,
-          user
-        })
-      }
-    }
-
-    for (let i = 0; i < chats?.length; i++) {
-      if (chats != null) {
-        const chat = chats[i] as ApiChat;
-        ChatMsg.apiUpdate({
-          "@type":"updateChat",
-          id:chat.id,
-          chat
-        })
-      }
-    }
-
-    for (let i = 0; i < chatFolders?.length; i++) {
-      if (chatFolders != null) {
-        const folder = chatFolders[i] as ApiChatFolder;
-        ChatMsg.apiUpdate({
-          "@type":"updateChatFolder",
-          id:folder.id,
-          folder
-        })
-      }
-    }
-
-    for (let i = 0; i < messages?.length; i++) {
-      if (messages != null) {
-        const message = messages[i] as ApiMessage;
-        await new ChatMsg(message.chatId).sendNewMessage(message)
-      }
-    }
-    console.log("handleInitAppRes",{chats,messages})
+    // let {chats,topCats,users,messages,chatFolders} = InitAppRes.parseMsg(pdu)
+    // let chatsList = []
+    // if(chats){
+    //   chatsList = JSON.parse(chats)
+    // }
+    // let usersList = []
+    // if(users){
+    //   usersList = JSON.parse(users)
+    // }
+    //
+    //
+    // if(messages){
+    //   messages = JSON.parse(messages)
+    // }
+    //
+    // if(chatFolders){
+    //   chatFolders = JSON.parse(chatFolders)
+    // }
+    //
+    // for (let i = 0; i < usersList?.length; i++) {
+    //   if (users != null) {
+    //     const user = usersList[i] as ApiUser;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateUser",
+    //       id:user.id,
+    //       user
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < chatsList?.length; i++) {
+    //   if (chats != null) {
+    //     const chat = chatsList[i] as ApiChat;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateChat",
+    //       id:chat.id,
+    //       chat
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < chatFolders?.length; i++) {
+    //   if (chatFolders != null) {
+    //     const folder = chatFolders[i] as ApiChatFolder;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateChatFolder",
+    //       id:folder.id,
+    //       folder
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < messages?.length; i++) {
+    //   if (messages != null) {
+    //     const message = messages[i] as ApiMessage;
+    //     await new ChatMsg(message.chatId).sendNewMessage(message)
+    //   }
+    // }
   }
   static async handleRecvMsg(pdu:Pdu){
     switch (pdu.getCommandId()) {
+      case ActionCommands.CID_SyncRes:
+        await MsgWorker.handleSyncRes(pdu);
+        break
+      case ActionCommands.CID_TopCatsRes:
+        await MsgWorker.handleTopCatsRes(pdu);
+        break
       case ActionCommands.CID_SendBotMsgRes:
         await MsgWorker.handleSendBotMsgRes(pdu);
         break
@@ -171,6 +232,14 @@ export default class MsgWorker {
             switch (action){
               case BotWebSocketNotifyAction.onConnectionStateChanged:
                 switch (payload.BotWebSocketState){
+                  case BotWebSocketState.logged:
+                    ChatMsg.apiUpdate({
+                      "@type":"updateGlobalUpdate",
+                      data:{
+                        action:"onLogged",
+                      }
+                    })
+                    break;
                   case BotWebSocketState.connected:
                     break;
                   case BotWebSocketState.closed:

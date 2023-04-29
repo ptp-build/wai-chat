@@ -29,7 +29,6 @@ export { default as PbText } from './PbText';
 export { default as PbThumbnail } from './PbThumbnail';
 export { default as PbUser } from './PbUser';
 export { default as PbUsernames } from './PbUsernames';
-export { default as PbUserSetting } from './PbUserSetting';
 export { default as PbVoice } from './PbVoice';
 export { default as UserMessageStoreData } from './UserMessageStoreData';
 export { default as UserStoreData } from './UserStoreData';

@@ -73,6 +73,8 @@ export default async function downloadMedia(
       }else {
         id = url.replace("profile","")
       }
+    }else if(url.indexOf("0101") === 0){
+      id = url.split("?")[1]
     }else if(url.indexOf("avatar") === 0){
       id = url.split("?")[1]
     }else if(url.indexOf("photo") === 0){
@@ -92,17 +94,18 @@ export default async function downloadMedia(
     flag = true;
   }
 
+  if(["0100","0101"].includes(id.substring(0,4))){
+    const res = await fetch(`avatar/${id.substring(0,4)}/${id.substring(4)}.png`)
+    if(res.ok){
+      const ab = await res.arrayBuffer();
+      mimeType = "image/png";
+      data = Buffer.from(ab)
+      fullSize = data.length
+      flag = true;
+    }
+  }
+
   if(!flag){
-    // const  res = await download(url, client, isConnected, onProgress, start, end, mediaFormat, isHtmlAllowed) || {};
-    // if(!res){
-    //   return undefined
-    // }
-    // data = res.data;
-    // mimeType = res.mimeType;
-    // fullSize = res.fullSize;
-    // if (!data) {
-    //   return undefined;
-    // }
     if(!CLOUD_MESSAGE_API){
       return undefined
     }
@@ -111,8 +114,8 @@ export default async function downloadMedia(
     })
     try {
       console.log("[DOWNLOAD media]",{url,id})
-      let blob = await cacheApi.fetch(MEDIA_CACHE_NAME_WAI, id, Type.Blob);
       let downloadRes;
+      let blob = await cacheApi.fetch(MEDIA_CACHE_NAME_WAI, id, Type.Blob);
       let arrayBuffer;
       if(!blob){
         let finalBuf = Buffer.alloc(0);

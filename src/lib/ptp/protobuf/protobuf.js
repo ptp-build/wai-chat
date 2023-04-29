@@ -633,7 +633,7 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 InitAppRes: {
-                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"4":["users","string",""],"100":["err","uint32",0]}
+                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"4":["users","string",""],"5":["topCats","string",""],"100":["err","uint32",0]}
                 },
                 UpdateProfileReq: {
                     '$': {"1":["firstName","string",""],"2":["lastName","string",""],"3":["about","string",""]}
@@ -700,7 +700,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["id","uint32",0],"2":["title","string",""],"3":["channels","bool",false],"4":["pinnedChatIds","<string",null],"5":["includedChatIds","<string",null],"6":["excludedChatIds","<string",null]}
                 },
                 PbChatGpBotConfig: {
-                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["modelConfig","default.PTP.Common.PbChatGptModelConfig",null]}
+                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["modelConfig","default.PTP.Common.PbChatGptModelConfig",null],"5":["welcome","string",""],"6":["template","string",""],"7":["outputText","string",""],"8":["templateSubmit","string",""]}
                 },
                 PbChatGptModelConfig: {
                     '$': {"1":["model","string",""],"2":["temperature","uint32",0],"3":["max_tokens","uint32",0],"4":["presence_penalty","uint32",0]}
@@ -765,9 +765,6 @@ var $conv_message = $createConverter([
                 PbUsernames: {
                     '$': {"1":["username","string",""],"2":["isActive","bool",false],"3":["isEditable","bool",false]}
                 },
-                PbUserSetting: {
-                    '$': {"1":["chatFolders","<default.PTP.Common.PbChatFolder",null],"2":["chatFolderOrderedIds","[uint32",null],"3":["myBotIds","<string",null],"4":["myGroups","<string",null]}
-                },
                 PbVoice: {
                     '$': {"1":["id","string",""],"2":["waveform","[uint32",null],"3":["duration","uint32",0]}
                 },
@@ -778,7 +775,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["messageIds","[uint64",null],"3":["messageIdsDeleted","[uint64",null],"4":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 UserStoreData: {
-                    '$': {"1":["chatIds","<string",null],"2":["chatIdsDeleted","<string",null],"3":["chatFolders","string",""],"7":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
+                    '$': {"1":["chatIds","<string",null],"2":["chatIdsDeleted","<string",null],"3":["chatFolders","string",""],"7":["time","uint64",{"low":0,"high":0,"unsigned":true}],"8":["myBots","<string",null],"9":["myGroups","<string",null]}
                 },
                 UserStoreRow: {
                     '$': {"1":["buf","bytes",[]],"2":["userId","string",""],"3":["time","uint32",0],"4":["user","default.PTP.Common.PbUser",null]}
@@ -876,10 +873,16 @@ var $conv_message = $createConverter([
             },
             Sync: {
                 SyncReq: {
-                    '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null]}
+                    '$': {"2":["userStoreData","default.PTP.Common.UserStoreData",null]}
                 },
                 SyncRes: {
                     '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null],"100":["err","uint32",0]}
+                },
+                TopCatsReq: {
+                    '$': {"1":["time","uint32",0]}
+                },
+                TopCatsRes: {
+                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
                 }
             },
             User: {

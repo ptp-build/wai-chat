@@ -26,6 +26,7 @@ import {
 } from '../../../worker/msg/client';
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
+import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
 
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
@@ -409,6 +410,10 @@ export async function sendWithCallback(buff:Uint8Array){
     case ActionCommands.CID_UploadUserReq:
       pdu = await MsgWorker.beforeUploadUserReq(pdu);
       break
+    case ActionCommands.CID_SyncReq:
+    case ActionCommands.CID_TopCatsReq:
+      BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
+      return
   }
   if(!account.getSession()){
     return

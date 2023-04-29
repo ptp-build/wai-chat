@@ -54,7 +54,11 @@ enum ContentType {
 
 const RENDER_COUNT = Object.keys(ContentType).length / 2;
 const RESET_TRANSITION_DELAY_MS = 250;
-const leftColumnContent = window.sessionStorage.getItem("LeftColumnContent") || LeftColumnContent.ChatList;
+const LeftColumnContentStr = window.sessionStorage.getItem("LeftColumnContent");
+let leftColumnContent = LeftColumnContent.ChatList;
+if(LeftColumnContentStr && LeftColumnContentStr !== '2'){
+  leftColumnContent = parseInt(LeftColumnContentStr)
+}
 const LeftColumn: FC<StateProps> = ({
   chatCreationProgress,
   searchQuery,
@@ -161,6 +165,8 @@ const LeftColumn: FC<StateProps> = ({
           setContent_(LeftColumnContent.ChatList);
           return;
         case SettingsScreens.EditProfile:
+          setContent_(LeftColumnContent.ChatList);
+          return;
         case SettingsScreens.General:
         case SettingsScreens.Notifications:
         case SettingsScreens.DataStorage:
