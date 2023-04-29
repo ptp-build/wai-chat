@@ -19,15 +19,15 @@ import type {
   ApiVideo,
   OnApiUpdate,
 } from '../../types';
-import {ApiKeyboardButtons, MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
+import {MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
 
 import {
-  ALL_FOLDER_ID, CHATGPT_PROXY_API,
+  ALL_FOLDER_ID,
+  CHATGPT_PROXY_API,
   DEBUG,
   GIF_MIME_TYPE,
   MAX_INT_32,
   MENTION_UNREAD_SLICE,
-  MESSAGE_LIST_SLICE,
   PINNED_MESSAGES_LIMIT,
   REACTION_UNREAD_SLICE,
   SUPPORTED_IMAGE_CONTENT_TYPES,
@@ -73,12 +73,8 @@ import {requestChatUpdate} from './chats';
 import {getEmojiOnlyCountForMessage} from '../../../global/helpers/getEmojiOnlyCountForMessage';
 import {getServerTimeOffset} from '../../../util/serverTime';
 import {uploadFileV1} from "../../../lib/gramjs/client/uploadFile";
-import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
-import Account from '../../../worker/share/Account';
-import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {ControllerPool, requestChatStream} from "../../../lib/ptp/functions/requests";
-import ChatMsg from "../../../worker/msg/ChatMsg";
+import {requestChatStream} from "../../../lib/ptp/functions/requests";
 import {ChatModelConfig} from "../../../worker/setting";
 
 const FAST_SEND_TIMEOUT = 1000;

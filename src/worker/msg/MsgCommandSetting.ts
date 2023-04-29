@@ -27,8 +27,9 @@ import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
 import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdFirstBot} from "../setting";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
 import ChatMsg from "./ChatMsg";
+import {showModalFromEvent} from "../share/utils/modal";
 
 let currentSyncBotContext:string|undefined;
 
@@ -57,9 +58,22 @@ export default class MsgCommandSetting{
     const {chatId} = this;
     //@ts-ignore
     await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
-    return  this.chatMsg.setText("设置面板")
-      .setInlineButtons(this.getInlineButtons(outGoingMsgId))
-      .reply()
+    // return  this.chatMsg.setText("设置面板")
+    //   .setInlineButtons(this.getInlineButtons(outGoingMsgId))
+    //   .reply()
+
+    const address = Account.getCurrentAccount()?.getSessionAddress()
+    await this.chatMsg.setText("当前账户:\n```\n"+address+"```").setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
+      MsgCommand.buildInlineButton(chatId,"",'unsupported'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
+      MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/clearHistory","清除历史记录",'callback'),
+      MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + "/setting/cancel","取消",'callback'),
+      // MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
+    ]).reply()
+    return STOP_HANDLE_MESSAGE
   }
 
   getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
@@ -98,7 +112,6 @@ export default class MsgCommandSetting{
   }
 
   async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){
-    const {chatId} = this
     if(files && files.length > 0){
       const file = files[0]
       const qrcode = new Decoder();
@@ -107,26 +120,28 @@ export default class MsgCommandSetting{
       try {
         const result = await qrcode.scan(blobUrl)
         if(result && result.data.startsWith('wai://')){
-          const mnemonic =  result.data
-          const qrcodeData = mnemonic.replace('wai://','')
-          const qrcodeDataBuf = Buffer.from(qrcodeData,'hex')
-          const decodeRes = PbQrCode.parseMsg(new Pdu(qrcodeDataBuf))
-          if(decodeRes){
-            const {type,data} = decodeRes;
-            if(type !== QrCodeType.QrCodeType_MNEMONIC){
-              throw new Error("解析二维码失败")
-            }
-            const {password} = await getPasswordFromEvent(undefined,true);
-            const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
-            if(res){
-              await this.setMnemonic(res,password);
-              return;
-            }
-          }
+          await this.handleMnemonic(result.data)
         }
       }catch (e){
       }finally {
         getActions().showNotification({message:"解析二维码失败"})
+      }
+    }
+  }
+  async handleMnemonic(mnemonic:string){
+    const qrcodeData = mnemonic.replace('wai://','')
+    const qrcodeDataBuf = Buffer.from(qrcodeData,'hex')
+    const decodeRes = PbQrCode.parseMsg(new Pdu(qrcodeDataBuf))
+    if(decodeRes){
+      const {type,data} = decodeRes;
+      if(type !== QrCodeType.QrCodeType_MNEMONIC){
+        throw new Error("解析二维码失败")
+      }
+      const {password} = await getPasswordFromEvent(undefined,true);
+      const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
+      if(res){
+        await this.setMnemonic(res,password);
+        return;
       }
     }
   }
@@ -247,24 +262,16 @@ export default class MsgCommandSetting{
     }
 
     switch (data){
-      case `${chatId}/setting/cloud`:
-        await this.chatMsg.update(messageId,{
-          inlineButtons:[
-            [
-              {
-                data:`${chatId}/setting/uploadFolder`,
-                text:"上传所有机器人",
-                type:"callback"
-              },
-              {
-                data:`${chatId}/setting/downloadFolder`,
-                text:"下载所有机器人",
-                type:"callback"
-              },
-            ],
-            MsgCommand.buildInlineBackButton(chatId,messageId,'setting/back',"< 返回")
-          ],
+      case `${chatId}/setting/importMnemonic`:
+        const {value} = await showModalFromEvent({
+          initVal:"",
+          title:"助记词加密代码",
+          type:"multipleInput",
+          placeholder:"请输入以 wai:// 开头的助记词加密代码"
         })
+        if(value && value.startsWith("wai://")){
+          await this.handleMnemonic(value)
+        }
         break
       case `${chatId}/setting/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
@@ -302,6 +309,7 @@ export default class MsgCommandSetting{
           MsgCommand.buildInlineButton(chatId,"",'unsupported'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
           MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
         ]).reply()
         break

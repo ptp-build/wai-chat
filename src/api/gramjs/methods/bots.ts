@@ -1,25 +1,22 @@
 import BigInt from 'big-integer';
-import { Api as GramJs } from '../../../lib/gramjs';
+import {Api as GramJs} from '../../../lib/gramjs';
 
-import type {
-  ApiChat, ApiThemeParameters, ApiUser, OnApiUpdate,
-} from '../../types';
+import type {ApiChat, ApiThemeParameters, ApiUser, OnApiUpdate,} from '../../types';
 
 import localDb from '../localDb';
-import { invokeRequest } from './client';
-import { buildInputPeer, buildInputThemeParams, generateRandomBigInt } from '../gramjsBuilders';
-import { buildApiUser } from '../apiBuilders/users';
+import {invokeRequest} from './client';
+import {buildInputPeer, buildInputThemeParams, generateRandomBigInt} from '../gramjsBuilders';
+import {buildApiUser} from '../apiBuilders/users';
 import {
-  buildApiAttachBot, buildApiBotInlineMediaResult, buildApiBotInlineResult, buildBotSwitchPm,
+  buildApiAttachBot,
+  buildApiBotInlineMediaResult,
+  buildApiBotInlineResult,
+  buildBotSwitchPm,
 } from '../apiBuilders/bots';
-import { buildApiChatFromPreview } from '../apiBuilders/chats';
-import { addEntitiesWithPhotosToLocalDb, addUserToLocalDb, deserializeBytes } from '../helpers';
-import { omitVirtualClassFields } from '../apiBuilders/helpers';
-import { buildCollectionByKey } from '../../../util/iteratees';
-import { buildApiUrlAuthResult } from '../apiBuilders/misc';
-import Account from "../../../worker/share/Account";
-import AnswerCallbackButtonRes from '../../../lib/ptp/protobuf/PTPMsg/AnswerCallbackButtonRes';
-import {AnswerCallbackButtonReq} from "../../../lib/ptp/protobuf/PTPMsg";
+import {buildApiChatFromPreview} from '../apiBuilders/chats';
+import {addEntitiesWithPhotosToLocalDb, addUserToLocalDb} from '../helpers';
+import {buildCollectionByKey} from '../../../util/iteratees';
+import {buildApiUrlAuthResult} from '../apiBuilders/misc';
 
 let onUpdate: OnApiUpdate;
 
@@ -32,14 +29,14 @@ export async function answerCallbackButton({
 }: {
   chatId: string; accessHash?: string; messageId: number; data?: string; isGame?: boolean;
 }) {
-  const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new AnswerCallbackButtonReq({
-    chatId,accessHash,messageId,data,isGame
-  }).pack())
-  if(!pdu){
-    return undefined
-  }
-  const result = AnswerCallbackButtonRes.parseMsg(pdu)
-  return result
+  // const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new AnswerCallbackButtonReq({
+  //   chatId,accessHash,messageId,data,isGame
+  // }).pack())
+  // if(!pdu){
+  //   return undefined
+  // }
+  // const result = AnswerCallbackButtonRes.parseMsg(pdu)
+  return undefined
 }
 
 export async function fetchTopInlineBots() {

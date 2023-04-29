@@ -64,6 +64,8 @@ import { updateTabState } from '../../reducers/tabs';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import parseMessageInput from "../../../util/parseMessageInput";
 import { handleBotCmdText, handleMessageTextCode } from '../../../worker/msg/msgHelper';
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {RemoveMessagesReq} from "../../../lib/ptp/protobuf/PTPMsg";
 
 const ANIMATION_DELAY = 350;
 
@@ -915,6 +917,8 @@ function deleteMessages<T extends GlobalState>(
   if (chatId) {
     const chat = selectChat(global, chatId);
     if (!chat) return;
+
+    callApiWithPdu(new RemoveMessagesReq({chatId,messageIds:ids}).pack()).catch(console.error)
 
     ids.forEach((id) => {
 

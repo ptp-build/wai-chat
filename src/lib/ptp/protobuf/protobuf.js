@@ -796,12 +796,6 @@ var $conv_message = $createConverter([
                 }
             },
             Msg: {
-                AnswerCallbackButtonReq: {
-                    '$': {"1":["chatId","string",""],"2":["messageId","uint32",0],"3":["data","string",""],"4":["accessHash","string",""],"5":["isGame","bool",false]}
-                },
-                AnswerCallbackButtonRes: {
-                    '$': {"1":["message","string",""],"2":["url","string",""],"3":["alert","string",""],"100":["err","uint32",0]}
-                },
                 DownloadMsgReq: {
                     '$': {"1":["chatId","string",""]}
                 },
@@ -814,26 +808,8 @@ var $conv_message = $createConverter([
                 GenMsgIdRes: {
                     '$': {"1":["messageId","uint64",{"low":0,"high":0,"unsigned":true}],"100":["err","uint32",0]}
                 },
-                MsgDeleteReq: {
-                    '$': {"1":["user_id","string",""],"2":["chat_id","string",""],"3":["msg_ids","[uint32",null],"4":["revoke","bool",false]}
-                },
-                MsgDeleteRes: {
-                    '$': {"100":["err","uint32",0]}
-                },
-                MsgListReq: {
-                    '$': {"1":["chatId","string",""],"2":["lastMessageId","uint32",0],"3":["limit","uint32",0],"4":["isUp","bool",false]}
-                },
-                MsgListRes: {
-                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
-                },
-                MsgUpdateReq: {
-                    '$': {"1":["user_id","string",""],"2":["chat_id","string",""],"3":["msg_id","uint32",0],"4":["text","string",""]}
-                },
-                MsgUpdateRes: {
-                    '$': {"100":["err","uint32",0]}
-                },
                 RemoveMessagesReq: {
-                    '$': {"1":["messageIds","[uint32",null]}
+                    '$': {"1":["messageIds","[uint32",null],"2":["chatId","string",""]}
                 },
                 RemoveMessagesRes: {
                     '$': {"100":["err","uint32",0]}
@@ -843,12 +819,6 @@ var $conv_message = $createConverter([
                 },
                 SendBotMsgRes: {
                     '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false],"5":["message","default.PTP.Common.PbMsg",null]}
-                },
-                SendReq: {
-                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}
-                },
-                SendRes: {
-                    '$': {"1":["chatId","string",""],"2":["action","string",""],"3":["msg","default.PTP.Common.PbMsg",null],"4":["text","string",""],"5":["localId","uint32",0],"100":["err","uint32",0]}
                 },
                 UpdateCmdReq: {
                     '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
