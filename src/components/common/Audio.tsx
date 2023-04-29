@@ -194,7 +194,7 @@ const Audio: FC<OwnProps> = ({
     if (!isPlaying) {
       onPlay(message.id, message.chatId);
     }
-
+    console.log("[media]\n",JSON.stringify(message.content))
     getActions().setAudioPlayerOrigin({ origin });
     setIsActivated(!isActivated);
     playPause();

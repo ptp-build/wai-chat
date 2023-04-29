@@ -2,14 +2,11 @@
 import type * as PTPCommon from '../PTPCommon/types';
 
 export interface AuthLoginReq_Type {
-  sign: Buffer;
-  ts: number;
-  uid: string;
-  address: string;
+  sign: string;
+  clientInfo?: PTPCommon.ClientInfo_Type;
 }
 export interface AuthLoginRes_Type {
-  payload?: string;
-  err: PTPCommon.ERR;
+  err?: PTPCommon.ERR;
 }
 export interface AuthNativeReq_Type {
   accountId: number;
@@ -46,6 +43,14 @@ export interface AuthStep2Req_Type {
 }
 export interface AuthStep2Res_Type {
   err: PTPCommon.ERR;
+}
+export interface InitAppRes_Type {
+  chats?: string;
+  messages?: string;
+  chatFolders?: string;
+  users?: string;
+  topCats?: string;
+  err?: PTPCommon.ERR;
 }
 export interface UpdateProfileReq_Type {
   firstName?: string;

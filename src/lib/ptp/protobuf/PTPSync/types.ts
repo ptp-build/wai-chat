@@ -8,3 +8,10 @@ export interface SyncRes_Type {
   userStoreData?: PTPCommon.UserStoreData_Type;
   err?: PTPCommon.ERR;
 }
+export interface TopCatsReq_Type {
+  time: number;
+}
+export interface TopCatsRes_Type {
+  payload?: string;
+  err?: PTPCommon.ERR;
+}

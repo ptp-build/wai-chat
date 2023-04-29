@@ -12,7 +12,7 @@ import type { AnimationLevel } from '../../types';
 import { MediaViewerOrigin } from '../../types';
 
 import { selectChatMessages, selectUser, selectUserStatus } from '../../global/selectors';
-import { getMainUsername, getUserStatus, isUserOnline } from '../../global/helpers';
+import {getMainUsername, getUserDesc, getUserStatus, isUserOnline} from '../../global/helpers';
 import buildClassName from '../../util/buildClassName';
 import renderText from './helpers/renderText';
 
@@ -36,6 +36,7 @@ type OwnProps = {
   withFullInfo?: boolean;
   withUpdatingStatus?: boolean;
   withVideoAvatar?: boolean;
+  withDesc?: boolean;
   emojiStatusSize?: number;
   noStatusOrTyping?: boolean;
   noRtl?: boolean;
@@ -63,6 +64,7 @@ const PrivateChatInfo: FC<OwnProps & StateProps> = ({
   withFullInfo,
   withUpdatingStatus,
   withVideoAvatar,
+  withDesc,
   emojiStatusSize,
   noStatusOrTyping,
   noRtl,
@@ -133,7 +135,11 @@ const PrivateChatInfo: FC<OwnProps & StateProps> = ({
     return (
       <span className={buildClassName('status', isUserOnline(user, userStatus) && 'online')}>
         {mainUsername && <span className="handle">{mainUsername}</span>}
-        <span className="user-status" dir="auto">{getUserStatus(lang, user, userStatus)}</span>
+        {
+          withDesc ?
+            <span className="user-status" dir="auto">{getUserDesc(user)}</span>:
+            <span className="user-status" dir="auto">{getUserStatus(lang, user, userStatus)}</span>
+        }
       </span>
     );
   }

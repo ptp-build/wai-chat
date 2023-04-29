@@ -165,7 +165,7 @@ addActionHandler('loadCommonChats', async (global, actions, payload): Promise<vo
 
 addActionHandler('updateContact', async (global, actions, payload): Promise<void> => {
   const {
-    userId, isMuted = false, firstName, lastName, shouldSharePhoneNumber,
+    userId, isMuted = false, firstName, lastName, shouldSharePhoneNumber,bio,
     tabId = getCurrentTabId(),
   } = payload;
 
@@ -198,12 +198,24 @@ addActionHandler('updateContact', async (global, actions, payload): Promise<void
   global = getGlobal();
   if (result) {
     // actions.loadChatSettings({ chatId: userId });
+    let botInfo = user.fullInfo?.botInfo
+    if(botInfo){
+      botInfo = {
+        ...botInfo,
+        description:bio
+      }
+    }
     global = updateUser(
       global,
       user.id,
       {
         firstName,
         lastName,
+        fullInfo:{
+          ...user.fullInfo,
+          bio,
+          botInfo,
+        }
       },
     );
   }

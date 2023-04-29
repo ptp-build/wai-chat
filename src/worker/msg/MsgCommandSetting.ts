@@ -2,7 +2,7 @@ import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectChatMessages, selectUser} from "../../global/selectors";
 import {addChats, addUsers, updateChatListIds, updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiKeyboardButtons, ApiUser} from "../../api/types";
+import {ApiKeyboardButtons} from "../../api/types";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
 import {
@@ -26,128 +26,79 @@ import {Decoder} from "@nuintun/qrcode";
 import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdCnPrompt, UserIdEnPrompt} from "../setting";
-import MsgCommandChatLab from "./MsgCommandChatLab";
+import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdFirstBot} from "../setting";
+import ChatMsg from "./ChatMsg";
 
 let currentSyncBotContext:string|undefined;
 
 export default class MsgCommandSetting{
-  static async start(chatId:string){
-    await MsgCommand.reloadCommands(chatId,DEFAULT_BOT_COMMANDS)
-    const messageId = await MsgDispatcher.genMsgId();
-    const text = DEFAULT_START_TIPS
-    return MsgDispatcher.newMessage(chatId,messageId,{
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text
-        }
-      },
-    })
+  private chatId: string;
+  private chatMsg:ChatMsg
+  constructor(chatId:string) {
+    this.chatId = chatId;
+    this.chatMsg = new ChatMsg(chatId)
   }
-  static async setting(chatId:string){
-    const account = Account.getCurrentAccount();
-    const isEnableSync = account?.getSession();
-    const messageId = await MsgDispatcher.genMsgId();
-    await MsgCommand.reloadCommands(chatId,DEFAULT_BOT_COMMANDS)
-    return MsgDispatcher.newMessage(chatId,messageId,{
-      chatId,
-      id:messageId,
-      senderId:chatId,
-      isOutgoing:false,
-      date:currentTs(),
-      content:{
-        text:{
-          text:"设置面板"
-        }
-      },
-      inlineButtons:MsgCommandSetting.getInlineButtons(chatId,!!isEnableSync),
-    })
-  }
-  static getInlineButtons(chatId:string,isEnableSync:boolean):ApiKeyboardButtons{
-    const res:ApiKeyboardButtons = isEnableSync ? [
-      [
-        {
-          text:"云同步",
-          data:`${chatId}/setting/cloud`,
-          type:"callback"
-        },
-        {
-          text:"切换账户",
-          data:`${chatId}/setting/switchAccount`,
-          type:"callback"
-        },
-        {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
-          type:"callback"
-        },
-      ],
-      [
-        {
-          data:`${chatId}/setting/createCnPrompts`,
-          text:"创建中文Prompts大全",
-          type:"callback"
-        },
-        {
-          data:`${chatId}/setting/createEnPrompts`,
-          text:"创建英文Prompts大全",
-          type:"callback"
-        },
-      ],
-
-      [
-        {
-          data:`${chatId}/setting/cancel`,
-          text:"取消",
-          type:"callback"
-        },
-      ],
-    ]:[
-      [
-        {
-          text:"切换账户",
-          data:`${chatId}/setting/switchAccount`,
-          type:"callback"
-        },
-        {
-          text:"清除历史记录",
-          data:`${chatId}/setting/clearHistory`,
-          type:"callback"
-        },
-      ],
-
-      [
-        {
-          data:`${chatId}/setting/createCnPrompts`,
-          text:"创建中文Prompts大全",
-          type:"callback"
-        },
-        {
-          data:`${chatId}/setting/createEnPrompts`,
-          text:"创建英文Prompts大全",
-          type:"callback"
-        },
-      ],
-      [
-        {
-          data:`${chatId}/setting/cancel`,
-          text:"取消",
-          type:"callback"
-        },
-      ],
-    ]
+  async start(){
+    const {chatId} = this;
     if(DEBUG){
-      res.push(MsgCommand.buildInlineCallbackButton(chatId,"setting/debug","Debug",'callback'))
+      console.log("> chatFolders",JSON.stringify(getGlobal().chatFolders,null,2))
+      console.log("> users",getGlobal().users)
+      console.log("> chats",getGlobal().chats)
+      console.log("> userStoreData",getGlobal().userStoreData)
+      console.log("> topCats",getGlobal().topCats)
     }
+    //@ts-ignore
+    await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    return this.chatMsg.setText(DEFAULT_START_TIPS).reply()
+  }
+
+  async setting(outGoingMsgId:number) {
+    const {chatId} = this;
+    //@ts-ignore
+    await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    return  this.chatMsg.setText("设置面板")
+      .setInlineButtons(this.getInlineButtons(outGoingMsgId))
+      .reply()
+  }
+
+  getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
+    const {chatId} = this;
+    const res:ApiKeyboardButtons = []
+    res.push([
+      {
+        text:"切换账户",
+        data:`${chatId}/setting/switchAccount`,
+        type:"callback"
+      },
+    ])
+
+    res.push([
+      {
+        text:"清除历史记录",
+        data:`${chatId}/setting/clearHistory`,
+        type:"callback"
+      },
+    ])
+    // res.push([
+    //   {
+    //     text:"生成签名",
+    //     data:`${chatId}/setting/signGen`,
+    //     type:"callback"
+    //   },
+    // ])
+    res.push([
+      {
+        data:`${chatId}/${outGoingMsgId}/setting/cancel`,
+        text:"取消",
+        type:"callback"
+      },
+    ])
     return res;
   }
-  static async requestUploadImage(global:GlobalState,chatId:string,messageId:number,files:FileList | null){
+
+  async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){
+    const {chatId} = this
     if(files && files.length > 0){
       const file = files[0]
       const qrcode = new Decoder();
@@ -168,7 +119,7 @@ export default class MsgCommandSetting{
             const {password} = await getPasswordFromEvent(undefined,true);
             const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
             if(res){
-              await MsgCommandSetting.setMnemonic(chatId,res,password);
+              await this.setMnemonic(res,password);
               return;
             }
           }
@@ -180,10 +131,9 @@ export default class MsgCommandSetting{
     }
   }
 
-  static async setMnemonic(chatId:string,data:string,password?:string){
+  async setMnemonic(data:string,password?:string){
     const mnemonic = new Mnemonic(data)
     if(mnemonic.checkMnemonic()){
-      await MsgCommand.sendText(chatId,mnemonic.toEntropy())
       if(!password){
         const res = await getPasswordFromEvent(undefined,true)
         if(res.password){
@@ -206,56 +156,87 @@ export default class MsgCommandSetting{
         const {address, sign} = await account!.signMessage(ts.toString(), pwd);
         const session = Account.formatSession({address,sign,ts,accountId});
         account!.saveSession(session)
-        await callApiWithPdu(new AuthNativeReq({
-          accountId,entropy:mnemonic.toEntropy(),session
-        }).pack())
+        // await callApiWithPdu(new AuthNativeReq({
+        //   accountId,entropy:mnemonic.toEntropy(),session
+        // }).pack())
         window.location.reload()
       }
     }else{
-      await MsgCommand.sendText(chatId,"mnemonic 不合法")
+      await this.chatMsg.setText("mnemonic 不合法").reply()
     }
   }
-  static async switchAccount(chatId:string,messageId:number,data:string){
+
+  async switchAccount(messageId:number,data:string){
+    const {chatId} = this;
     const accountAddress = data.replace(`${chatId}/setting/switchAccount/account/`,'')
     const keys = Account.getKeys();
     const sessions = Account.getSessions();
     const global = getGlobal();
-    for (let i = 0; i < Object.keys(sessions).length; i++) {
-      const session = sessions[Object.keys(sessions)[i]]
-      const res = Account.parseSession(session)
-      if(res?.address === accountAddress){
-        const accountId = res.accountId;
-        const account = Account.getInstance(accountId);
-        if(keys[accountId]){
-          const entropy = keys[accountId]
-          account?.setEntropy(entropy,true)
-          const {password} = await getPasswordFromEvent(undefined,true)
-          if(password){
-            const resVerify = await account?.verifySession(session,password);
-            if(resVerify){
-              Account.setCurrentAccountId(accountId)
-              return await MsgCommandSetting.enableSync(global,chatId,messageId,password)
-            }else{
-              return MsgDispatcher.showNotification("密码不正确!")
+    if(sessions && Object.keys(sessions).length > 0){
+      for (let i = 0; i < Object.keys(sessions).length; i++) {
+        const session = sessions[Object.keys(sessions)[i]]
+        const res = Account.parseSession(session)
+        if(res?.address === accountAddress){
+          const accountId = res.accountId;
+          const account = Account.getInstance(accountId);
+          if(keys[accountId]){
+            const entropy = keys[accountId]
+            account?.setEntropy(entropy,true)
+            const {password} = await getPasswordFromEvent(undefined,true)
+            if(password){
+              const resVerify = await account?.verifySession(session,password);
+              if(resVerify){
+                Account.setCurrentAccountId(accountId)
+                return await this.enableSync(global,password,messageId)
+              }else{
+                return MsgDispatcher.showNotification("密码不正确!")
+              }
             }
+            break
           }
-          break
         }
+      }
+    }else{
+      const {password} = await getPasswordFromEvent(undefined,true)
+      if(password){
+        return await this.enableSync(global,password,messageId)
       }
     }
   }
-  static async answerCallbackButton(global:GlobalState,chatId:string,messageId:number,data:string){
+
+  async enableSync(global:GlobalState,password:string,messageId?:number){
+    const {chatId} = this;
+    const account = Account.getCurrentAccount();
+    const pwd = hashSha256(password)
+    const ts = +(new Date());
+    const {address, sign} = await account!.signMessage(ts.toString(), pwd);
+    const session = Account.formatSession({address,sign,ts,accountId:account?.getAccountId()!});
+    account!.saveSession(session)
+    const entropy = await account!.getEntropy()
+    const accountId = account!.getAccountId();
+    if(chatId){
+      await this.chatMsg.update(messageId!,{
+        inlineButtons:[]
+      })
+    }
+    // await callApiWithPdu(new AuthNativeReq({
+    //   accountId,entropy,session
+    // }).pack())
+    setTimeout(()=>window.location.reload(),200)
+  }
+
+  async answerCallbackButton(global:GlobalState,messageId:number,data:string){
+    const {chatId} = this;
     if(data.startsWith(`${chatId}/setting/switchAccount/account/`)){
-      return await MsgCommandSetting.switchAccount(chatId,messageId,data)
+      return await this.switchAccount(messageId,data)
     }
     if(data.startsWith(`${chatId}/setting/back`)){
-      MsgCommand.back(global,chatId,messageId,data,"setting/back")
+      new MsgCommand(chatId).back(global,messageId,data,"setting/back")
       return
     }
     if(data.startsWith(`${chatId}/setting/switchAccount/back/`)){
       const inlineButtons = JSON.parse(data.replace(`${chatId}/setting/switchAccount/back/`,""))
-      return MsgDispatcher.updateMessage(chatId,messageId,{
-        ...selectChatMessage(global,chatId,messageId),
+      return this.chatMsg.update(messageId,{
         content:{
           text:{
             text:"设置面板"
@@ -266,24 +247,18 @@ export default class MsgCommandSetting{
     }
 
     switch (data){
-      case `${chatId}/setting/createCnPrompts`:
-        await MsgCommandChatLab.createPromptChat(chatId,UserIdCnPrompt);
-        break
-      case `${chatId}/setting/createEnPrompts`:
-        await MsgCommandChatLab.createPromptChat(chatId,UserIdEnPrompt);
-        break
       case `${chatId}/setting/cloud`:
-        await MsgDispatcher.updateMessage(chatId,messageId,{
+        await this.chatMsg.update(messageId,{
           inlineButtons:[
             [
               {
                 data:`${chatId}/setting/uploadFolder`,
-                text:"上传对话",
+                text:"上传所有机器人",
                 type:"callback"
               },
               {
                 data:`${chatId}/setting/downloadFolder`,
-                text:"下载对话",
+                text:"下载所有机器人",
                 type:"callback"
               },
             ],
@@ -292,55 +267,21 @@ export default class MsgCommandSetting{
         })
         break
       case `${chatId}/setting/clearHistory`:
-        await MsgCommand.clearHistory(chatId)
+        await new MsgCommand(chatId).clearHistory()
         break
       case `${chatId}/setting/reloadCommand`:
-        await MsgCommand.reloadCommands(chatId,DEFAULT_BOT_COMMANDS)
-        break
-      case `${chatId}/setting/debug`:
-        if(DEBUG){
-          console.log("=========>>>【start】",{
-            users:global.users,
-            chats:global.chats,
-            chatIdsDeleted:global.chatIdsDeleted,
-            messages:global.messages,
-            chatFolders:global.chatFolders,
-          })
-        }
-        // await MsgDispatcher.newJsonMessage(chatId,undefined,{chatFolders:global.chatFolders})
-        // await MsgDispatcher.newJsonMessage(chatId,undefined,{chatIdsDeleted:global.chatIdsDeleted})
-        await MsgCommand.createWsBot(chatId)
-        break
-      case `${chatId}/setting/getSession`:
-        const account = Account.getCurrentAccount();
-        const entropy = await account?.getEntropy();
-        const session = account?.getSession()
-        if(session){
-          const {address} = Account.parseSession(session)!
-          await MsgCommand.sendText(chatId,address)
-        }
+        //@ts-ignore
+        await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
         break
       case `${chatId}/setting/uploadFolder`:
-        const message1 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在上传...")
+        const message1 = await this.chatMsg.setText("正在上传...").reply()
         await MsgCommandSetting.syncFolders(true)
-        await MsgDispatcher.updateMessage(chatId,message1.id,{
-          content:{
-            text:{
-              text:"上传成功"
-            }
-          }
-        })
+        await this.chatMsg.updateText(message1.id,"上传成功")
         break
       case `${chatId}/setting/downloadFolder`:
-        const message2 = await MsgDispatcher.newTextMessage(chatId,undefined,"正在下载...")
+        const message2 = await this.chatMsg.setText("正在下载...").reply()
         await MsgCommandSetting.syncFolders(false)
-        await MsgDispatcher.updateMessage(chatId,message2.id,{
-          content:{
-            text:{
-              text:"下载成功"
-            }
-          }
-        })
+        await this.chatMsg.updateText(message2.id,"下载成功")
         break
       case `${chatId}/setting/syncMessage`:
         getActions().updateGlobal({
@@ -356,110 +297,36 @@ export default class MsgCommandSetting{
         break
       case `${chatId}/setting/switchAccount`:
         const address = Account.getCurrentAccount()?.getSessionAddress()
-        const sessions = Account.getSessions()
-        const accountAddresses = Object.keys(sessions)
-          .filter(adr=>{
-            return sessions[adr].split("_").length === 4 && sessions[adr].split("_")[3] !== "undefined"
-          })
-          .filter(adr=>adr !== address)
-
-        if(address){
-          await MsgDispatcher.updateMessage(chatId,messageId,{
-            ...selectChatMessage(global,chatId,messageId),
-            content:{
-              text:{
-                text:"当前账户:\n```\n"+address+"```"
-              }
-            },
-            inlineButtons:[
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
-              accountAddresses.length>0 ?MsgCommand.buildInlineButton(chatId,"其他账户:",'unsupported'):[],
-              ...accountAddresses.map(address=>MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/account/"+address,` ${address}`,'callback')),
-              MsgCommand.buildInlineButton(chatId,"",'unsupported'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
-              MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/disableSync","单机模式",'callback'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
-            ]
-          })
-        }else {
-          await MsgDispatcher.updateMessage(chatId,messageId,{
-            ...selectChatMessage(global,chatId,messageId),
-            content:{
-              text:{
-                text:"当前模式：单机"
-              }
-            },
-            inlineButtons:[
-              MsgCommand.buildInlineButton(chatId," 二维码导入 ",'requestUploadImage'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync"," 密码登录 ",'callback'),
-              MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
-            ]
-          })
-        }
-
+        await this.chatMsg.setText("当前账户:\n```\n"+address+"```").setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
+          MsgCommand.buildInlineButton(chatId,"",'unsupported'),
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
+          MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
+        ]).reply()
         break
       case `${chatId}/setting/showMnemonic`:
         getActions().updateGlobal({
           showMnemonicModal:true
         })
         break
-      case `${chatId}/setting/cancel`:
-        MsgDispatcher.updateMessage(chatId,messageId,{
-          inlineButtons:[],
-        })
-        break
       case `${chatId}/setting/disableSync`:
-        await MsgCommandSetting.disableSync(global,chatId,messageId)
+        await this.disableSync(global,messageId)
         break
       case `${chatId}/setting/enableSync`:
         const {password} = await getPasswordFromEvent(undefined,true)
         if(password){
-          await MsgCommandSetting.enableSync(global,chatId,messageId,password)
+          await this.enableSync(global,password,messageId)
         }
         break
     }
   }
 
-  static buildDefaultChat(user:ApiUser){
-    return {
-      "id": user.id,
-      "title":  user.firstName,
-      "type": "chatTypePrivate",
-      "isMuted": false,
-      "isMin": false,
-      "hasPrivateLink": false,
-      "isSignaturesShown": false,
-      "isVerified": true,
-      "isJoinToSend": true,
-      "isJoinRequest": true,
-      lastMessage:{
-        id:0,
-        chatId:user.id,
-        isOutgoing:false,
-        date:Math.ceil(+(new Date)/1000),
-        content:{
-          action:{
-            type:"chatCreate",
-            text:"",
-          }
-        }
-      },
-      "isForum": false,
-      "isListed": true,
-      "settings": {
-        "isAutoArchived": false,
-        "canReportSpam": false,
-        "canAddContact": false,
-        "canBlockContact": false
-      },
-      "accessHash": ""
-    }
-  }
   static async syncFolders(isUpload:boolean){
     let global = getGlobal();
     const chats = global.chats.byId
     const chatIds = Object.keys(chats).filter(id=>id !== "1");
+    //@ts-ignore
     const chatIdsDeleted:string[] = global.chatIdsDeleted;
     console.log("【local】",{chatIds,chatIdsDeleted})
     const userStoreData:UserStoreData_Type|undefined = isUpload ?{
@@ -478,12 +345,17 @@ export default class MsgCommandSetting{
     if(isUpload){
       for (let index = 0; index < chatIds.length; index++) {
         const userId = chatIds[index];
+        const user = selectUser(global,userId);
+        if(user?.photos && user.photos[0] === null){
+          user.photos = []
+        }
         users.push({
           time:currentTs(),
           userId,
-          user:selectUser(global,userId)
+          user
         })
       }
+
       await callApiWithPdu(new UploadUserReq({
         users,
         time:currentTs()
@@ -506,7 +378,7 @@ export default class MsgCommandSetting{
       })
       if(res.chatIds){
         const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-          userIds:res.chatIds,
+          userIds:res.chatIds.filter(id=>id!== UserIdFirstBot),
         }).pack())
         if(DownloadUserReqRes){
           const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
@@ -517,7 +389,7 @@ export default class MsgCommandSetting{
             const addChatsObj = {}
             for (let index = 0; index < downloadUserRes.users.length; index++) {
               const {user} = downloadUserRes.users[index];
-              if(!chatIdsDeleted.includes(user!.id)){
+              if(!chatIdsDeleted.includes(user!.id) && user!.id !== UserIdFirstBot){
                 if(chatIds.includes(user!.id)){
                   // @ts-ignore
                   global = updateUser(global,user!.id, user!)
@@ -526,7 +398,7 @@ export default class MsgCommandSetting{
                   // @ts-ignore
                   addUsersObj[user!.id] = user!
                   // @ts-ignore
-                  addChatsObj[user!.id] = MsgCommandSetting.buildDefaultChat(user!)
+                  addChatsObj[user!.id] = ChatMsg.buildDefaultChat(user!)
                 }
               }
             }
@@ -540,7 +412,6 @@ export default class MsgCommandSetting{
           global = {...global,chatFolders}
           setGlobal({
             ...global,
-            chatIdsDeleted:chatIdsDeleted || [],
           })
         }
       }else{
@@ -551,27 +422,11 @@ export default class MsgCommandSetting{
       }
     }
   }
-  static async enableSync(global:GlobalState,chatId:string,messageId:number,password:string){
-    const account = Account.getCurrentAccount();
-    const pwd = hashSha256(password)
-    const ts = +(new Date());
-    const {address, sign} = await account!.signMessage(ts.toString(), pwd);
-    const session = Account.formatSession({address,sign,ts,accountId:account?.getAccountId()!});
-    account!.saveSession(session)
-    const entropy = await account!.getEntropy()
-    const accountId = account!.getAccountId();
-    MsgDispatcher.updateMessage(chatId,messageId,{
-      inlineButtons:[]
-    })
-    await callApiWithPdu(new AuthNativeReq({
-      accountId,entropy,session
-    }).pack())
-    setTimeout(()=>window.location.reload(),500)
-  }
-  static async disableSync(global:GlobalState,chatId:string,messageId:number){
+
+  async disableSync(global:GlobalState,messageId:number){
     const account = Account.getCurrentAccount();
     account?.delSession();
-    MsgDispatcher.updateMessage(chatId,messageId,{
+    await this.chatMsg.update(messageId,{
       inlineButtons:[]
     })
     await callApiWithPdu(new AuthNativeReq({
@@ -581,13 +436,14 @@ export default class MsgCommandSetting{
     }).pack())
     setTimeout(()=>window.location.reload(),500)
   }
-  static async onSelectSyncBot(chatId:string){
+
+  async onSelectSyncBot(){
     const data = currentSyncBotContext;
     const isUpload = !data?.endsWith("downloadMessages");
     currentSyncBotContext = undefined
     let global = getGlobal();
     if(isUpload){
-      const messageById = selectChatMessages(global,chatId);
+      const messageById = selectChatMessages(global,this.chatId);
       const messages:MessageStoreRow_Type[] = [];
       if(messageById){
         for (let i = 0; i < Object.keys(messageById).length; i++) {
@@ -601,11 +457,11 @@ export default class MsgCommandSetting{
           })
         }
       }
-      await MsgCommandSetting.uploadMsgList(chatId,messages)
+      await this.uploadMsgList(messages)
 
     }else{
       const res = await callApiWithPdu(new DownloadMsgReq({
-        chatId,
+        chatId:this.chatId,
       }).pack())
       if(res){
         const {err,messages} = DownloadMsgRes.parseMsg(res?.pdu)
@@ -613,7 +469,7 @@ export default class MsgCommandSetting{
         if(messages){
           for (let i = 0; i < messages?.length; i++) {
             const {message,messageId} = messages[i]
-            const localMsg = selectChatMessage(global,chatId,messageId)
+            const localMsg = selectChatMessage(global,this.chatId,messageId)
             if(!localMsg){
               // @ts-ignore
               MsgDispatcher.newMessage(chatId,messageId,message)
@@ -629,18 +485,18 @@ export default class MsgCommandSetting{
       }
     }
   }
-  static async uploadMsgList(chatId:string,messages:MessageStoreRow_Type[]){
 
+  async uploadMsgList(messages:MessageStoreRow_Type[]){
     if(messages.length > 0){
       const res = await callApiWithPdu(new UploadMsgReq({
         messages,
-        chatId,
+        chatId:this.chatId,
         time:currentTs(),
       }).pack())
       if(!res){
-        getActions().showNotification({message:"更新失败"})
+        getActions().showNotification({message:"上传失败"})
       }else{
-        getActions().showNotification({message:"更新成功"})
+        getActions().showNotification({message:"上传成功"})
       }
     }
   }

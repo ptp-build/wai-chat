@@ -206,7 +206,7 @@ const ChatExtra: FC<OwnProps & StateProps> = ({
           <span className="subtitle">{lang('Phone')}</span>
         </ListItem>
       )}
-      {activeUsernames && renderUsernames(activeUsernames)}
+      {/* {activeUsernames && renderUsernames(activeUsernames)} */}
       {description && Boolean(description.length) && (
         <ListItem
           icon="info"
@@ -217,7 +217,7 @@ const ChatExtra: FC<OwnProps & StateProps> = ({
           <span className="title word-break" dir="auto">
             {renderText(description, ['br', 'links', 'emoji'])}
           </span>
-          <span className="subtitle">{lang(userId ? 'UserBio' : 'Info')}</span>
+          <span className="subtitle">简介</span>
         </ListItem>
       )}
       {activeChatUsernames && !isTopicInfo && renderUsernames(activeChatUsernames, true)}

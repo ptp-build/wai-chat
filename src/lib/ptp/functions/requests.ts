@@ -1,6 +1,20 @@
-import {ChatRequest, ChatResponse, Message} from "../../../../functions/api/types";
-import {AI_PROXY_API} from "../../../config";
+import {CHATGPT_PROXY_API} from "../../../config";
 import {PbChatGptModelConfig_Type} from "../protobuf/PTPCommon/types";
+import Account from "../../../worker/share/Account";
+import type {
+  ChatCompletionResponseMessage,
+  CreateChatCompletionRequest,
+  CreateChatCompletionResponse,
+} from "openai";
+
+
+export type Message = ChatCompletionResponseMessage & {
+  date: string;
+  streaming?: boolean;
+};
+
+export type ChatRequest = CreateChatCompletionRequest;
+export type ChatResponse = CreateChatCompletionResponse;
 
 const TIME_OUT_MS = 30000;
 
@@ -71,23 +85,23 @@ function getHeaders(apiKey:string) {
   return headers;
 }
 
-export function requestOpenaiClient(path: string,apiKey:string) {
-  return (body: any, method = "POST") =>
-    fetch(AI_PROXY_API +"/api/openai", {
-      method,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        path,
-        ...getHeaders(apiKey),
-      },
-      body: body && JSON.stringify(body),
-    });
+export function requestOpenaiClient(path: string,body:any) {
+  return fetch(CHATGPT_PROXY_API+"/" +path, {
+    method:"POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
+    },
+    body: body && JSON.stringify(body),
+  })
 }
 
 export async function requestChat(messages: Message[],apiKey:string) {
   const req: ChatRequest = makeRequestParam(messages, { filterBot: true });
 
-  const res = await requestOpenaiClient("v1/chat/completions",apiKey)(req);
+  const res = await requestOpenaiClient("v1/chat/completions",{
+    apiKey
+  });
 
   try {
     return (await res.json()) as ChatResponse;
@@ -95,24 +109,6 @@ export async function requestChat(messages: Message[],apiKey:string) {
     console.error("[Request Chat] ", error, res.body);
   }
 }
-
-export async function requestUsage(apiKey:string) {
-  const res = await requestOpenaiClient(
-    "dashboard/billing/credit_grants?_vercel_no_cache=1",apiKey
-  )(null, "GET");
-
-  try {
-    const response = (await res.json()) as {
-      total_available: number;
-      total_granted: number;
-      total_used: number;
-    };
-    return response;
-  } catch (error) {
-    console.error("[Request usage] ", error, res.body);
-  }
-}
-
 
 export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbChatGptModelConfig_Type> {
   const config = Object.assign({}, oldConfig);
@@ -145,42 +141,34 @@ export function filterConfig(oldConfig: PbChatGptModelConfig_Type): Partial<PbCh
 }
 
 export async function requestChatStream(
-  messages: Message[],
-  options?: {
-    apiKey:string,
-    filterBot?: boolean;
-    modelConfig?: PbChatGptModelConfig_Type;
-    onMessage: (message: string, done: boolean) => void;
-    onAbort: (error: Error) => void;
-    onError: (error: Error) => void;
+  url:string,
+  options: {
+    body:Record<string, any>,
+    onMessage?: (message: string, done: boolean) => void;
+    onAbort?: (error: Error) => void;
+    onError?: (error: Error) => void;
     onController?: (controller: AbortController) => void;
   },
 ) {
-  const req = makeRequestParam(messages, {
-    stream: true,
-    filterBot: options?.filterBot,
+  const req = makeRequestParam(options.body.messages, {
+    stream: options.body.stream,
+    filterBot:false,
   });
 
-  // valid and assign model config
-  if (options?.modelConfig) {
-    Object.assign(req, filterConfig(options.modelConfig));
-  }
-
-  console.log("[Request] ", req);
+  console.log("[Request] ", options.body);
 
   const controller = new AbortController();
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);
-
+  let isDone = false;
   try {
-    const res = await fetch(AI_PROXY_API + "/api/chat-stream", {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        path: "v1/chat/completions",
-        ...getHeaders(options!.apiKey),
+        "Authorization": "Bearer "+(Account.getCurrentAccount()?.getSession() || ""),
       },
-      body: JSON.stringify(req),
-      signal: controller.signal,
+      body: JSON.stringify(options.body),
+      signal: options.body.stream ? controller.signal : undefined,
     });
 
     clearTimeout(reqTimeoutId);
@@ -188,50 +176,62 @@ export async function requestChatStream(
     let responseText = "";
 
     const finish = () => {
-      options?.onMessage(responseText, true);
+      isDone = true;
+      if(options.onMessage){
+        options.onMessage(responseText, true);
+      }
       controller.abort();
     };
 
     if (res.ok) {
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
+      if(options.body.stream){
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
 
-      options?.onController?.(controller);
+        options.onController?.(controller);
+        while (true) {
+          // handle time out, will stop if no response in 10 secs
+          const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
+          const content = await reader?.read();
+          clearTimeout(resTimeoutId);
+          const text = decoder.decode(content?.value);
+          if(text.startsWith("ERROR:")){
+            options.onError && options.onError(new Error(text.replace("ERROR:","")));
+          }
+          responseText += text;
 
-      while (true) {
-        // handle time out, will stop if no response in 10 secs
-        const resTimeoutId = setTimeout(() => finish(), TIME_OUT_MS);
-        const content = await reader?.read();
-        clearTimeout(resTimeoutId);
-        const text = decoder.decode(content?.value);
-        responseText += text;
+          const done = !content || content.done;
+          options?.onMessage && options?.onMessage(responseText, false);
 
-        const done = !content || content.done;
-        options?.onMessage(responseText, false);
-
-        if (done) {
-          break;
+          if (done) {
+            break;
+          }
         }
+        finish();
+      }else{
+        finish();
+        const json = await res.json()
+        return json.choices[0].message.content
       }
-
-      finish();
     } else if (res.status === 401) {
       console.error("Anauthorized");
-      responseText = "Unauthorized";
+      responseText = "sign://401/你需要 点击下方生成签名登录, 并告知管理员,加入授权列表";
       finish();
     } else {
       console.error("Stream Error", res.body);
-      options?.onError(new Error("Stream Error"));
+      options.onError && options.onError(new Error("Stream Error"));
+      finish();
     }
   } catch (err:any) {
-    debugger
     if(err.code === 20){
-      console.error("onAbort", err);
-      options?.onAbort(err);
+      if(!isDone){
+        console.error("onAbort", err);
+        options.onAbort && options.onAbort(err);
+      }
     }else{
       // AbortError
       console.error("NetWork Error", err);
-      options?.onError(err);
+      options.onError && options.onError(err);
     }
   }
 }
@@ -282,3 +282,19 @@ export const ControllerPool = {
     return `${sessionIndex},${messageIndex}`;
   },
 };
+
+export async function requestUsage(apiKey:string) {
+  const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+      .getDate()
+      .toString()
+      .padStart(2, "0")}`;
+  const ONE_DAY = 2 * 24 * 60 * 60 * 1000;
+  const now = new Date(Date.now() + ONE_DAY);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startDate = "2023-03-01";
+  const endDate = formatDate(now);
+
+  const res = await requestOpenaiClient(`usage?start_date=${startDate}&end_date=${endDate}`,{apiKey})
+  return await res.json();
+}

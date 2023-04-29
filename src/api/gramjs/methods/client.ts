@@ -3,14 +3,7 @@ import {Api as GramJs, connection, TelegramClient,} from '../../../lib/gramjs';
 import {Logger as GramJsLogger} from '../../../lib/gramjs/extensions/index';
 import type {TwoFaParams} from '../../../lib/gramjs/client/2fa';
 
-import type {
-  AccountSession,
-  ApiInitialArgs,
-  ApiMediaFormat,
-  ApiOnProgress,
-  ApiSessionData,
-  OnApiUpdate,
-} from '../../types';
+import type {ApiInitialArgs, ApiMediaFormat, ApiOnProgress, ApiSessionData, OnApiUpdate,} from '../../types';
 
 import {APP_VERSION, CLOUD_MESSAGE_API, DEBUG, DEBUG_GRAMJS, UPLOAD_WORKERS,} from '../../../config';
 import {onCurrentUserUpdate,} from './auth';
@@ -21,15 +14,20 @@ import {buildApiUserFromFull} from '../apiBuilders/users';
 import localDb, {clearLocalDb} from '../localDb';
 import {buildApiPeerId} from '../apiBuilders/peers';
 import {addMessageToLocalDb, log} from '../helpers';
-import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import Account from "../../../worker/share/Account";
-import LocalDatabase from "../../../worker/share/db/LocalDatabase";
-import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import {CurrentUserInfo} from "../../../worker/setting";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
-import {ControllerPool} from "../../../lib/ptp/functions/requests";
-import {StopChatStreamReq} from "../../../lib/ptp/protobuf/PTPOther";
+import ChatMsg from '../../../worker/msg/ChatMsg';
+import {
+  handleAuthNative,
+  handleAuthNativeReq,
+  handleSendBotMsgReq, handleStopChatStreamReq,
+  handleUpdateCmdReq
+} from '../../../worker/msg/client';
+import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
+import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
+import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
+
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -49,19 +47,16 @@ export async function init(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) 
     console.log('>>> START INIT API');
   }
   onUpdate = _onUpdate;
+  ChatMsg.setApiUpdate(_onUpdate,MsgWorker.genMessageId)
   const {
     userAgent, platform, sessionData, isTest, isMovSupported, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     mockScenario,accountId,entropy,session
   } = initialArgs;
-  await handleAuthNative(accountId,entropy,session);
-  if(DEBUG){
-    console.log("[initialArgs]",{
-      deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
-      systemVersion: platform || DEFAULT_PLATFORM,
-      appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
-      useWSS: true,
-    })
-  }
+  await handleAuthNative(accountId,entropy,session,{
+    deviceModel: navigator.userAgent || userAgent || DEFAULT_USER_AGENT,
+    systemVersion: platform || DEFAULT_PLATFORM,
+    appVersion: `${APP_VERSION} ${APP_CODE_NAME}`,
+  });
   try {
     if (DEBUG) {
       log('CONNECTING');
@@ -85,10 +80,6 @@ export async function init(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) 
     onUpdate({'@type': 'updateCurrentUser',currentUser: CurrentUserInfo});
 
     onUpdate({
-      '@type': 'updateMsgClientState',
-      msgClientState:"connectionStateLogged",
-    });
-    onUpdate({
       '@type': 'updateConnectionState',
       connectionState:"connectionStateReady",
     });
@@ -111,11 +102,11 @@ export async function destroy(noLogOut = false, noClearLocalDb = false) {
   // }
   if (!noClearLocalDb) clearLocalDb();
 
-  await client.destroy();
+  // await client.destroy();
 }
 
 export async function disconnect() {
-  await client.disconnect();
+  // await client.disconnect();
 }
 
 export function getClient() {
@@ -396,36 +387,17 @@ export async function repairFileReference({
   return false;
 }
 
-const handleAuthNative = async (accountId:number,entropy:string,session?:string)=>{
-  const kv = new LocalDatabase();
-  kv.init(localDb);
-  Account.setClientKv(kv)
-  account = Account.getInstance(accountId);
-  await account.setEntropy(entropy)
-  Account.setCurrentAccountId(accountId)
-  if(session){
-    account.saveSession(session)
-  }else{
-    account.delSession()
-  }
-}
-
-const handleStopChatStreamReq = async (pdu:Pdu)=>{
-  const {msgId,chatId} = StopChatStreamReq.parseMsg(pdu)
-  ControllerPool.stop(chatId,msgId)
-}
-const handleAuthNativeReq = async (pdu:Pdu)=>{
-  const {accountId,entropy,session} = AuthNativeReq.parseMsg(pdu)
-  await handleAuthNative(accountId,entropy,session);
-}
-
 export async function sendWithCallback(buff:Uint8Array){
-
+  const account = Account.getCurrentAccount()!
   let pdu = new Pdu(Buffer.from(buff))
   if(DEBUG){
     console.log(pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
   }
   switch (pdu.getCommandId()) {
+    case ActionCommands.CID_SendBotMsgReq:
+      return await handleSendBotMsgReq(pdu);
+    case ActionCommands.CID_UpdateCmdReq:
+      return await handleUpdateCmdReq(pdu);
     case ActionCommands.CID_StopChatStreamReq:
       return await handleStopChatStreamReq(pdu);
     case ActionCommands.CID_AuthNativeReq:
@@ -438,6 +410,10 @@ export async function sendWithCallback(buff:Uint8Array){
     case ActionCommands.CID_UploadUserReq:
       pdu = await MsgWorker.beforeUploadUserReq(pdu);
       break
+    case ActionCommands.CID_SyncReq:
+    case ActionCommands.CID_TopCatsReq:
+      BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
+      return
   }
   if(!account.getSession()){
     return
@@ -466,4 +442,3 @@ export async function sendWithCallback(buff:Uint8Array){
   }
   return buf;
 }
-

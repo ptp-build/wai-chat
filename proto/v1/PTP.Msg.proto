@@ -105,3 +105,29 @@ message DownloadMsgRes{
   repeated Common.MessageStoreRow messages = 1;
   optional Common.ERR err = 100;
 }
+
+message UpdateCmdReq{
+  optional string botApi = 1;
+  required string chatId = 2;
+}
+
+message UpdateCmdRes{
+  optional string chatId = 2;
+  repeated Common.PbCommands commands = 1;
+}
+
+message SendBotMsgReq{
+  optional string chatId = 1;
+  optional string botApi = 2;
+  optional string text = 3;
+  optional string chatGpt = 4;
+  optional uint32 msgId = 5;
+}
+
+message SendBotMsgRes{
+  optional string reply = 1;
+  optional string chatId = 2;
+  optional uint32 msgId = 3;
+  optional bool streamEnd = 4;
+  optional Common.PbMsg message = 5;
+}

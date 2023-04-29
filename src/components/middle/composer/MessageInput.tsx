@@ -309,7 +309,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
 
     if (e.button === 0) {
-      console.log("handleMouseDown")
       if(!timer){
         recordStartTime = new Date().getTime();
         timer = setInterval(()=>{
@@ -317,7 +316,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             recordStartTime += 80
             if(recordStartTime > 1000){
               if(!recognition){
-                console.log("recognition start")
                 // @ts-ignore
                 recognition = new window.webkitSpeechRecognition();
                 recognition.continuous = true;
@@ -381,7 +379,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   }
   function handleMouseUp(e: React.KeyboardEvent<HTMLDivElement>) {
     const pressTime = new Date().getTime() - recordStartTime;
-    console.log("handleMouseUp",pressTime)
     if(timer){
       if(recognition){
         recognition.stop();

@@ -51,7 +51,7 @@ const useChatContextActions = ({
     } = getActions();
 
     const actionOpenInNewTab = IS_MULTITAB_SUPPORTED && {
-      title: 'Open in new tab',
+      title: '在新标签页打开',
       icon: 'open-in-new-tab',
       handler: () => {
         openChatInNewTab({ chatId: chat.id });
@@ -61,7 +61,7 @@ const useChatContextActions = ({
     const newTabActionSeparator = actionOpenInNewTab && { isSeparator: true, key: 'newTabSeparator' };
 
     const actionAddToFolder = canChangeFolder ? {
-      title: lang('ChatList.Filter.AddToFolder'),
+      title: lang('添加到文件夹'),
       icon: 'folder',
       handler: handleChatFolderChange,
     } : undefined;
@@ -122,7 +122,7 @@ const useChatContextActions = ({
     return compact([
       actionOpenInNewTab,
       newTabActionSeparator,
-      // actionAddToFolder,
+      actionAddToFolder,
       // actionMaskAsRead,
       // actionMarkAsUnread,
       // actionPin,

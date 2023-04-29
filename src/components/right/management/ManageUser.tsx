@@ -29,6 +29,7 @@ import Avatar from '../../common/Avatar';
 
 import './Management.scss';
 import {UserIdFirstBot} from "../../../worker/setting";
+import TextArea from "../../ui/TextArea";
 
 type OwnProps = {
   userId: string;
@@ -73,7 +74,9 @@ const ManageUser: FC<OwnProps & StateProps> = ({
 
   const currentFirstName = user ? (user.firstName || '') : '';
   const currentLastName = user ? (user.lastName || '') : '';
+  const currentBio = user ? (user.fullInfo?.bio || '') : '';
 
+  const [bio, setBio] = useState(currentBio);
   const [firstName, setFirstName] = useState(currentFirstName);
   const [lastName, setLastName] = useState(currentLastName);
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(!isMuted);
@@ -105,6 +108,11 @@ const ManageUser: FC<OwnProps & StateProps> = ({
     setIsProfileFieldsTouched(true);
   }, []);
 
+  const handleBioChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
+    setBio(e.target.value);
+    setIsProfileFieldsTouched(true);
+  }, []);
+
   const handleLastNameChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setLastName(e.target.value);
     setIsProfileFieldsTouched(true);
@@ -118,6 +126,7 @@ const ManageUser: FC<OwnProps & StateProps> = ({
   const handleProfileSave = useCallback(() => {
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
+    const trimmedBio = bio.trim();
 
     if (!trimmedFirstName.length) {
       setError(ERROR_FIRST_NAME_MISSING);
@@ -128,8 +137,9 @@ const ManageUser: FC<OwnProps & StateProps> = ({
       isMuted: !isNotificationsEnabled,
       firstName: trimmedFirstName,
       lastName: trimmedLastName,
+      bio:trimmedBio,
     });
-  }, [firstName, lastName, updateContact, userId, isNotificationsEnabled]);
+  }, [firstName,bio, lastName, updateContact, userId, isNotificationsEnabled]);
 
   const handleDeleteContact = useCallback(() => {
     deleteHistory({chatId:userId})
@@ -195,6 +205,13 @@ const ManageUser: FC<OwnProps & StateProps> = ({
             onChange={handleFirstNameChange}
             value={firstName}
             error={error === ERROR_FIRST_NAME_MISSING ? error : undefined}
+          />
+
+          <TextArea
+            id="user-bio"
+            label={"简介"}
+            onChange={handleBioChange}
+            value={bio}
           />
           {/*<InputText*/}
           {/*  id="user-last-name"*/}

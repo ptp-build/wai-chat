@@ -603,10 +603,10 @@ var $conv_message = $createConverter([
         PTP: {
             Auth: {
                 AuthLoginReq: {
-                    '$': {"1":["sign","bytes",[]],"2":["ts","uint64",{"low":0,"high":0,"unsigned":true}],"3":["uid","string",""],"4":["address","string",""]}
+                    '$': {"1":["sign","string",""],"2":["clientInfo","default.PTP.Common.ClientInfo",null]}
                 },
                 AuthLoginRes: {
-                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
+                    '$': {"100":["err","uint32",0]}
                 },
                 AuthNativeReq: {
                     '$': {"1":["accountId","uint64",{"low":0,"high":0,"unsigned":true}],"2":["entropy","string",""],"3":["session","string",""]}
@@ -631,6 +631,9 @@ var $conv_message = $createConverter([
                 },
                 AuthStep2Res: {
                     '$': {"100":["err","uint32",0]}
+                },
+                InitAppRes: {
+                    '$': {"1":["chats","string",""],"2":["messages","string",""],"3":["chatFolders","string",""],"4":["users","string",""],"5":["topCats","string",""],"100":["err","uint32",0]}
                 },
                 UpdateProfileReq: {
                     '$': {"1":["firstName","string",""],"2":["lastName","string",""],"3":["about","string",""]}
@@ -663,6 +666,9 @@ var $conv_message = $createConverter([
                 AUTH_TYPE: {
                     '@': {"AUTH_TYPE_USERNAME":0,"AUTH_TYPE_EMAIL":1,"AUTH_TYPE_MOBILE":2}
                 },
+                ClientInfo: {
+                    '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
+                },
                 EncryptType: {
                     '@': {"EncryptType_Wallet":0,"EncryptType_Group":1,"EncryptType_Message":2,"EncryptType_Media":3}
                 },
@@ -679,7 +685,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["text","string",""],"2":["type","string",""]}
                 },
                 PbAiBot: {
-                    '$': {"1":["chatGptConfig","default.PTP.Common.PbChatGpBotConfig",null],"3":["enableAi","bool",false],"4":["botApi","string",""],"5":["disableClearHistory","bool",false]}
+                    '$': {"1":["chatGptConfig","default.PTP.Common.PbChatGpBotConfig",null],"3":["enableAi","bool",false],"4":["botApi","string",""],"5":["disableClearHistory","bool",false],"6":["commandsFromApi","<default.PTP.Common.PbCommands",null]}
                 },
                 PbAudio: {
                     '$': {"1":["id","string",""],"2":["size","[uint32",null],"3":["duration","[uint32",null],"5":["mimeType","string",""],"6":["fileName","string",""],"7":["performer","string",""],"8":["title","string",""],"9":["thumbnailSizes","<default.PTP.Common.PbSizes",null]}
@@ -694,7 +700,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["id","uint32",0],"2":["title","string",""],"3":["channels","bool",false],"4":["pinnedChatIds","<string",null],"5":["includedChatIds","<string",null],"6":["excludedChatIds","<string",null]}
                 },
                 PbChatGpBotConfig: {
-                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["modelConfig","default.PTP.Common.PbChatGptModelConfig",null]}
+                    '$': {"1":["init_system_content","string",""],"2":["api_key","string",""],"3":["max_history_length","uint32",0],"4":["modelConfig","default.PTP.Common.PbChatGptModelConfig",null],"5":["welcome","string",""],"6":["template","string",""],"7":["outputText","string",""],"8":["templateSubmit","string",""]}
                 },
                 PbChatGptModelConfig: {
                     '$': {"1":["model","string",""],"2":["temperature","uint32",0],"3":["max_tokens","uint32",0],"4":["presence_penalty","uint32",0]}
@@ -721,13 +727,25 @@ var $conv_message = $createConverter([
                     '$': {"1":["type","string",""],"2":["offset","uint32",0],"3":["length","uint32",0],"4":["documentId","string",""],"5":["userId","string",""],"6":["url","string",""],"7":["language","string",""],"8":["cipher","string",""],"9":["hint","string",""]}
                 },
                 PbMsg: {
-                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0]}
+                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0],"9":["views","uint32",0],"10":["repliesThreadInfo","default.PTP.Common.PbRepliesThreadInfo",null],"11":["reactions","default.PTP.Common.PbReactions",null]}
                 },
                 PbPhoto: {
                     '$': {"1":["id","string",""],"2":["thumbnail","default.PTP.Common.PbThumbnail",null],"3":["sizes","<default.PTP.Common.PbSizes",null],"4":["isSpoiler","bool",false]}
                 },
                 PbQrCode: {
                     '$': {"1":["type","uint32",1],"2":["data","bytes",[]]}
+                },
+                PbReaction: {
+                    '$': {"2":["emoticon","string",""]}
+                },
+                PbReactionCount: {
+                    '$': {"1":["chosenOrder","uint32",0],"2":["count","uint32",0],"3":["reaction","default.PTP.Common.PbReaction",null]}
+                },
+                PbReactions: {
+                    '$': {"1":["canSeeList","bool",false],"2":["results","<default.PTP.Common.PbReactionCount",null]}
+                },
+                PbRepliesThreadInfo: {
+                    '$': {"1":["isComments","bool",false],"3":["threadId","uint32",0],"4":["chatId","string",""],"5":["originChannelId","string",""],"6":["messagesCount","uint32",0],"7":["lastMessageId","uint32",0],"8":["recentReplierIds","<string",null]}
                 },
                 PbSettings: {
                     '$': {"1":["isAutoArchived","bool",false],"2":["canReportSpam","bool",false],"3":["canAddContact","bool",false],"4":["canBlockContact","bool",false]}
@@ -747,9 +765,6 @@ var $conv_message = $createConverter([
                 PbUsernames: {
                     '$': {"1":["username","string",""],"2":["isActive","bool",false],"3":["isEditable","bool",false]}
                 },
-                PbUserSetting: {
-                    '$': {"1":["chatFolders","<default.PTP.Common.PbChatFolder",null],"2":["chatFolderOrderedIds","[uint32",null],"3":["myBotIds","<string",null],"4":["myGroups","<string",null]}
-                },
                 PbVoice: {
                     '$': {"1":["id","string",""],"2":["waveform","[uint32",null],"3":["duration","uint32",0]}
                 },
@@ -760,7 +775,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["messageIds","[uint64",null],"3":["messageIdsDeleted","[uint64",null],"4":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 UserStoreData: {
-                    '$': {"1":["chatIds","<string",null],"2":["chatIdsDeleted","<string",null],"3":["chatFolders","string",""],"7":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
+                    '$': {"1":["chatIds","<string",null],"2":["chatIdsDeleted","<string",null],"3":["chatFolders","string",""],"7":["time","uint64",{"low":0,"high":0,"unsigned":true}],"8":["myBots","<string",null],"9":["myGroups","<string",null]}
                 },
                 UserStoreRow: {
                     '$': {"1":["buf","bytes",[]],"2":["userId","string",""],"3":["time","uint32",0],"4":["user","default.PTP.Common.PbUser",null]}
@@ -823,11 +838,23 @@ var $conv_message = $createConverter([
                 RemoveMessagesRes: {
                     '$': {"100":["err","uint32",0]}
                 },
+                SendBotMsgReq: {
+                    '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
+                },
+                SendBotMsgRes: {
+                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false],"5":["message","default.PTP.Common.PbMsg",null]}
+                },
                 SendReq: {
                     '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}
                 },
                 SendRes: {
                     '$': {"1":["chatId","string",""],"2":["action","string",""],"3":["msg","default.PTP.Common.PbMsg",null],"4":["text","string",""],"5":["localId","uint32",0],"100":["err","uint32",0]}
+                },
+                UpdateCmdReq: {
+                    '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
+                },
+                UpdateCmdRes: {
+                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null],"2":["chatId","string",""]}
                 },
                 UploadMsgReq: {
                     '$': {"1":["messages","<default.PTP.Common.MessageStoreRow",null],"2":["chatId","string",""],"3":["time","uint32",0]}
@@ -846,10 +873,16 @@ var $conv_message = $createConverter([
             },
             Sync: {
                 SyncReq: {
-                    '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null]}
+                    '$': {"2":["userStoreData","default.PTP.Common.UserStoreData",null]}
                 },
                 SyncRes: {
                     '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null],"100":["err","uint32",0]}
+                },
+                TopCatsReq: {
+                    '$': {"1":["time","uint32",0]}
+                },
+                TopCatsRes: {
+                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
                 }
             },
             User: {

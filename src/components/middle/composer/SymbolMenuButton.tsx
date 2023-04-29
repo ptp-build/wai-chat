@@ -158,31 +158,30 @@ const SymbolMenuButton: FC<OwnProps> = ({
 
   return (
     <>
-      <div style={(IS_ANDROID || IS_IOS) ? BOTTOM_INPUT_LEFT_MARGIN : ""}></div>
-      {/* {isMobile ? ( */}
-      {/*   <Button */}
-      {/*     className={symbolMenuButtonClassName} */}
-      {/*     round */}
-      {/*     color="translucent" */}
-      {/*     onClick={isSymbolMenuOpen ? closeSymbolMenu : handleSymbolMenuOpen} */}
-      {/*     ariaLabel="Choose emoji, sticker or GIF" */}
-      {/*   > */}
-      {/*     <i className="icon-smile" /> */}
-      {/*     <i className="icon-keyboard" /> */}
-      {/*     {isSymbolMenuOpen && !isSymbolMenuLoaded && <Spinner color="gray" />} */}
-      {/*   </Button> */}
-      {/* ) : ( */}
-      {/*   <ResponsiveHoverButton */}
-      {/*     className={buildClassName('symbol-menu-button', isSymbolMenuOpen && 'activated')} */}
-      {/*     round */}
-      {/*     color="translucent" */}
-      {/*     onActivate={handleActivateSymbolMenu} */}
-      {/*     ariaLabel="Choose emoji, sticker or GIF" */}
-      {/*   > */}
-      {/*     <div ref={triggerRef} className="symbol-menu-trigger" /> */}
-      {/*     <i className="icon-smile" /> */}
-      {/*   </ResponsiveHoverButton> */}
-      {/* )} */}
+      {isMobile ? (
+        <Button
+          className={symbolMenuButtonClassName}
+          round
+          color="translucent"
+          onClick={isSymbolMenuOpen ? closeSymbolMenu : handleSymbolMenuOpen}
+          ariaLabel="Choose emoji, sticker or GIF"
+        >
+          <i className="icon-smile" />
+          <i className="icon-keyboard" />
+          {isSymbolMenuOpen && !isSymbolMenuLoaded && <Spinner color="gray" />}
+        </Button>
+      ) : (
+        <ResponsiveHoverButton
+          className={buildClassName('symbol-menu-button', isSymbolMenuOpen && 'activated')}
+          round
+          color="translucent"
+          onActivate={handleActivateSymbolMenu}
+          ariaLabel="Choose emoji, sticker or GIF"
+        >
+          <div ref={triggerRef} className="symbol-menu-trigger" />
+          <i className="icon-smile" />
+        </ResponsiveHoverButton>
+      )}
 
       <SymbolMenu
         chatId={chatId}

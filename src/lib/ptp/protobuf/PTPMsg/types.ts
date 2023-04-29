@@ -62,6 +62,20 @@ export interface RemoveMessagesReq_Type {
 export interface RemoveMessagesRes_Type {
   err: PTPCommon.ERR;
 }
+export interface SendBotMsgReq_Type {
+  chatId?: string;
+  botApi?: string;
+  text?: string;
+  chatGpt?: string;
+  msgId?: number;
+}
+export interface SendBotMsgRes_Type {
+  reply?: string;
+  chatId?: string;
+  msgId?: number;
+  streamEnd?: boolean;
+  message?: PTPCommon.PbMsg_Type;
+}
 export interface SendReq_Type {
   chatId: string;
   text?: string;
@@ -74,6 +88,14 @@ export interface SendRes_Type {
   text?: string;
   localId?: number;
   err?: PTPCommon.ERR;
+}
+export interface UpdateCmdReq_Type {
+  botApi?: string;
+  chatId: string;
+}
+export interface UpdateCmdRes_Type {
+  commands?: PTPCommon.PbCommands_Type[];
+  chatId?: string;
 }
 export interface UploadMsgReq_Type {
   messages?: PTPCommon.MessageStoreRow_Type[];

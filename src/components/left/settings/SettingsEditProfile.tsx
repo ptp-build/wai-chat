@@ -85,7 +85,7 @@ const SettingsEditProfile: FC<OwnProps & StateProps> = ({
   const [editableUsername, setEditableUsername] = useState<string | false>(currentUsername);
 
   const currentAvatarBlobUrl = useMedia(currentAvatarHash, false, ApiMediaFormat.BlobUrl);
-
+  console.log({currentAvatarBlobUrl,currentAvatarHash})
   const isLoading = progress === ProfileEditProgress.InProgress;
   const isUsernameError = editableUsername === false;
 
@@ -208,7 +208,7 @@ const SettingsEditProfile: FC<OwnProps & StateProps> = ({
   return (
     <div className="settings-fab-wrapper">
       <div className="settings-content no-border custom-scroll">
-        <div className="settings-edit-profile settings-item">
+        <div className="settings-edit-profile settings-item pb-2">
           <AvatarEditable
             currentAvatarBlobUrl={currentAvatarBlobUrl}
             onChange={handlePhotoChange}
@@ -222,24 +222,24 @@ const SettingsEditProfile: FC<OwnProps & StateProps> = ({
             disabled={isLoading}
             error={error === ERROR_FIRST_NAME_MISSING ? error : undefined}
           />
-          <InputText
-            value={lastName}
-            onChange={handleLastNameChange}
-            label={lang('LastName')}
-            disabled={isLoading}
-          />
-          <TextArea
-            value={bio}
-            onChange={handleBioChange}
-            label={lang('UserBio')}
-            disabled={isLoading}
-            maxLength={maxBioLength}
-            maxLengthIndicator={maxBioLength ? (maxBioLength - bio.length).toString() : undefined}
-          />
+          {/* <InputText */}
+          {/*   value={lastName} */}
+          {/*   onChange={handleLastNameChange} */}
+          {/*   label={lang('LastName')} */}
+          {/*   disabled={isLoading} */}
+          {/* /> */}
+          {/* <TextArea */}
+          {/*   value={bio} */}
+          {/*   onChange={handleBioChange} */}
+          {/*   label={lang('UserBio')} */}
+          {/*   disabled={isLoading} */}
+          {/*   maxLength={maxBioLength} */}
+          {/*   maxLengthIndicator={maxBioLength ? (maxBioLength - bio.length).toString() : undefined} */}
+          {/* /> */}
 
-          <p className="settings-item-description" dir={lang.isRtl ? 'rtl' : undefined}>
-            {renderText(lang('lng_settings_about_bio'), ['br', 'simple_markdown'])}
-          </p>
+          {/* <p className="settings-item-description" dir={lang.isRtl ? 'rtl' : undefined}> */}
+          {/*   {renderText(lang('lng_settings_about_bio'), ['br', 'simple_markdown'])} */}
+          {/* </p> */}
         </div>
 
         {/*<div className="settings-item">*/}

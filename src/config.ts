@@ -12,7 +12,8 @@ export const GLOBAL_STATE_CACHE_KEY = 'tt-global-state-'+adr;
 
 export const CLOUD_MESSAGE_ENABLE = false
 export const CLOUD_MESSAGE_API = process.env.CLOUD_MESSAGE_API;
-export const AI_PROXY_API = process.env.AI_PROXY_API;
+export const CHATGPT_PROXY_API = process.env.CHATGPT_PROXY_API;
+export const MSG_SERVER = process.env.MSG_SERVER;
 
 export const TEST_USERNAME = process.env.TEST_USERNAME;
 export const TEST_PWD = process.env.TEST_PWD;
@@ -245,7 +246,7 @@ export const SUPPORTED_TRANSLATION_LANGUAGES = [
   'it', 'ja', 'ko', 'pl', 'pt', 'ru', 'es', 'uk',
   // Unnofficial
   'af', 'sq', 'am', 'hy', 'az', 'eu', 'bn', 'bs', 'bg',
-  'ceb', 'zh-CN', 'zh-TW', 'co', 'hr', 'cs', 'da', 'eo',
+  'ceb', 'zh-TW', 'co', 'hr', 'cs', 'da', 'eo',
   'et', 'fi', 'fy', 'gl', 'ka', 'el', 'gu', 'ht', 'ha',
   'haw', 'he', 'iw', 'hi', 'hmn', 'hu', 'is', 'ig', 'ga',
   'jv', 'kn', 'kk', 'km', 'rw', 'ku', 'ky', 'lo', 'la',
@@ -263,7 +264,7 @@ export const RE_MENTION_TEMPLATE = '(@[\\w\\d_-]+)';
 export const RE_TG_LINK = /^tg:(\/\/)?/i;
 export const RE_TME_LINK = /^(https?:\/\/)?([-a-zA-Z0-9@:%_+~#=]{1,32}\.)?t\.me/i;
 export const RE_TELEGRAM_LINK = /^(https?:\/\/)?telegram\.org\//i;
-export const TME_LINK_PREFIX = 'https://t.me/';
+export const TME_LINK_PREFIX = 'https://wai.chat/';
 export const USERNAME_PURCHASE_ERROR = 'USERNAME_PURCHASE_AVAILABLE';
 export const PURCHASE_USERNAME = 'auction';
 export const TME_WEB_DOMAINS = new Set(['t.me', 'web.t.me', 'k.t.me', 'z.t.me']);
@@ -287,7 +288,7 @@ export const SCHEDULED_WHEN_ONLINE = 0x7FFFFFFE;
 export const DEFAULT_LANG_CODE = 'en';
 export const DEFAULT_LANG_PACK = 'android';
 export const LANG_PACKS = ['android', 'ios', 'tdesktop', 'macos'] as const;
-export const FEEDBACK_URL = 'https://github.com/ptp-build/ptp-ai-chat/issues';
+export const FEEDBACK_URL = 'https://github.com/ptp-build/wai-chat/issues';
 export const GENERAL_TOPIC_ID = 1;
 
 export const LIGHT_THEME_BG_COLOR = '#99BA92';

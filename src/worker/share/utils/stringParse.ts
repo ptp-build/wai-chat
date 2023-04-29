@@ -1,6 +1,6 @@
 import {ApiMessageEntityTypes} from "../../../api/types";
 
-export function parseCodeBlock(text:string) {
+export function parseCodeBlock(text:string,entities?:any[]) {
   const reg = /```(.*?)\n([\s\S]*?)```/g;
   if(text.indexOf("```") >= 0 && text.split("```").length % 2 === 0){
     text =  text+"```";
@@ -21,9 +21,15 @@ export function parseCodeBlock(text:string) {
     result = result.replace(match[0],  match[2]);
     ++i;
   }
+  if(!entities){
+    entities = []
+  }
   return {
     text:result.endsWith("```") ? result.substring(0,result.indexOf("```")): result,
-    entities:codeBlock
+    entities:[
+      ...codeBlock,
+      ...entities
+    ]
   };
 }
 

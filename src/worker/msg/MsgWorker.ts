@@ -1,14 +1,6 @@
-import {
-  ApiAttachment,
-  ApiBotInfo,
-  ApiChat,
-  ApiMessage,
-  ApiMessageEntityTypes,
-  ApiUpdate,
-  OnApiUpdate
-} from "../../api/types";
-import {LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
-import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUser} from "../../api/types";
+import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
+import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {
   Pdu,
@@ -23,17 +15,20 @@ import {
   writeInt32
 } from "../../lib/ptp/protobuf/BaseMsg";
 import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
-import {account} from "../../api/gramjs/methods/client";
 import {DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import {sleep} from "../../lib/gramjs/Helpers";
 import {Api as GramJs} from "../../lib/gramjs";
 import {blobToDataUri, fetchBlob} from "../../util/files";
-import {parseCodeBlock, parseEntities} from "../share/utils/stringParse";
-import MsgChatGptWorker, {AiHistoryType} from "./MsgChatGpWorker";
 import * as cacheApi from "../../util/cacheApi";
 import {Type} from "../../util/cacheApi";
 import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
 import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
+import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
+import Account from "../share/Account";
+import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
+import ChatMsg from "./ChatMsg";
+import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
+import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
 
 let messageIds:number[] = [];
 
@@ -43,30 +38,232 @@ export default class MsgWorker {
   private msgSend: ApiMessage;
   private media: GramJs.TypeInputMedia | undefined;
   private attachment?: ApiAttachment;
-  public static onUpdate: (update: ApiUpdate) => void;
-  private aiHistoryList:AiHistoryType[];
+  private chatMsg: ChatMsg;
   constructor({
       chat,
       msgSend,
       attachment,
       media,
       botInfo,
-      aiHistoryList,
     }:{
     chat:ApiChat;
     media: GramJs.TypeInputMedia | undefined;
     msgSend:ApiMessage;
     attachment?:ApiAttachment;
     botInfo?:ApiBotInfo;
-    aiHistoryList?:AiHistoryType[]
-  },onUpdate:OnApiUpdate) {
-    MsgWorker.onUpdate = onUpdate;
-    this.aiHistoryList = aiHistoryList||[]
+  }) {
     this.botInfo = botInfo;
     this.chat = chat;
     this.media = media;
     this.msgSend = msgSend;
     this.attachment = attachment;
+    this.chatMsg = new ChatMsg(chat.id)
+  }
+  static async handleTopCatsRes(pdu:Pdu){
+    const {payload} = TopCatsRes.parseMsg(pdu);
+    if(payload){
+      const topCats = JSON.parse(payload)
+      if(topCats){
+        await MsgWorker.handleTopCats(topCats)
+      }
+    }
+  }
+  static async handleSyncRes(pdu:Pdu){
+    // debugger
+    const {userStoreData} = SyncRes.parseMsg(pdu);
+    ChatMsg.apiUpdate({
+      "@type":"updateGlobalUpdate",
+      data:{
+        action:"updateUserStoreData",
+        payload:{
+          userStoreData
+        },
+      }
+    })
+  }
+  static async handleSendBotMsgRes(pdu:Pdu){
+    const {reply,msgId,message,chatId} = SendBotMsgRes.parseMsg(pdu)
+    console.log("[SendBotMsgRes]",reply,message)
+    if(reply){
+      if(msgId){
+        await new ChatMsg(chatId!).update(msgId,{
+          content:{
+            text:{
+              text:reply
+            }
+          }
+        })
+      }else{
+        await new ChatMsg(chatId!).setText(reply).reply();
+      }
+    }
+    if(message){
+      if(msgId){
+        await new ChatMsg(chatId!).update(msgId,message as ApiMessage)
+      }else{
+        await new ChatMsg(chatId!).sendNewMessage(message as ApiMessage);
+      }
+    }
+  }
+  static async handleTopCats(topCats:any){
+    const {cats,time,bots,topSearchPlaceHolder} = topCats;
+    if (bots != null) {
+      for (let i = 0; i < bots?.length; i++) {
+        const bot = bots[i];
+        //@ts-ignore
+        const user: ApiUser = ChatMsg.buildDefaultBotUser({
+          ...bot
+        })
+        ChatMsg.apiUpdate({
+          "@type": "updateGlobalUpdate",
+          data: {
+            action: "updateBots",
+            payload: {user}
+          }
+        })
+
+      }
+    }
+    const topCats1:any = {}
+    if(topSearchPlaceHolder){
+      topCats1.topSearchPlaceHolder = topSearchPlaceHolder;
+    }
+    if(cats){
+      topCats1.cats = cats;
+    }
+
+    if(time){
+      topCats1.time = time;
+    }
+    ChatMsg.apiUpdate({
+      "@type":"updateGlobalUpdate",
+      data:{
+        action:"updateTopCats",
+        payload:{
+          topCats:topCats1
+        },
+      }
+    })
+  }
+  static async handleInitAppRes(pdu:Pdu){
+    // let {chats,topCats,users,messages,chatFolders} = InitAppRes.parseMsg(pdu)
+    // let chatsList = []
+    // if(chats){
+    //   chatsList = JSON.parse(chats)
+    // }
+    // let usersList = []
+    // if(users){
+    //   usersList = JSON.parse(users)
+    // }
+    //
+    //
+    // if(messages){
+    //   messages = JSON.parse(messages)
+    // }
+    //
+    // if(chatFolders){
+    //   chatFolders = JSON.parse(chatFolders)
+    // }
+    //
+    // for (let i = 0; i < usersList?.length; i++) {
+    //   if (users != null) {
+    //     const user = usersList[i] as ApiUser;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateUser",
+    //       id:user.id,
+    //       user
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < chatsList?.length; i++) {
+    //   if (chats != null) {
+    //     const chat = chatsList[i] as ApiChat;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateChat",
+    //       id:chat.id,
+    //       chat
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < chatFolders?.length; i++) {
+    //   if (chatFolders != null) {
+    //     const folder = chatFolders[i] as ApiChatFolder;
+    //     ChatMsg.apiUpdate({
+    //       "@type":"updateChatFolder",
+    //       id:folder.id,
+    //       folder
+    //     })
+    //   }
+    // }
+    //
+    // for (let i = 0; i < messages?.length; i++) {
+    //   if (messages != null) {
+    //     const message = messages[i] as ApiMessage;
+    //     await new ChatMsg(message.chatId).sendNewMessage(message)
+    //   }
+    // }
+  }
+  static async handleRecvMsg(pdu:Pdu){
+    switch (pdu.getCommandId()) {
+      case ActionCommands.CID_SyncRes:
+        await MsgWorker.handleSyncRes(pdu);
+        break
+      case ActionCommands.CID_TopCatsRes:
+        await MsgWorker.handleTopCatsRes(pdu);
+        break
+      case ActionCommands.CID_SendBotMsgRes:
+        await MsgWorker.handleSendBotMsgRes(pdu);
+        break
+      case ActionCommands.CID_InitAppRes:
+        await MsgWorker.handleInitAppRes(pdu);
+        break
+    }
+  }
+
+  static async createWsBot(accountId:number,botApi?:string){
+    if(botApi && botApi.startsWith("ws")){
+      const botWs = BotWebSocket.getInstance(accountId)
+      if(!botWs.isLogged()){
+        botWs.setMsgHandler(async (msgConnId, notifies)=>{
+          for (let i = 0; i < notifies.length; i++) {
+            const {action,payload} = notifies[i]
+            switch (action){
+              case BotWebSocketNotifyAction.onConnectionStateChanged:
+                switch (payload.BotWebSocketState){
+                  case BotWebSocketState.logged:
+                    ChatMsg.apiUpdate({
+                      "@type":"updateGlobalUpdate",
+                      data:{
+                        action:"onLogged",
+                      }
+                    })
+                    break;
+                  case BotWebSocketState.connected:
+                    break;
+                  case BotWebSocketState.closed:
+                    break;
+                }
+                break
+              case BotWebSocketNotifyAction.onData:
+                console.log("[onData]",{accountId,payload})
+                await MsgWorker.handleRecvMsg(payload)
+                break
+            }
+          }
+        })
+        botWs.setWsUrl(botApi ? botApi : CLOUD_WS_URL)
+        botWs.setSession(Account.getCurrentAccount()?.getSession()!)
+        if(!botWs.isConnect()){
+          botWs.connect();
+        }
+        if(botWs.isConnect() && !botWs.isLogged()){
+          await botWs.login();
+        }
+        await botWs.waitForMsgServerState(BotWebSocketState.logged)
+      }
+    }
   }
   static async beforeUploadUserReq(pdu:Pdu){
     const {users,...res} = UploadUserReq.parseMsg(pdu)
@@ -97,8 +294,8 @@ export default class MsgWorker {
           let buf = Buffer.from(new PbUser(user!).pack().getPbData())
           const password = "Wai" + time!.toString();
           // console.log("accountId",account.getAccountId())
-          // console.log("entropy",await account.getEntropy())
-          const cipher = await account.encryptData(buf,password)
+          // console.log("entropy",await Account.getCurrentAccount()!.getEntropy())
+          const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
           const bb = popByteBuffer();
           writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
           writeInt16(bb, 1);
@@ -132,7 +329,7 @@ export default class MsgWorker {
           const password = "Wai"+time.toString();
           // console.log("encode",Buffer.from(buf!).toString("hex"))
           // console.log("cipher",Buffer.from(cipher).toString("hex"))
-          const buf2 = await account.decryptData(Buffer.from(cipher),password)
+          const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
           // console.log("userId",user?.id)
           // console.log("buf",buf)
           // console.log("cipher",cipher)
@@ -159,7 +356,7 @@ export default class MsgWorker {
         const password = "Wai"+time.toString();
         // console.log("encode",Buffer.from(buf!).toString("hex"))
         // console.log("cipher",Buffer.from(cipher).toString("hex"))
-        const buf2 = await account.decryptData(Buffer.from(cipher),password)
+        const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
         messages[i].message = PbMsg.parseMsg(new Pdu(Buffer.from(buf2)))
         messages[i].buf = undefined
         // console.log("userId",user?.id)
@@ -200,7 +397,7 @@ export default class MsgWorker {
         const {time,message} = messages[i]
         let buf = Buffer.from(new PbMsg(message!).pack().getPbData())
         const password = "Wai"+time!.toString();
-        const cipher = await account.encryptData(buf,password)
+        const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
         const bb = popByteBuffer();
         writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
         writeInt16(bb, 1);
@@ -216,7 +413,6 @@ export default class MsgWorker {
     }
     return new UploadMsgReq({messages,...res}).pack()
   }
-
   static async genMessageId(isLocal?:boolean):Promise<number>{
     let msgId = isLocal ? getNextLocalMessageId() : parseInt(getNextLocalMessageId().toString()) % LOCAL_MESSAGE_MIN_ID;
     if(messageIds.length > 10){
@@ -245,6 +441,7 @@ export default class MsgWorker {
     }
     return fileId
   }
+
   async handleMedia(){
     const {msgSend,attachment} = this;
     if(attachment){
@@ -305,98 +502,40 @@ export default class MsgWorker {
       this.msgSend = msgSend;
     }
   }
-  static handleMessageTextCode(msgSend:Partial<ApiMessage>){
-    if(msgSend.content?.text && msgSend.content.text.text){
-      // @ts-ignore
-      msgSend.content.text = parseCodeBlock(msgSend.content.text?.text)
-    }
-    return msgSend
-  }
-  static handleBotCmdText(msgSend:Partial<ApiMessage>,botInfo:ApiBotInfo){
-    const commands:string[] = []
-    if(botInfo && botInfo.commands){
-      botInfo.commands.forEach(cmd=>commands.push(cmd.command))
-    }
-    if(msgSend.content && msgSend.content.text && msgSend.content.text.text){
-      // @ts-ignore
-      msgSend.content.text!.entities = [
-        ...msgSend.content.text!.entities||[],
-        ...parseEntities(msgSend.content.text!.text!,commands)
-      ]
-    }
-    return msgSend;
-  }
-  static updateMessage(chatId:string,messageId:number,message:Partial<ApiMessage>){
-    MsgWorker.onUpdate({
-      '@type': "updateMessage",
-      id: messageId,
-      chatId,
-      message,
-    });
-    return message
-  }
-  static newMessage(chatId:string,messageId:number,message:ApiMessage){
-    MsgWorker.onUpdate({
-      '@type': "newMessage",
-      chatId,
-      id:messageId,
-      message,
-      shouldForceReply:false
-    });
-    return message
-  }
+
   async processOutGoing(){
     const {msgSend} = this;
     const msgId = await MsgWorker.genMessageId();
     let message = {
       ...msgSend,
       id:msgId,
+      isOutGoing:false,
       sendingState: undefined,
     };
-    MsgWorker.onUpdate({
+
+    ChatMsg.apiUpdate({
       '@type': "updateMessageSendSucceeded",
       chatId: msgSend.chatId,
       localId:msgSend.id,
       message,
-    });
+    })
     this.msgSend = message
   }
 
-  isMsgCipher(){
-    return this.msgSend.content.text?.entities?.some((e) => e.type === ApiMessageEntityTypes.Spoiler);
-  }
-  async processBotMsg(){
-    const {botInfo,msgSend} =this;
-    if(
-      msgSend.content.text && msgSend.content.text.text &&
-      botInfo?.aiBot && botInfo?.aiBot.enableAi && botInfo?.aiBot.chatGptConfig
-    ){
-      return await new MsgChatGptWorker(this.msgSend,botInfo,this.aiHistoryList).process()
-    }
-  }
   async process(){
-    const {msgSend,chat,botInfo} = this;
+    const {msgSend,chat} = this;
 
     try {
       await this.handleMedia();
-      if(botInfo){
-        this.msgSend = MsgWorker.handleBotCmdText(this.msgSend,botInfo);
-      }
       await this.processOutGoing();
-      if(this.isMsgCipher()){
-        return
-      }
-      if(this.botInfo){
-        await this.processBotMsg();
-      }
     }catch (error:any){
       console.error(error)
-      MsgWorker.onUpdate({
+      ChatMsg.apiUpdate({
         '@type': 'updateMessageSendFailed',
         chatId: chat.id,
         localId: msgSend.id,
         error: error.message,
-      });
+      })
     }
   }
 }

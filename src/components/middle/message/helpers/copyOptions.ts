@@ -86,7 +86,7 @@ export function getMessageCopyOptions(
 
   if (onCopyLink) {
     options.push({
-      label: 'lng_context_copy_message_link',
+      label: '复制连接',
       icon: 'link',
       handler: () => {
         onCopyLink();

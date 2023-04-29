@@ -6,8 +6,8 @@
   }
 
   .multiline-item {
-    padding: 0 1rem;
-
+    padding: 0;
+    display: flex;
     .subtitle {
       padding-top: 0.25rem;
       line-height: 1.3125;

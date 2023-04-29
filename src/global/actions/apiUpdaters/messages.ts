@@ -53,6 +53,7 @@ import {
   selectThreadIdFromMessage,
   selectTopicFromMessage,
   selectTabState,
+  selectUser,
 } from '../../selectors';
 import {
   getMessageContent, isUserId, isMessageLocal, getMessageText, checkIfHasUnreadReactions, isLocalMessageId,
@@ -62,15 +63,30 @@ import { updateUnreadReactions } from '../../reducers/reactions';
 import { updateTabState } from '../../reducers/tabs';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import parseMessageInput from "../../../util/parseMessageInput";
+import { handleBotCmdText, handleMessageTextCode } from '../../../worker/msg/msgHelper';
 
 const ANIMATION_DELAY = 350;
 
+const handleMessageEntities = (global:GlobalState,chatId:string,message:ApiMessage|Partial<ApiMessage>)=>{
+  if(message.content?.text && (!message.content.text.entities || message.content.text.entities?.length === 0)){
+    const user = selectUser(global,chatId)
+    message = handleMessageTextCode(message)
+    if(user && user.fullInfo?.botInfo){
+      message = handleBotCmdText(message,user.fullInfo.botInfo) as ApiMessage
+    }
+  }
+  message.isOutgoing = false
+  console.log("handleMessageEntities",message)
+  return message
+}
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
   switch (update['@type']) {
     case 'newMessage': {
-      const {
+      let {
         chatId, id, message, shouldForceReply,
       } = update;
+      message = handleMessageEntities(global,chatId,message)
+
       global = updateWithLocalMedia(global, chatId, id, message);
       global = updateListedAndViewportIds(global, actions, message as ApiMessage);
 
@@ -190,7 +206,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     }
 
     case 'updateMessage': {
-      const { chatId, id, message } = update;
+      let { chatId, id, message } = update;
+      message = handleMessageEntities(global,chatId,message)
       const currentMessage = selectChatMessage(global, chatId, id);
       const chat = selectChat(global, chatId);
 
@@ -224,8 +241,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     }
 
     case 'updateScheduledMessage': {
-      const { chatId, id, message } = update;
-
+      let { chatId, id, message } = update;
+      message = handleMessageEntities(global,chatId,message)
       const currentMessage = selectScheduledMessage(global, chatId, id);
       if (!currentMessage) {
         return;
@@ -246,7 +263,9 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     }
 
     case 'updateMessageSendSucceeded': {
-      const { chatId, localId, message } = update;
+      let { chatId, localId, message } = update;
+      message = handleMessageEntities(global,chatId,message) as ApiMessage
+
       global = updateListedAndViewportIds(global, actions, message as ApiMessage);
 
       const currentMessage = selectChatMessage(global, chatId, localId);

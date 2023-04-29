@@ -1,4 +1,5 @@
 .LeftSearch {
+
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -12,6 +13,10 @@
   .TabList {
     padding-bottom: 1px;
     z-index: 1;
+    .Tab > span{
+      padding-right: 12px;
+      padding-left: 12px;
+    }
   }
 
   .documents-list {

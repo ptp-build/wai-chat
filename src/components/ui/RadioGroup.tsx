@@ -34,7 +34,6 @@ const RadioGroup: FC<OwnProps> = ({
     const { value } = event.currentTarget;
     onChange(value, event);
   }, [onChange]);
-
   return (
     <div id={id} className="radio-group">
       {options.map((option) => (

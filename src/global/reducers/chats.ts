@@ -230,6 +230,34 @@ export function updateChatListSecondaryInfo<T extends GlobalState>(
   };
 }
 
+export function deleteChat<T extends GlobalState>(global: T, leftChatId: string): T {
+  const listType = selectChatListType(global, leftChatId);
+  if (!listType) {
+    return global;
+  }
+
+  const { [listType]: listIds } = global.chats.listIds;
+
+  if (listIds) {
+    global = replaceChatListIds(global, listType, listIds.filter((listId) => listId !== leftChatId));
+  }
+
+  global = {
+    ...global,
+    chats:{
+      ...global.chats,
+      byId:{
+        ...global.chats.byId,
+        [leftChatId]:undefined
+      }
+    }
+  };
+  global = updateChatListSecondaryInfo(global,listType,{
+    totalChatCount:listIds.filter((listId) => listId !== leftChatId).length || 0
+  })
+  return global;
+}
+
 export function leaveChat<T extends GlobalState>(global: T, leftChatId: string): T {
   const listType = selectChatListType(global, leftChatId);
   if (!listType) {

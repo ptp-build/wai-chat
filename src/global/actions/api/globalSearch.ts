@@ -1,39 +1,36 @@
-import { addActionHandler, getGlobal, setGlobal } from '../../index';
+import {addActionHandler, getGlobal, setGlobal} from '../../index';
+import type {ApiChat, ApiGlobalMessageSearchType, ApiMessage,} from '../../../api/types';
 
-import { callApi } from '../../../api/gramjs';
-import type {
-  ApiChat, ApiTopic, ApiGlobalMessageSearchType, ApiMessage, ApiUser,
-} from '../../../api/types';
-
-import {
-  addChats,
-  addMessages,
-  addUsers,
-  updateTopics,
-  updateGlobalSearch,
-  updateGlobalSearchFetchingStatus,
-  updateGlobalSearchResults,
-} from '../../reducers';
-import { throttle } from '../../../util/schedulers';
+import {updateGlobalSearch, updateGlobalSearchFetchingStatus, updateGlobalSearchResults,} from '../../reducers';
+import {throttle} from '../../../util/schedulers';
 import {
   selectChat,
   selectChatMessage,
   selectChatMessages,
   selectCurrentGlobalSearchQuery,
-  selectTabState, selectUser
+  selectTabState,
+  selectUser
 } from '../../selectors';
-import { buildCollectionByKey } from '../../../util/iteratees';
-import { GLOBAL_SEARCH_SLICE, GLOBAL_TOPIC_SEARCH_SLICE } from '../../../config';
-import { timestampPlusDay } from '../../../util/dateFormat';
-import type { ActionReturnType, GlobalState, TabArgs } from '../../types';
-import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import {timestampPlusDay} from '../../../util/dateFormat';
+import type {ActionReturnType, GlobalState, TabArgs} from '../../types';
+import {getCurrentTabId} from '../../../util/establishMultitabRole';
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {TopCatsReq} from "../../../lib/ptp/protobuf/PTPSync";
 
 const searchThrottled = throttle((cb) => cb(), 500, false);
 
+addActionHandler('fetchTopCats', async (global, actions, payload) => {
+  const {topCats} = global
+  callApiWithPdu(new TopCatsReq({
+    time:topCats.time || 0
+  }).pack()).catch(console.error)
+})
+
+
 addActionHandler('setGlobalSearchQuery', (global, actions, payload): ActionReturnType => {
   const { query, tabId = getCurrentTabId() } = payload!;
-
   if (query) {
+    //@ts-ignore
     void searchThrottled(async () => {
       global = getGlobal();
       const chatListIdsActive = global.chats.listIds.active;
@@ -48,13 +45,16 @@ addActionHandler('setGlobalSearchQuery', (global, actions, payload): ActionRetur
         const userId = userIdList[i]
         const user = selectUser(global,userId)
         if(
-          chatListIdsActive.includes(userId) && (
+          (
             (user?.firstName && user?.firstName.toLowerCase().indexOf(query.toLowerCase()) > -1) ||
             (user?.lastName && user?.lastName.toLowerCase().indexOf(query.toLowerCase()) > -1) ||
             (user?.fullInfo && user?.fullInfo.bio && user?.fullInfo.bio.toLowerCase().indexOf(query.toLowerCase()) > -1)
           )
-          ){
-          chatIds.push(userId)
+        ){
+          if(chatListIdsActive.includes(userId)){
+            chatIds.push(userId)
+          }
+          userIds.push(userId)
         }
       }
 
@@ -80,7 +80,7 @@ addActionHandler('setGlobalSearchQuery', (global, actions, payload): ActionRetur
 
       }
       const currentSearchQuery = selectCurrentGlobalSearchQuery(global, tabId);
-      if (messagesList.length === 0 || !currentSearchQuery || (query !== currentSearchQuery)) {
+      if ((userIds.length === 0 && chatIds.length === 0 &&  messagesList.length === 0) || !currentSearchQuery || (query !== currentSearchQuery)) {
         global = updateGlobalSearchFetchingStatus(global, { messages: false }, tabId);
         setGlobal(global);
         return;
@@ -92,7 +92,6 @@ addActionHandler('setGlobalSearchQuery', (global, actions, payload): ActionRetur
           userIds
         },
       }, tabId);
-
       setGlobal(global);
     });
   }

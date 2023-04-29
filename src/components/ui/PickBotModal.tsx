@@ -44,13 +44,17 @@ const PickBotModal: FC<OwnProps & StateProps> = ({showPickBotModal,botIds}) => {
 export default memo(withGlobal<OwnProps>(
   (global ): StateProps => {
     const {
-      chatIdsDeleted,
+      userStoreData,
       showPickBotModal,
       users:{
         byId:users
       }
     } = global;
-    const botIds = Object.keys(users).filter(id=>id !== "1").filter(id=>!chatIdsDeleted.includes(id))
+    let botIds = Object.keys(users).filter(id=>id !== "1");
+    if(userStoreData && userStoreData.chatIdsDeleted){
+      botIds = botIds.filter(id=>!userStoreData.chatIdsDeleted.includes(id))
+    }
+
     return {
       botIds,
       showPickBotModal,

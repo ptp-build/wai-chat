@@ -38,7 +38,6 @@ const Reactions: FC<OwnProps> = ({
   const totalCount = useMemo(() => (
     message.reactions!.results.reduce((acc, reaction) => acc + reaction.count, 0)
   ), [message]);
-
   return (
     <div className={buildClassName('Reactions', isOutside && 'is-outside')}>
       {message.reactions!.results.map((reaction) => (

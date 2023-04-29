@@ -1,20 +1,14 @@
 import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type {ApiUserStatus} from '../../../api/types';
+import type {ApiUser, ApiUserStatus} from '../../../api/types';
 
-import {
-  addUsers,
-  addUserStatuses,
-  deleteContact,
-  replaceChats,
-  replaceUsers,
-  replaceUserStatuses,
-  updateUser,
-} from '../../reducers';
+import {addUsers, addUserStatuses, deleteContact, replaceUsers, replaceUserStatuses, updateUser,} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
-import {selectChat, selectIsCurrentUserPremium, selectUser} from '../../selectors';
-import type {ActionReturnType, RequiredGlobalState} from '../../types';
-import {AiReplyHistoryRole, AiReplyHistoryType} from "../../types";
+import {selectIsCurrentUserPremium, selectUser} from '../../selectors';
+import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../types';
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -40,36 +34,104 @@ function flushStatusUpdates() {
   pendingStatusUpdates = {};
 }
 
+function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_Type){
+  // console.log("updateUserStoreData",userStoreDataRes)
+  if (userStoreDataRes){
+    const {chatFolders,...userStoreData} = userStoreDataRes;
+    return {
+      ...global,
+      userStoreData
+    }
+  }else{
+    return global
+  }
+
+}
+
+function handleUpdateBots(global:GlobalState,user:ApiUser){
+  const user1 = selectUser(global,user.id)
+  if(!user1){
+    const statusById:Record<string, ApiUserStatus> = {}
+    statusById[user.id] = {
+      type:'userStatusEmpty'
+    }
+    global = addUserStatuses(global,statusById);
+    global = addUsers(global,{
+      [user.id]:user
+    })
+  }else{
+    return updateUser(global, user.id,{
+      ...user1,
+      avatarHash:user.avatarHash,
+      firstName:user.firstName,
+      fullInfo:{
+        ...user1.fullInfo,
+        bio:user.fullInfo?.bio,
+        botInfo: {
+          ...user1.fullInfo?.botInfo!,
+          description:user.fullInfo?.botInfo?.description,
+          aiBot:{
+            ...user1.fullInfo?.botInfo!.aiBot,
+            chatGptConfig:{
+              ...user1.fullInfo?.botInfo!.aiBot!.chatGptConfig!,
+              welcome:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.welcome,
+              template:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.template,
+              templateSubmit:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.templateSubmit,
+              init_system_content:user.fullInfo?.botInfo!.aiBot!.chatGptConfig!.init_system_content
+            }
+          }
+        }
+      }
+    });
+  }
+  return global
+}
 
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
   switch (update['@type']) {
     case "updateGlobalUpdate":
       const {data} = update
       switch (data.action){
-        case "updateAiHistory":
-          const chatId = data.payload!.chatId;
-          let historyList:AiReplyHistoryType[] = []
-          if(global.aiReplyHistory[chatId]){
-            historyList = [
-              ...global.aiReplyHistory[chatId],
-            ]
-          }
-          historyList = [
-            ...historyList,
-            {
-              msgId:data.payload!.messages[0],
-              role:AiReplyHistoryRole.USER
-            },
-            {
-              msgId:data.payload!.messages[0],
-              role:AiReplyHistoryRole.ASSISTANT
+        case "updateBots":
+          return handleUpdateBots(global,data.payload.user);
+        case "onLogged":
+          let {userStoreData} = global
+          if(!userStoreData){
+            userStoreData = {
+              time:0,
+              chatIds:Object.keys(global.chats.listIds.active),
+              chatFolders:JSON.stringify(global.chatFolders)
             }
-          ]
+          }else{
+            userStoreData = {
+              ...userStoreData,
+              chatFolders:JSON.stringify(global.chatFolders)
+            }
+          }
+          callApiWithPdu(new SyncReq({
+            userStoreData,
+          }).pack()).catch(console.error)
+          break
+        case "updateUserStoreData":
+          return updateUserStoreData(global,data.payload!.userStoreData)
+        case "updateTopCats":
           return {
             ...global,
-            aiReplyHistory:{
-              ...global.aiReplyHistory,
-              [chatId]:historyList
+            topCats:{
+              ...global.topCats,
+              ...data.payload!.topCats
+            }
+          }
+        case "updateChatGptHistory":
+          const chatId = data.payload!.chatId;
+          return {
+            ...global,
+            chatGptAskHistory:{
+              ...global.chatGptAskHistory,
+              [chatId]:{
+                ...global.chatGptAskHistory[chatId],
+                [data.payload!.msgIdAssistant]:data.payload!.msgIdUser
+              }
             }
           }
         case "updateBot":
@@ -113,10 +175,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
             }
           })
           break;
-        case "loadChats":
-        case "createBot":
-          actions.loadAllChats({ listType: 'active', shouldReplace: true });
-          return
         case "removeBot":
           if(global.chats.listIds && global.chats.listIds.active){
             let listIds_active = global.chats.listIds.active
@@ -140,86 +198,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           }
           return
       }
-
-      const chat_listIds_active = global.chats.listIds.active || []
-      if(data.chats){
-        for (let i = 0; i < data.chats.length; i++) {
-          const chat1 = data.chats[i]
-          const chat = selectChat(global,chat1.id)
-          if(!chat_listIds_active.includes(chat1.id)){
-            chat_listIds_active.push(chat1.id)
-          }
-          if(chat){
-            global = replaceChats(global,{
-              ...global.chats.byId,
-              [chat1.id]:{
-                ...chat,
-                ...chat1,
-              }
-            });
-          }else{
-            const chatFolders = global.chatFolders;
-            if(!chatFolders.byId["1"].includedChatIds.includes(chat1.id)){
-              chatFolders.byId["1"].includedChatIds.push(chat1.id)
-            }
-            global = {
-              ...global,
-              chats:{
-                ...global.chats,
-                byId:{
-                  ...global.chats.byId,
-                  [chat1.id]:{
-                    ...chat1,
-                  }
-                }
-              },
-              chatFolders
-            }
-          }
-        }
-      }
-      if(data.users){
-        for (let i = 0; i < data.users.length; i++) {
-          const user1 = data.users[i]
-          const user = selectUser(global,user1.id)
-          if(user){
-            global = replaceUsers(global,{
-              ...global.users.byId,
-              [user1.id]:{
-                ...user,
-                ...user1,
-              }
-            });
-          }else{
-            global = addUsers(global,{
-              [user1.id]:{
-                ...user1,
-              }
-            });
-            if(user1.fullInfo && user1.fullInfo.botInfo){
-              global = addUserStatuses(global,{
-                [user1.id]:{
-                  type:'userStatusEmpty'
-                }
-              });
-            }
-          }
-        }
-      }
-      actions.updateGlobal({
-        chats:{
-          ...global.chats,
-          listIds:{
-            ...global.chats.listIds,
-            active:chat_listIds_active
-          },
-          totalCount:{
-            all:chat_listIds_active.length
-          }
-        },
-        users:global.users,
-        chatFolders:global.chatFolders,
-      })
       break
     case 'deleteContact': {
       return deleteContact(global, update.id);
@@ -240,8 +218,13 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           };
         }
       });
-
-      return updateUser(global, update.id, update.user);
+      if(selectUser(global,update.id)){
+        return updateUser(global, update.id, update.user);
+      }else{
+        return addUsers(global, {
+          [update.id]:update.user
+        });
+      }
     }
 
     case 'updateRequestUserUpdate': {

@@ -19,10 +19,10 @@ import type {
   ApiVideo,
   OnApiUpdate,
 } from '../../types';
-import {MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
+import {ApiKeyboardButtons, MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
 
 import {
-  ALL_FOLDER_ID,
+  ALL_FOLDER_ID, CHATGPT_PROXY_API,
   DEBUG,
   GIF_MIME_TYPE,
   MAX_INT_32,
@@ -77,7 +77,9 @@ import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import Account from '../../../worker/share/Account';
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
+import {ControllerPool, requestChatStream} from "../../../lib/ptp/functions/requests";
+import ChatMsg from "../../../worker/msg/ChatMsg";
+import {ChatModelConfig} from "../../../worker/setting";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
@@ -87,6 +89,7 @@ type TranslateTextParams = ({
 } | {
   chat: ApiChat;
   messageIds: number[];
+  messages?:Record<number, ApiFormattedText>
 }) & {
   toLanguageCode: string;
 };
@@ -113,24 +116,24 @@ export async function fetchMessages({
   isUp?:boolean
 }) {
   return
-  const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new MsgListReq({
-    lastMessageId:lastMessageId!,
-    chatId:chat.id,
-    limit: MESSAGE_LIST_SLICE,
-    isUp
-  }).pack());
-  if(!pdu){
-    return
-  }
-  const res = MsgListRes.parseMsg(pdu!)
-  if(res.err !== ERR.NO_ERROR){
-    return;
-  }
-  const result = JSON.parse(res!.payload)
-  if(!result){
-    return
-  }
-  return result
+  // const pdu = await Account.getCurrentAccount()?.sendPduWithCallback(new MsgListReq({
+  //   lastMessageId:lastMessageId!,
+  //   chatId:chat.id,
+  //   limit: MESSAGE_LIST_SLICE,
+  //   isUp
+  // }).pack());
+  // if(!pdu){
+  //   return
+  // }
+  // const res = MsgListRes.parseMsg(pdu!)
+  // if(res.err !== ERR.NO_ERROR){
+  //   return;
+  // }
+  // const result = JSON.parse(res!.payload)
+  // if(!result){
+  //   return
+  // }
+  // return result
   // const RequestClass = threadId === MAIN_THREAD_ID ? GramJs.messages.GetHistory : GramJs.messages.GetReplies;
   // let result;
   //
@@ -264,7 +267,6 @@ export function sendMessage(
     sendAs,
     shouldUpdateStickerSetsOrder,
     botInfo,
-    aiHistoryList
   }: {
     chat: ApiChat;
     text?: string;
@@ -283,7 +285,6 @@ export function sendMessage(
     sendAs?: ApiUser | ApiChat;
     shouldUpdateStickerSetsOrder?: boolean;
     botInfo?: ApiBotInfo;
-    aiHistoryList?:AiHistoryType[]
   },
   onProgress?: ApiOnProgress,
 ) {
@@ -366,8 +367,7 @@ export function sendMessage(
       attachment,
       media,
       botInfo,
-      aiHistoryList,
-    },onUpdate).process()
+    }).process()
   })();
 
   return queue;
@@ -890,23 +890,23 @@ export async function markMessageListRead({
 
   // Workaround for local message IDs overflowing some internal `Buffer` range check
   const fixedMaxId = Math.min(maxId, MAX_INT_32);
-  if (isChannel && threadId === MAIN_THREAD_ID) {
-    await invokeRequest(new GramJs.channels.ReadHistory({
-      channel: buildInputEntity(chat.id, chat.accessHash) as GramJs.InputChannel,
-      maxId: fixedMaxId,
-    }));
-  } else if (isChannel) {
-    await invokeRequest(new GramJs.messages.ReadDiscussion({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      msgId: threadId,
-      readMaxId: fixedMaxId,
-    }));
-  } else {
-    await invokeRequest(new GramJs.messages.ReadHistory({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      maxId: fixedMaxId,
-    }));
-  }
+  // if (isChannel && threadId === MAIN_THREAD_ID) {
+  //   await invokeRequest(new GramJs.channels.ReadHistory({
+  //     channel: buildInputEntity(chat.id, chat.accessHash) as GramJs.InputChannel,
+  //     maxId: fixedMaxId,
+  //   }));
+  // } else if (isChannel) {
+  //   await invokeRequest(new GramJs.messages.ReadDiscussion({
+  //     peer: buildInputPeer(chat.id, chat.accessHash),
+  //     msgId: threadId,
+  //     readMaxId: fixedMaxId,
+  //   }));
+  // } else {
+  //   await invokeRequest(new GramJs.messages.ReadHistory({
+  //     peer: buildInputPeer(chat.id, chat.accessHash),
+  //     maxId: fixedMaxId,
+  //   }));
+  // }
 
   if (threadId === MAIN_THREAD_ID) {
     void requestChatUpdate({ chat, noLastMessage: true });
@@ -1681,12 +1681,43 @@ export async function translateText(params: TranslateTextParams) {
   let result;
   const isMessageTranslation = 'chat' in params;
   if (isMessageTranslation) {
-    const { chat, messageIds, toLanguageCode } = params;
-    result = await invokeRequest(new GramJs.messages.TranslateText({
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      id: messageIds,
-      toLang: toLanguageCode,
-    }));
+    const { chat, messageIds,messages, toLanguageCode } = params;
+    // result = await invokeRequest(new GramJs.messages.TranslateText({
+    //   peer: buildInputPeer(chat.id, chat.accessHash),
+    //   id: messageIds,
+    //   toLang: toLanguageCode,
+    // }));
+
+    const chatId = chat.id
+
+    const res = await requestChatStream(
+      CHATGPT_PROXY_API+"/v1/chat/completions",
+      {
+        body:{
+          ...ChatModelConfig,
+          apiKey:"",
+          systemPrompt:"你现在是一名专业的翻译官",
+          messages:[
+            {
+              role:"user",
+              content:`我需要将：${messages[messageIds[0]].text},翻译成:${toLanguageCode},你的回答格式是：原文:xxx\n译文:xxx,不要做过多解释`
+            }
+          ],
+          chatId,
+          msgId:0,
+          stream:false
+        },
+      })
+    if(res){
+      result = {
+        result:[
+          {
+            text:res,
+            entities:[]
+          }
+        ]
+      }
+    }
   } else {
     const { text, toLanguageCode } = params;
     result = await invokeRequest(new GramJs.messages.TranslateText({

@@ -221,9 +221,11 @@ const MessageList: FC<OwnProps & StateProps> = ({
 
   // Updated only once when messages are loaded (as we want the unread divider to keep its position)
   useSyncEffect(() => {
-    if (areMessagesLoaded) {
-      memoUnreadDividerBeforeIdRef.current = memoFirstUnreadIdRef.current;
-    }
+    // if (areMessagesLoaded) {
+    //   memoUnreadDividerBeforeIdRef.current = memoFirstUnreadIdRef.current;
+    // }
+    memoUnreadDividerBeforeIdRef.current = memoFirstUnreadIdRef.current;
+
   }, [areMessagesLoaded]);
 
   useSyncEffect(() => {
@@ -478,10 +480,11 @@ const MessageList: FC<OwnProps & StateProps> = ({
       const newAnchorTop = anchor.getBoundingClientRect().top;
       newScrollTop = scrollTop + (newAnchorTop - (anchorTopRef.current || 0));
     } else if (unreadDivider) {
-      newScrollTop = Math.min(
-        unreadDivider.offsetTop - (hasTools ? UNREAD_DIVIDER_TOP_WITH_TOOLS : UNREAD_DIVIDER_TOP),
-        scrollHeight - scrollOffset,
-      );
+      // newScrollTop = Math.min(
+      //   unreadDivider.offsetTop - (hasTools ? UNREAD_DIVIDER_TOP_WITH_TOOLS : UNREAD_DIVIDER_TOP),
+      //   scrollHeight - scrollOffset,
+      // );
+      newScrollTop = scrollHeight - scrollOffset;
     } else {
       newScrollTop = scrollHeight - scrollOffset;
     }
@@ -514,8 +517,10 @@ const MessageList: FC<OwnProps & StateProps> = ({
   const lang = useLang();
 
   const isPrivate = Boolean(chatId && isUserId(chatId));
-  const withUsers = Boolean((!isPrivate && !isChannelChat) || isChatWithSelf || isRepliesChat);
-  const noAvatars = Boolean(!withUsers || isChannelChat);
+  let withUsers = Boolean((!isPrivate && !isChannelChat) || isChatWithSelf || isRepliesChat);
+  let noAvatars = Boolean(!withUsers || isChannelChat);
+  noAvatars = false
+  withUsers = true;
   const shouldRenderGreeting = isUserId(chatId) && !isChatWithSelf && !isBot
     && (
       (

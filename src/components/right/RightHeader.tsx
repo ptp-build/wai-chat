@@ -34,6 +34,7 @@ import Transition from '../ui/Transition';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 import './RightHeader.scss';
+import {SERVER_BOT_USER_ID_START, UserIdFirstBot} from "../../worker/setting";
 
 type OwnProps = {
   chatId?: string;
@@ -552,7 +553,7 @@ export default memo(withGlobal<OwnProps>(
     const isBot = user && isUserBot(user);
 
     const canAddContact = user && getCanAddContact(user);
-    const canManage = Boolean(
+    let canManage = Boolean(
       !isManagement
       && isProfile
       && !canAddContact
@@ -566,6 +567,16 @@ export default memo(withGlobal<OwnProps>(
     const currentInviteInfo = chatId
       ? tabState.management.byChatId[chatId]?.inviteInfo?.invite : undefined;
 
+    if(isBot){
+      const {userStoreData} = global
+      canManage = false
+      if(chatId && userStoreData && userStoreData.myBots && userStoreData.myBots.includes(chatId)){
+        canManage = true;
+      }
+      if(chatId && parseInt(chatId) == parseInt(SERVER_BOT_USER_ID_START)){
+        canManage = true;
+      }
+    }
     return {
       canManage,
       canAddContact,

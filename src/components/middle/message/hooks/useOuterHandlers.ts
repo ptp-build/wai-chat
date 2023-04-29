@@ -34,7 +34,7 @@ export default function useOuterHandlers(
   isOwn: boolean,
   shouldHandleMouseLeave: boolean,
 ) {
-  const { setReplyingToId, sendDefaultReaction } = getActions();
+  const { setReplyingToId,setEditingId, sendDefaultReaction } = getActions();
 
   const [isQuickReactionVisible, markQuickReactionVisible, unmarkQuickReactionVisible] = useFlag();
   const [isSwiped, markSwiped, unmarkSwiped] = useFlag();
@@ -130,8 +130,8 @@ export default function useOuterHandlers(
 
   function handleContainerDoubleClick() {
     if (IS_TOUCH_ENV || !canReply) return;
-
-    setReplyingToId({ messageId });
+    setEditingId({ messageId });
+    // setReplyingToId({ messageId });
   }
 
   function stopPropagation(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {

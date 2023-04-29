@@ -25,6 +25,7 @@ import Button from '../../../ui/Button';
 import Loading from '../../../ui/Loading';
 import AnimatedIcon from '../../../common/AnimatedIcon';
 import Draggable from '../../../ui/Draggable';
+import {BOT_FOLDER_ID} from "../../../../worker/setting";
 
 type OwnProps = {
   isActive?: boolean;
@@ -226,7 +227,7 @@ const SettingsFoldersMain: FC<OwnProps & StateProps> = ({
             const draggedTop = (state.orderedFolderIds?.indexOf(folder.id) ?? 0) * FOLDER_HEIGHT_PX;
             const top = (state.dragOrderIds?.indexOf(folder.id) ?? 0) * FOLDER_HEIGHT_PX;
 
-            if (folder.id === ALL_FOLDER_ID) {
+            if (folder.id === ALL_FOLDER_ID || folder.id === BOT_FOLDER_ID) {
               return (
                 <Draggable
                   key={folder.id}

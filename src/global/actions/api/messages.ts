@@ -6,6 +6,7 @@ import type {
   ApiAttachment,
   ApiBotInfo,
   ApiChat,
+  ApiFormattedText,
   ApiMessage,
   ApiMessageEntity,
   ApiNewPoll,
@@ -35,7 +36,7 @@ import {
   addChatMessagesById,
   addChats,
   addUsers,
-  leaveChat,
+  deleteChat,
   removeRequestedMessageTranslation,
   replaceScheduledMessages,
   replaceTabThreadParam,
@@ -97,15 +98,14 @@ import {ensureProtocol} from '../../../util/ensureProtocol';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import Account from "../../../worker/share/Account";
-import {replaceSubstring} from "../../../worker/share/utils/utils";
+import {currentTs1000, replaceSubstring} from "../../../worker/share/utils/utils";
 import {blobToBuffer, fetchBlob} from "../../../util/files";
 import {popByteBuffer, toUint8Array, writeBytes, writeInt16} from "../../../lib/ptp/protobuf/BaseMsg";
 import {resizeImage} from "../../../util/imageResize";
-import {UserIdChatGpt, UserIdFirstBot} from "../../../worker/setting";
 import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
-import {AiHistoryType} from "../../../worker/msg/MsgChatGpWorker";
-import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -237,7 +237,7 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
   const { tabId = getCurrentTabId() } = payload;
   const currentMessageList = selectCurrentMessageList(global, tabId);
 
-  if (!currentMessageList || global.msgClientState !== "connectionStateLogged") {
+  if (!currentMessageList) {
     return undefined;
   }
   const { chatId, threadId, type } = currentMessageList;
@@ -305,6 +305,7 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
             payload.entities[i] = {...entity,cipher:cipher.toString("hex"),hint}
           }
         }
+        console.log(payload)
       }else{
         return undefined
       }
@@ -403,7 +404,8 @@ addActionHandler('sendMessage', async (global, actions, payload): ActionReturnTy
   return undefined;
 });
 
-addActionHandler('editMessage', (global, actions, payload): ActionReturnType => {
+// @ts-ignore
+addActionHandler('editMessage', async (global, actions, payload): ActionReturnType => {
   const { text, entities, tabId = getCurrentTabId() } = payload;
   const currentMessageList = selectCurrentMessageList(global, tabId);
   if (!currentMessageList) {
@@ -416,7 +418,7 @@ addActionHandler('editMessage', (global, actions, payload): ActionReturnType => 
   if (!chat || !message) {
     return;
   }
-
+  await MsgDispatcher.reRunAi(chatId,message.id,text)
   void callApi('editMessage', {
     chat, message, text, entities, noWebPage: selectNoWebPage(global, chatId, threadId),
   });
@@ -601,7 +603,6 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
   if (!chat) {
     return;
   }
-  if([UserIdFirstBot,UserIdChatGpt].includes(chatId)) return
   // await callApi('deleteHistory', { chat, shouldDeleteForAll });
 
   global = getGlobal();
@@ -611,19 +612,59 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
   }
 
   global = getGlobal();
-  const {chatIdsDeleted} = global;
-  if(!chatIdsDeleted.includes(chatId)){
-    chatIdsDeleted.push(chatId)
+  global = deleteChat(global, chatId);
+  const {chatFolders} = global
+  let {userStoreData} = global;
+
+  Object.values(chatFolders.byId).forEach(folder=>{
+    if(!folder.includedChatIds){
+      folder.includedChatIds = []
+    }
+    if(folder.includedChatIds.includes(chatId)){
+      folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+    }
+    if(userStoreData && userStoreData.chatIdsDeleted){
+      userStoreData.chatIdsDeleted.forEach(chatId=>{
+        if(folder.includedChatIds.includes(chatId)){
+          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+        }
+      })
+    }
+    const includedChatIds = []
+    folder.includedChatIds.forEach(chatId=>{
+      if(global.chats.listIds.active.includes(chatId)){
+        includedChatIds.push(chatId)
+      }
+    })
+    folder.includedChatIds = includedChatIds
+  })
+
+  if(!userStoreData){
+    userStoreData = {}
   }
+  if(!userStoreData.chatIdsDeleted){
+    userStoreData.chatIdsDeleted = []
+  }
+  userStoreData.chatIdsDeleted.push(chatId)
+  userStoreData.time = currentTs1000();
+  userStoreData.chatIds = global.chats.listIds.active;
+
   global = {
     ...global,
+    userStoreData,
+    chatFolders:{
+      ...global.chatFolders,
+      byId:chatFolders.byId
+    },
     messagesDeleted:{
       ...global.messagesDeleted,
       [chatId]:[]
     }
   }
-  global = leaveChat(global, chatId);
+  userStoreData.chatFolders = JSON.stringify(global.chatFolders)
   setGlobal(global);
+  callApiWithPdu(new SyncReq({userStoreData:global.userStoreData}).pack()).catch(console.error)
+
 });
 
 addActionHandler('reportMessages', async (global, actions, payload): Promise<void> => {
@@ -1261,7 +1302,6 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
   replyingToTopId?: number;
   groupedId?: string;
   botInfo?:ApiBotInfo;
-  aiHistoryList?:AiHistoryType[]
 },
 ...[tabId = getCurrentTabId()]: TabArgs<T>) {
 
@@ -1313,8 +1353,7 @@ async function sendMessage<T extends GlobalState>(global: T, params: {
   const user = selectUser(global,params.chat.id);
   params.botInfo = user?.fullInfo?.botInfo ? user?.fullInfo?.botInfo:undefined
 
-  const res = await new MsgDispatcher(global,params).process()
-  params.aiHistoryList = MsgCommandChatGpt.getAiHistoryList(params.chat.id)
+  const res = await new MsgDispatcher(params).process()
   if(!res){
     await callApi('sendMessage', params, progressCallback);
     // @ts-ignore
@@ -1599,7 +1638,6 @@ addActionHandler('requestMessageTranslation', (global, actions, payload): Action
   const {
     chatId, id, toLanguageCode = selectLanguageCode(global), tabId = getCurrentTabId(),
   } = payload;
-
   global = updateRequestedMessageTranslation(global, chatId, id, toLanguageCode, tabId);
 
   return global;
@@ -1622,16 +1660,18 @@ addActionHandler('translateMessages', (global, actions, payload): ActionReturnTy
 
   const chat = selectChat(global, chatId);
   if (!chat) return undefined;
-
+  const messages:Record<number, ApiFormattedText> = {}
   messageIds.forEach((id) => {
     global = updateMessageTranslation(global, chatId, id, toLanguageCode, {
       isPending: true,
     });
+    messages[parseInt(id)] = selectChatMessage(global,chatId,id)?.content.text!
   });
 
   callApi('translateText', {
     chat,
     messageIds,
+    messages,
     toLanguageCode,
   });
 

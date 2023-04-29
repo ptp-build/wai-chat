@@ -3,7 +3,7 @@ import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import type { ApiUpdateChat } from '../../../api/types';
 import { MAIN_THREAD_ID } from '../../../api/types';
 
-import { ARCHIVED_FOLDER_ID, MAX_ACTIVE_PINNED_CHATS } from '../../../config';
+import {ARCHIVED_FOLDER_ID, CLOUD_MESSAGE_API, MAX_ACTIVE_PINNED_CHATS} from '../../../config';
 import { buildCollectionByKey, omit, pick } from '../../../util/iteratees';
 import { closeMessageNotifications, notifyAboutMessage } from '../../../util/notifications';
 import {
@@ -22,10 +22,38 @@ import {
   selectThreadParam,
 } from '../../selectors';
 import { updateUnreadReactions } from '../../reducers/reactions';
-import type { ActionReturnType } from '../../types';
+import type {ActionReturnType, GlobalState} from '../../types';
 import {isLocalMessageId} from "../../helpers";
+import {currentTs1000} from "../../../worker/share/utils/utils";
+import {callApiWithPdu} from "../../../worker/msg/utils";
+import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {pack} from "html2canvas/dist/types/css/types/color";
 
 const TYPING_STATUS_CLEAR_DELAY = 6000; // 6 seconds
+
+
+const handleChatFoldersEdit = (global:GlobalState)=>{
+  const {userStoreData} = global
+  console.log(userStoreData?.chatFolders)
+  console.log(JSON.stringify(global.chatFolders))
+  let changed = userStoreData?.chatFolders !== JSON.stringify(global.chatFolders)
+  if(JSON.stringify(global.chats.listIds.active) !== JSON.stringify(userStoreData?.chatIds)){
+    changed = true;
+  }
+  global = {
+    ...global,
+    userStoreData:{
+      ...userStoreData,
+      chatFolders:JSON.stringify(global.chatFolders),
+      chatIds:global.chats.listIds.active
+    }
+  }
+  debugger
+  if(changed && CLOUD_MESSAGE_API){
+    callApiWithPdu(new SyncReq({userStoreData:global.userStoreData}).pack()).catch(console.error)
+  }
+  return global
+}
 
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
   switch (update['@type']) {
@@ -39,7 +67,24 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           chat: omit(update.chat, ['lastReadInboxMessageId']),
         };
       }
-
+      const listActiveIds = global.chats.listIds.active || []
+      if(!listActiveIds.includes(update.chat.id)){
+        listActiveIds.push(update.chat.id)
+        global = {
+          ...global,
+          chats:{
+            ...global.chats,
+            totalCount:{
+              ...global.chats.totalCount,
+              all:listActiveIds.length,
+            },
+            listIds:{
+              ...global.chats.listIds,
+              active:listActiveIds
+            }
+          }
+        }
+      }
       global = updateChat(global, update.id, update.chat, update.newProfilePhoto);
       setGlobal(global);
 
@@ -270,7 +315,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         ? orderedIds && orderedIds.includes(id) ? orderedIds : [...(orderedIds || []), id]
         : orderedIds ? orderedIds.filter((orderedId) => orderedId !== id) : undefined;
 
-      return {
+      global = {
         ...global,
         chatFolders: {
           ...global.chatFolders,
@@ -278,30 +323,35 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           orderedIds: newOrderedIds,
         },
       };
+
+      return handleChatFoldersEdit(global)
     }
 
     case 'updateChatFoldersOrder': {
       const { orderedIds } = update;
 
-      return {
+      global = {
         ...global,
         chatFolders: {
           ...global.chatFolders,
           orderedIds,
         },
       };
+
+      return handleChatFoldersEdit(global)
     }
 
     case 'updateRecommendedChatFolders': {
       const { folders } = update;
 
-      return {
+      global = {
         ...global,
         chatFolders: {
           ...global.chatFolders,
           recommended: folders,
         },
       };
+      return handleChatFoldersEdit(global)
     }
 
     case 'updateChatMembers': {

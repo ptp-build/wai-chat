@@ -19,6 +19,7 @@ export type OwnProps = {
   color?: (
     'primary' | 'secondary' | 'gray' | 'danger' | 'translucent' | 'translucent-white' | 'translucent-black' | 'dark'
   );
+  target?:"_blank",
   backgroundImage?: string;
   id?: string;
   className?: string;
@@ -56,6 +57,7 @@ export type OwnProps = {
 const CLICKED_TIMEOUT = 400;
 
 const Button: FC<OwnProps> = ({
+  target,
   ref,
   type = 'button',
   id,
@@ -149,6 +151,7 @@ const Button: FC<OwnProps> = ({
         id={id}
         className={fullClassName}
         href={href}
+        target={target}
         title={ariaLabel}
         download={download}
         tabIndex={tabIndex}

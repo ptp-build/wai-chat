@@ -164,11 +164,6 @@ const Chat: FC<OwnProps & StateProps> = ({
     if (isSelected && canScrollDown) {
       focusLastMessage();
     }
-    if(!isSelected){
-      setTimeout(()=>{
-        focusLastMessage();
-      },200)
-    }
   }, [isForum, openChat, chatId, isSelected, canScrollDown, openForumPanel, focusLastMessage]);
 
   const handleDragEnter = useCallback((e) => {

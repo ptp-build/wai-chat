@@ -66,12 +66,14 @@ type OwnProps = {
   onSelectFolder: ()=>void;
   onSelectContacts: () => void;
   onSelectArchived: () => void;
+  onSelectProfile: () => void;
   onReset: () => void;
 };
 
 type StateProps =
   {
     searchQuery?: string;
+    topSearchPlaceHolder?:string,
     isLoading: boolean;
     currentUserId?: string;
     currentAccountAddress?: string;
@@ -94,8 +96,10 @@ const WEBK_VERSION_URL = 'https://web.telegram.org/k/';
 const LeftMainHeader: FC<OwnProps & StateProps> = ({
   shouldHideSearch,
   content,
+  topSearchPlaceHolder,
   contactsFilter,
   onSearchQuery,
+  onSelectProfile,
   onSelectFolder,
   isClosingSearch,
   onSelectSettings,
@@ -123,6 +127,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   currentAccountAddress,
 }) => {
   const {
+    fetchTopCats,
     openChat,
     setGlobalSearchDate,
     setSettingOption,
@@ -156,7 +161,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
         return total;
       }
 
-      return chat.unreadCount ? total + 1 : total;
+      return (chat && chat.unreadCount) ? total + 1 : total;
     }, 0);
   }, [hasMenu, chatsById]);
 
@@ -209,6 +214,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     if (!searchQuery) {
       onSearchQuery('');
     }
+    fetchTopCats()
   }, [searchQuery, onSearchQuery]);
 
   const toggleConnectionStatus = useCallback(() => {
@@ -302,7 +308,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
 
   const searchInputPlaceholder = content === LeftColumnContent.Contacts
     ? lang('SearchFriends')
-    : lang('Search');
+    : lang(topSearchPlaceHolder || '编程 写作 旅游...');
 
   const versionString = IS_BETA ? `${APP_VERSION} Beta (${APP_REVISION})` : (DEBUG ? APP_REVISION : APP_VERSION);
 
@@ -319,6 +325,12 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
         onClick={onSelectFolder}
       >
         {lang('Filters')}
+      </MenuItem>
+      <MenuItem
+        icon="user"
+        onClick={onSelectProfile}
+      >
+        {lang('个人资料')}
       </MenuItem>
       {
         currentUserId &&
@@ -544,8 +556,10 @@ export default memo(withGlobal<OwnProps>(
     } = global;
     const { byId: chatsById } = global.chats;
     const { isConnectionStatusMinimized, animationLevel } = global.settings.byKey;
+    const { topSearchPlaceHolder } = global.topCats;
 
     return {
+      topSearchPlaceHolder,
       searchQuery,
       isLoading: fetchingStatus ? Boolean(fetchingStatus.messages) : false,
       currentUserId,

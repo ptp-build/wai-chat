@@ -7,11 +7,10 @@ import Aes256Gcm from "../../lib/ptp/wallet/Aes256Gcm";
 import LocalStorage from "./db/LocalStorage";
 import CloudFlareKv from "./db/CloudFlareKv";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
-import {AuthLoginReq_Type} from "../../lib/ptp/protobuf/PTPAuth/types";
 import {hashSha256} from "./utils/helpers";
 import LocalDatabase from "./db/LocalDatabase";
 import {randomize} from "worktop/utils";
-import {EncryptType} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {ClientInfo_Type, EncryptType} from "../../lib/ptp/protobuf/PTPCommon/types";
 
 const KEYS_PREFIX = "a-ks";
 const SESSIONS_PREFIX = "a-ss";
@@ -40,6 +39,7 @@ export default class Account {
   private aad?: Buffer;
   private entropy?:string;
   private session?: string;
+  private clientInfo: ClientInfo_Type | undefined;
   constructor(accountId: number) {
     this.accountId = accountId;
     this.uid = "";
@@ -147,13 +147,6 @@ export default class Account {
   async getUidFromCacheByAddress(address:string){
     const uid_cache = await Account.getServerKv().get(`ADR_UID_${address}`)
     return uid_cache || undefined;
-  }
-  async afterServerLoginOk({uid,address}:AuthLoginReq_Type){
-    this.setUid(uid);
-    const uid_cache = await Account.getServerKv().get(`ADR_UID_${address}`)
-    if(!uid_cache){
-      await Account.getServerKv().put(`ADR_UID_${address}`,uid)
-    }
   }
 
   getShareKey() {
@@ -445,4 +438,11 @@ export default class Account {
     return Buffer.from(randomize(len));
   }
 
+  setClientInfo(clientInfo: ClientInfo_Type | undefined) {
+    this.clientInfo = clientInfo
+  }
+
+  getClientInfo() {
+    return this.clientInfo;
+  }
 }

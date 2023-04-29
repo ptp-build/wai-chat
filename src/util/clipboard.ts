@@ -59,7 +59,7 @@ export const copyImageToClipboard = (imageUrl?: string) => {
   imageEl.src = imageUrl;
 };
 
-async function copyBlobToClipboard(pngBlob: Blob | null) {
+export async function copyBlobToClipboard(pngBlob: Blob | null) {
   if (!pngBlob || !CLIPBOARD_ITEM_SUPPORTED) {
     return;
   }

@@ -253,21 +253,12 @@ function onUpdateServerTimeOffset(update: ApiUpdateServerTimeOffset) {
 }
 
 function onUpdateCurrentUser<T extends GlobalState>(global: T, update: ApiUpdateCurrentUser) {
-  const { currentUser,accountId,sessionData } = update;
-  if(accountId){
-    const account = Account.getInstance(accountId);
-    account.setSession(sessionData);
-    account.setUid(currentUser.id)
-    account.setUserInfo(currentUser)
-    account.saveSession().catch(console.error)
-  }
-
+  const { currentUser } = update;
   global = {
-    ...updateUser(global, currentUser.id, currentUser),
+    ...global,
     currentUserId: currentUser.id,
   };
   setGlobal(global);
-
   updateSessionUserId(currentUser.id);
 }
 

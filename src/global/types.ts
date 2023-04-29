@@ -90,7 +90,7 @@ import type {
 import { typify } from '../lib/teact/teactn';
 import type { P2pMessage } from '../lib/secret-sauce';
 import type { ApiCredentials } from '../components/payment/PaymentModal';
-import {PbChatFolder_Type, UserStoreData_Type} from "../lib/ptp/protobuf/PTPCommon/types";
+import {PbChatFolder_Type, PbUserSetting_Type, UserStoreData_Type} from "../lib/ptp/protobuf/PTPCommon/types";
 
 export type MessageListType =
   'thread'
@@ -577,12 +577,21 @@ export enum AiReplyHistoryRole{
   USER
 }
 
-export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole}
+export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole,}
 
 export type GlobalState = {
+  userStoreData?:UserStoreData_Type
+  topCats:{
+    time?:number,
+    topSearchPlaceHolder?:string,
+    cats?:{
+      title:string,
+      botIds:string[],
+    }[],
+  },
   aiReplyHistory:Record<string, AiReplyHistoryType[]>
+  chatGptAskHistory:Record<string, Record<number, number>>
   messagesDeleted:Record<string, number[]>
-  chatIdsDeleted:string[],
   userSetting?:UserStoreData_Type,
   waitToSync?:Record<string, WaitToSyncType>;
   showMnemonicModal:boolean;
@@ -1132,7 +1141,9 @@ export interface ActionPayloads {
   openChatByInvite: {
     hash: string;
   } & WithTabId;
+  fetchTopCats:{
 
+  };
   // global search
   setGlobalSearchQuery: {
     query?: string;
@@ -1576,6 +1587,7 @@ export interface ActionPayloads {
   focusLastMessage: WithTabId | undefined;
   onSpeak: {
     messageId?: number;
+    chatId?: string;
   } & WithTabId;
   setReplyingToId: {
     messageId?: number;
@@ -1663,7 +1675,10 @@ export interface ActionPayloads {
   unlinkDiscussionGroup: {
     channelId: string;
   } & WithTabId;
-
+  openTopBotChat: {
+    id: string | undefined;
+    threadId?: number;
+  } & WithTabId;
   openChat: {
     id: string | undefined;
     threadId?: number;
@@ -1908,6 +1923,7 @@ export interface ActionPayloads {
     userId: string;
     firstName: string;
     lastName?: string;
+    bio?: string;
     isMuted?: boolean;
     shouldSharePhoneNumber?: boolean;
   } & WithTabId;

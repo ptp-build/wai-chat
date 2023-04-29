@@ -52,17 +52,13 @@ message AuthPreLoginRes{
 }
 
 message AuthLoginReq{
-  required bytes sign = 1;
-  required uint64 ts = 2;
-  required string uid = 3;
-  required string address = 4;
+  required string sign = 1;
+  optional Common.ClientInfo clientInfo = 2;
 }
 
 message AuthLoginRes{
-  optional string payload = 1;
-  required Common.ERR err = 100;
+  optional Common.ERR err = 100;
 }
-
 
 message UploadProfilePhotoReq{
   required string id = 1;
@@ -93,3 +89,11 @@ message UpdateUsernameRes{
   required Common.ERR err = 100;
 }
 
+message InitAppRes{
+  optional string chats = 1;
+  optional string messages = 2;
+  optional string chatFolders = 3;
+  optional string users = 4;
+  optional string topCats = 5;
+  optional Common.ERR err = 100;
+}
