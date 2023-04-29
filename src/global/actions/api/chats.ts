@@ -89,7 +89,8 @@ import {
   DEFAULT_CREATE_USER_BIO,
   DEFAULT_PROMPT,
   LoadAllChats,
-  SERVER_BOT_USER_ID_START, TopCats,
+  SERVER_BOT_USER_ID_START,
+  TopCats,
   UserIdFirstBot
 } from "../../../worker/setting";
 import * as cacheApi from '../../../util/cacheApi';
@@ -103,7 +104,6 @@ import {callApiWithPdu} from "../../../worker/msg/utils";
 import {GenUserIdReq, GenUserIdRes} from "../../../lib/ptp/protobuf/PTPUser";
 import {currentTs1000} from "../../../worker/share/utils/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
-import {UserStoreData} from "../../../lib/ptp/protobuf/PTPCommon";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -770,6 +770,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
         progress: ChatCreationProgress.Complete,
       },
     }, tabId);
+    setGlobal(global)
   }catch (e){
     console.error(e)
     global = getGlobal();

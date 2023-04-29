@@ -25,7 +25,7 @@ import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
 import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
 import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
-import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
+import {ActionCommands, getActionCommandsName} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
 import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
@@ -247,7 +247,7 @@ export default class MsgWorker {
                 }
                 break
               case BotWebSocketNotifyAction.onData:
-                console.log("[onData]",{accountId,payload})
+                console.log("[onData]",{accountId},getActionCommandsName(payload.getCommandId()))
                 await MsgWorker.handleRecvMsg(payload)
                 break
             }

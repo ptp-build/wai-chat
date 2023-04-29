@@ -1,6 +1,6 @@
 import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type {ApiUser, ApiUserStatus} from '../../../api/types';
+import type {ApiChatFolder, ApiUser, ApiUserStatus} from '../../../api/types';
 
 import {addUsers, addUserStatuses, deleteContact, replaceUsers, replaceUserStatuses, updateUser,} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
@@ -40,7 +40,11 @@ function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_
     const {chatFolders,...userStoreData} = userStoreDataRes;
     return {
       ...global,
-      userStoreData
+      userStoreData,
+      chatFolders:{
+        ...global.chatFolders,
+        ...(chatFolders ? JSON.parse(chatFolders!):{})
+      }
     }
   }else{
     return global
