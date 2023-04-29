@@ -1,6 +1,6 @@
 import html2canvas from "html2canvas";
-import jsPDF from 'jspdf';
-import {dataUriToBlob} from "../../../util/files";
+// import jsPDF from 'jspdf';
+// import {dataUriToBlob} from "../../../util/files";
 
 export async function generateImageFromDiv(ids: string[], gapHeight: number,backgroundColor:string,watermark:string = undefined,type:'image'|'pdf' = 'image'): Promise<string> {
   const divs = ids.map((id) => document.getElementById(id));
@@ -38,67 +38,62 @@ export async function generateImageFromDiv(ids: string[], gapHeight: number,back
     ctx.translate(0, div.offsetHeight + gapHeight);
   }
 
-  if(type === 'image'){
-    const blob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), "image/png");
-    });
-    return URL.createObjectURL(blob);
-  }else{
-    const dateUri = canvasToPDF(canvas,595, 842); // for A4-sized pages
-    return URL.createObjectURL(dataUriToBlob(dateUri));
-  }
+  const blob = await new Promise<Blob>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/png");
+  });
+  return URL.createObjectURL(blob);
 }
 
 export function canvasToPDF(canvas, pageWidth, pageHeight) {
-  const pdfHeight = 842;
-  const pageCount = Math.ceil(canvas.height / pdfHeight);
-  const pdf = new jsPDF("p", "pt", "a4");
-  const imgHeight = pdf.internal.pageSize.height;
-  const imgWidth = pdf.internal.pageSize.width;
-
-  for (let i = 0; i < pageCount; i++) {
-    if (i !== 0) {
-      pdf.addPage();
-    }
-
-    // 计算需要裁剪的区域
-    const imgTop = -i * imgHeight;
-    const imgLeft = 0;
-    const srcWidth = canvas.width;
-    const srcHeight = pdfHeight;
-    const destWidth = imgWidth;
-    const destHeight = imgHeight;
-
-    // 裁剪图像以适应PDF页的高度
-    const canvasCopy = document.createElement("canvas");
-    canvasCopy.width = srcWidth;
-    canvasCopy.height = srcHeight;
-    const ctxCopy = canvasCopy.getContext("2d");
-    ctxCopy.drawImage(canvas, imgLeft, imgTop, srcWidth, srcHeight, 0, 0, destWidth, destHeight);
-
-    // 添加裁剪后的图像到PDF
-    const imgDataCopy = canvasCopy.toDataURL("image/png");
-    pdf.addImage(imgDataCopy, "PNG", 0, 0, destWidth, destHeight);
-  }
-  pdf.save("tes.pdf")
-  const dateUri = pdf.output("datauristring");
-  return dateUri
+  // const pdfHeight = 842;
+  // const pageCount = Math.ceil(canvas.height / pdfHeight);
+  // const pdf = new jsPDF("p", "pt", "a4");
+  // const imgHeight = pdf.internal.pageSize.height;
+  // const imgWidth = pdf.internal.pageSize.width;
+  //
+  // for (let i = 0; i < pageCount; i++) {
+  //   if (i !== 0) {
+  //     pdf.addPage();
+  //   }
+  //
+  //   // 计算需要裁剪的区域
+  //   const imgTop = -i * imgHeight;
+  //   const imgLeft = 0;
+  //   const srcWidth = canvas.width;
+  //   const srcHeight = pdfHeight;
+  //   const destWidth = imgWidth;
+  //   const destHeight = imgHeight;
+  //
+  //   // 裁剪图像以适应PDF页的高度
+  //   const canvasCopy = document.createElement("canvas");
+  //   canvasCopy.width = srcWidth;
+  //   canvasCopy.height = srcHeight;
+  //   const ctxCopy = canvasCopy.getContext("2d");
+  //   ctxCopy.drawImage(canvas, imgLeft, imgTop, srcWidth, srcHeight, 0, 0, destWidth, destHeight);
+  //
+  //   // 添加裁剪后的图像到PDF
+  //   const imgDataCopy = canvasCopy.toDataURL("image/png");
+  //   pdf.addImage(imgDataCopy, "PNG", 0, 0, destWidth, destHeight);
+  // }
+  // pdf.save("tes.pdf")
+  // const dateUri = pdf.output("datauristring");
+  // return dateUri
 }
 
 export function textToPDF(text, fileName) {
-  const lines = text.split('\n');
-  const doc = new jsPDF();
-  let cursorY = 10;
-
-  lines.forEach(line => {
-    const textLines = doc.splitTextToSize(line, doc.internal.pageSize.width - 20);
-    doc.text(textLines,10, cursorY);
-    cursorY += (textLines.length + 1) * 10; // add extra line height
-    if (cursorY >= doc.internal.pageSize.height - 10) {
-      doc.addPage();
-      cursorY = 10;
-    }
-  });
-
-  doc.save(fileName);
+  // const lines = text.split('\n');
+  // const doc = new jsPDF();
+  // let cursorY = 10;
+  //
+  // lines.forEach(line => {
+  //   const textLines = doc.splitTextToSize(line, doc.internal.pageSize.width - 20);
+  //   doc.text(textLines,10, cursorY);
+  //   cursorY += (textLines.length + 1) * 10; // add extra line height
+  //   if (cursorY >= doc.internal.pageSize.height - 10) {
+  //     doc.addPage();
+  //     cursorY = 10;
+  //   }
+  // });
+  //
+  // doc.save(fileName);
 }
