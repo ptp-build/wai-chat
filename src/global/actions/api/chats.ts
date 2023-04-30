@@ -2151,6 +2151,38 @@ export async function loadChats<T extends GlobalState>(
         }
       }
     }else {
+
+      if(!global.chats.byId[UserIdFirstBot]) {
+        const chat = LoadAllChats.chats.find(chat=>chat.id === UserIdFirstBot)
+        const listIds = global.chats.listIds.active || []
+        if(chat){
+          listIds.push(chat.id)
+          let {chatIdsDeleted} = global.userStoreData
+          if(!chatIdsDeleted){
+            chatIdsDeleted = []
+          }
+          if(chatIdsDeleted.includes)
+          global = {
+            ...global,
+            userStoreData:{
+              ...global.userStoreData,
+              chatIdsDeleted:global.userStoreData.
+            },
+            chats: {
+              ...global.chats,
+              byId:{
+                ...global.chats.byId,
+                [chat.id]:chat,
+              },
+              listIds:{
+                ...global.chats.listIds,
+                active:listIds
+              }
+            }
+          }
+        }
+      }
+
       global = {
         ...global,
         chats: {
