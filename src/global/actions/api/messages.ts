@@ -106,6 +106,7 @@ import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {UserIdChatGpt, UserIdFirstBot} from "../../../worker/setting";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -600,7 +601,7 @@ addActionHandler('deleteScheduledMessages', (global, actions, payload): ActionRe
 addActionHandler('deleteHistory', async (global, actions, payload): Promise<void> => {
   const { chatId, shouldDeleteForAll, tabId = getCurrentTabId() } = payload!;
   const chat = selectChat(global, chatId);
-  if (!chat) {
+  if (!chat || chatId === UserIdFirstBot) {
     return;
   }
   // await callApi('deleteHistory', { chat, shouldDeleteForAll });
