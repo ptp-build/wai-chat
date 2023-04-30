@@ -2157,16 +2157,25 @@ export async function loadChats<T extends GlobalState>(
         const listIds = global.chats.listIds.active || []
         if(chat){
           listIds.push(chat.id)
-          let {chatIdsDeleted} = global.userStoreData
+          let {chatIdsDeleted,chatIds} = global.userStoreData!
           if(!chatIdsDeleted){
             chatIdsDeleted = []
           }
-          if(chatIdsDeleted.includes)
+          if(!chatIds){
+            chatIds = []
+          }
+          if(chatIdsDeleted.includes(chat.id)){
+            chatIdsDeleted = chatIdsDeleted.filter(id=>id!== chat.id)
+          }
+          if(!chatIds.includes(chat.id)){
+            chatIds.push(chat.id)
+          }
           global = {
             ...global,
             userStoreData:{
               ...global.userStoreData,
-              chatIdsDeleted:global.userStoreData.
+              chatIds,
+              chatIdsDeleted,
             },
             chats: {
               ...global.chats,
