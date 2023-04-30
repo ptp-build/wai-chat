@@ -1,4 +1,4 @@
-import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUser} from "../../api/types";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUser} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
@@ -25,9 +25,8 @@ import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
 import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
 import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
-import {ActionCommands, getActionCommandsName} from "../../lib/ptp/protobuf/ActionCommands";
+import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
-import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
 
 let messageIds:number[] = [];

@@ -21,13 +21,13 @@ import ChatMsg from '../../../worker/msg/ChatMsg';
 import {
   handleAuthNative,
   handleAuthNativeReq,
-  handleSendBotMsgReq, handleStopChatStreamReq,
+  handleSendBotMsgReq,
+  handleStopChatStreamReq,
   handleUpdateCmdReq
 } from '../../../worker/msg/client';
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
-
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';

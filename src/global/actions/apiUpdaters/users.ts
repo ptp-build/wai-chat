@@ -1,8 +1,8 @@
 import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type {ApiChatFolder, ApiUser, ApiUserStatus} from '../../../api/types';
+import type {ApiUser, ApiUserStatus} from '../../../api/types';
 
-import {addUsers, addUserStatuses, deleteContact, replaceUsers, replaceUserStatuses, updateUser,} from '../../reducers';
+import {addUsers, addUserStatuses, deleteContact, replaceUserStatuses, updateUser,} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
 import {selectIsCurrentUserPremium, selectUser} from '../../selectors';
 import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../types';
@@ -11,7 +11,6 @@ import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import {DEBUG} from "../../../config";
 import {currentTs1000} from "../../../worker/share/utils/utils";
-import {DownloadUserReq, DownloadUserRes} from "../../../lib/ptp/protobuf/PTPUser";
 import MsgCommand from "../../../worker/msg/MsgCommand";
 
 const STATUS_UPDATE_THROTTLE = 3000;

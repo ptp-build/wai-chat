@@ -1,33 +1,24 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectChatMessage, selectChatMessages, selectUser} from "../../global/selectors";
-import {addChats, addUsers, updateChatListIds, updateUser} from "../../global/reducers";
-import {getActions, getGlobal, setGlobal} from "../../global";
+import {selectChatMessage, selectChatMessages} from "../../global/selectors";
+import {getActions, getGlobal} from "../../global";
 import {ApiKeyboardButtons} from "../../api/types";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
-import {
-  MessageStoreRow_Type,
-  PbMsg_Type,
-  QrCodeType,
-  UserStoreData_Type,
-  UserStoreRow_Type
-} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {MessageStoreRow_Type, PbMsg_Type, QrCodeType} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {DownloadMsgReq, DownloadMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
-import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import Mnemonic from "../../lib/ptp/wallet/Mnemonic";
 import Account from "../share/Account";
 import {AuthNativeReq} from "../../lib/ptp/protobuf/PTPAuth";
 import {GlobalState} from "../../global/types";
 import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
-import {SyncReq, SyncRes} from "../../lib/ptp/protobuf/PTPSync";
 import MsgCommand from "./MsgCommand";
 import {Decoder} from "@nuintun/qrcode";
 import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
+import {DEBUG} from "../../config";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE} from "../setting";
 import ChatMsg from "./ChatMsg";
 import {showModalFromEvent} from "../share/utils/modal";
 
@@ -280,16 +271,7 @@ export default class MsgCommandSetting{
         //@ts-ignore
         await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
         break
-      case `${chatId}/setting/uploadFolder`:
-        const message1 = await this.chatMsg.setText("正在上传...").reply()
-        await MsgCommandSetting.syncFolders(true)
-        await this.chatMsg.updateText(message1.id,"上传成功")
-        break
-      case `${chatId}/setting/downloadFolder`:
-        const message2 = await this.chatMsg.setText("正在下载...").reply()
-        await MsgCommandSetting.syncFolders(false)
-        await this.chatMsg.updateText(message2.id,"下载成功")
-        break
+
       case `${chatId}/setting/syncMessage`:
         getActions().updateGlobal({
           showPickBotModal:true
@@ -327,107 +309,6 @@ export default class MsgCommandSetting{
           await this.enableSync(global,password,messageId)
         }
         break
-    }
-  }
-
-  static async syncFolders(isUpload:boolean){
-    let global = getGlobal();
-    const chats = global.chats.byId
-    const chatIds = Object.keys(chats).filter(id=>id !== "1");
-    //@ts-ignore
-    const chatIdsDeleted:string[] = global.chatIdsDeleted;
-    console.log("【local】",{chatIds,chatIdsDeleted})
-    const userStoreData:UserStoreData_Type|undefined = isUpload ?{
-      time:currentTs(),
-      chatFolders:JSON.stringify(global.chatFolders),
-      chatIds,
-      chatIdsDeleted
-    } :undefined
-
-    const res = await callApiWithPdu(new SyncReq({
-      userStoreData
-    }).pack())
-    const syncRes = SyncRes.parseMsg(res!.pdu)
-
-    let users:UserStoreRow_Type[] = [];
-    if(isUpload){
-      for (let index = 0; index < chatIds.length; index++) {
-        const userId = chatIds[index];
-        const user = selectUser(global,userId);
-        if(user?.photos && user.photos[0] === null){
-          user.photos = []
-        }
-        users.push({
-          time:currentTs(),
-          userId,
-          user
-        })
-      }
-
-      await callApiWithPdu(new UploadUserReq({
-        users,
-        time:currentTs()
-      }).pack())
-    }
-
-    if(syncRes.userStoreData){
-      let {chatFolders,...res} = syncRes.userStoreData
-      console.log("【remote userStoreData】",res,"chatFolders:",chatFolders ? JSON.parse(chatFolders):[])
-      if(!chatFolders){
-        // @ts-ignore
-        chatFolders = global.chatFolders
-      }else{
-        chatFolders = JSON.parse(chatFolders)
-      }
-      res.chatIdsDeleted?.forEach(id=>{
-        if(!chatIdsDeleted.includes(id)){
-          chatIdsDeleted.push(id)
-        }
-      })
-      if(res.chatIds){
-        const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-          userIds:res.chatIds.filter(id=>id!== UserIdFirstBot),
-        }).pack())
-        if(DownloadUserReqRes){
-          const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
-          console.log("【DownloadUserRes】",downloadUserRes.users)
-          global = getGlobal();
-          if(downloadUserRes.users){
-            const addUsersObj = {}
-            const addChatsObj = {}
-            for (let index = 0; index < downloadUserRes.users.length; index++) {
-              const {user} = downloadUserRes.users[index];
-              if(!chatIdsDeleted.includes(user!.id) && user!.id !== UserIdFirstBot){
-                if(chatIds.includes(user!.id)){
-                  // @ts-ignore
-                  global = updateUser(global,user!.id, user!)
-                }else{
-                  chatIds.push(user?.id!)
-                  // @ts-ignore
-                  addUsersObj[user!.id] = user!
-                  // @ts-ignore
-                  addChatsObj[user!.id] = ChatMsg.buildDefaultChat(user!)
-                }
-              }
-            }
-            if(Object.keys(addUsersObj).length > 0){
-              global = addUsers(global,addUsersObj)
-              global = addChats(global,addChatsObj)
-            }
-          }
-          global = updateChatListIds(global, "active", chatIds);
-          // @ts-ignore
-          global = {...global,chatFolders}
-          setGlobal({
-            ...global,
-          })
-        }
-      }else{
-        getActions().updateGlobal({
-          chatIdsDeleted:chatIdsDeleted || [],
-          chatFolders
-        })
-      }
     }
   }
 

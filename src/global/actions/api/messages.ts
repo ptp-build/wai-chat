@@ -106,7 +106,7 @@ import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
-import {UserIdChatGpt, UserIdFirstBot} from "../../../worker/setting";
+import {UserIdFirstBot} from "../../../worker/setting";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 

@@ -1,5 +1,5 @@
 import {DEBUG} from '../../../config';
-import {Pdu, toUint8Array} from "../../../lib/ptp/protobuf/BaseMsg";
+import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import Account from '../../share/Account';
 import {AuthLoginReq} from "../../../lib/ptp/protobuf/PTPAuth";

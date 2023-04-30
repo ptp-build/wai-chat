@@ -78,7 +78,6 @@ const handleMessageEntities = (global:GlobalState,chatId:string,message:ApiMessa
     }
   }
   message.isOutgoing = false
-  console.log("handleMessageEntities",message)
   return message
 }
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {

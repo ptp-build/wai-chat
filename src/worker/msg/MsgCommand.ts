@@ -1,8 +1,8 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectUser} from "../../global/selectors";
-import {updateUser} from "../../global/reducers";
+import {addChats, addUsers, updateChatListIds, updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiBotCommand, ApiKeyboardButton, ApiMessage, ApiUser} from "../../api/types";
+import {ApiBotCommand, ApiChat, ApiKeyboardButton, ApiMessage, ApiUser} from "../../api/types";
 import {currentTs, currentTs1000, showBodyLoading} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
@@ -14,7 +14,9 @@ import {
   DownloadUserReq,
   DownloadUserRes,
   ShareBotReq,
-  ShareBotRes, ShareBotStopReq, ShareBotStopRes,
+  ShareBotRes,
+  ShareBotStopReq,
+  ShareBotStopRes,
   UploadUserReq
 } from "../../lib/ptp/protobuf/PTPUser";
 import Account from "../share/Account";
@@ -178,14 +180,29 @@ export default class MsgCommand {
     const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
     console.log("[downloadUserRes]",downloadUserRes)
     if(downloadUserRes.users && downloadUserRes.users.length > 0){
+      const chatIds:string[] = []
+      const users:Record<string, ApiUser> = {}
+      const chats:Record<string, ApiChat> = {}
       for (let i = 0; i < downloadUserRes.users.length; i++) {
+        // @ts-ignore
         const {user} = downloadUserRes.users[i]
         const userId = user!.id
         global = getGlobal();
         if(selectUser(global,userId)){
           global = updateUser(global,user!.id, user as ApiUser)
           setGlobal(global)
+        }else{
+          chatIds.push(userId)
+          users[userId] = user as ApiUser
+          chats[userId] = ChatMsg.buildDefaultChat(user) as ApiChat
         }
+      }
+
+      if(chatIds.length > 0){
+        global = updateChatListIds(global, "active", chatIds);
+        global = addUsers(global,users)
+        global = addChats(global,chats)
+        setGlobal(global)
       }
     }
   }
