@@ -77,6 +77,7 @@ const LeftColumn: FC<StateProps> = ({
   archiveSettings,
 }) => {
   const {
+    setGlobalSearchContent,
     setGlobalSearchQuery,
     setGlobalSearchClosing,
     setGlobalSearchChatId,
@@ -342,8 +343,12 @@ const LeftColumn: FC<StateProps> = ({
     setContent_(LeftColumnContent.GlobalSearch);
 
     if (query !== searchQuery) {
+      if(query.length > 0){
+        setGlobalSearchContent({content:0})
+      }
       setGlobalSearchQuery({ query });
     }
+
   }, [content, searchQuery, setGlobalSearchQuery]);
 
   const handleTopicSearch = useCallback(() => {

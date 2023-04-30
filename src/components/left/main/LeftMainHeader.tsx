@@ -127,7 +127,6 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   currentAccountAddress,
 }) => {
   const {
-    setGlobalSearchContent,
     fetchTopCats,
     openChat,
     setGlobalSearchDate,
@@ -215,7 +214,6 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     if (!searchQuery) {
       onSearchQuery('');
     }
-    setGlobalSearchContent({content:0})
     fetchTopCats()
   }, [searchQuery, onSearchQuery]);
 
