@@ -391,7 +391,7 @@ export async function sendWithCallback(buff:Uint8Array){
   const account = Account.getCurrentAccount()!
   let pdu = new Pdu(Buffer.from(buff))
   if(DEBUG){
-    console.log(pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
+    console.log("sendWithCallback", getActionCommandsName(pdu.getCommandId()))
   }
   switch (pdu.getCommandId()) {
     case ActionCommands.CID_SendBotMsgReq:
@@ -414,6 +414,10 @@ export async function sendWithCallback(buff:Uint8Array){
     case ActionCommands.CID_TopCatsReq:
       BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
       return
+    case ActionCommands.CID_ShareBotStopReq:
+    case ActionCommands.CID_ShareBotReq:
+      const res = await BotWebSocket.getInstance(account.getAccountId()).sendPduWithCallback(pdu)
+      return Buffer.from(res.getPbData())
   }
   if(!account.getSession()){
     return

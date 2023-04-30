@@ -44,8 +44,12 @@ export enum ActionCommands {
   CID_DownloadUserRes = 7002,
   CID_GenUserIdReq = 7003,
   CID_GenUserIdRes = 7004,
-  CID_UploadUserReq = 7005,
-  CID_UploadUserRes = 7006,
+  CID_ShareBotReq = 7005,
+  CID_ShareBotRes = 7006,
+  CID_ShareBotStopReq = 7007,
+  CID_ShareBotStopRes = 7008,
+  CID_UploadUserReq = 7009,
+  CID_UploadUserRes = 7010,
 }
 
 export const ActionCommandsName = {
@@ -94,8 +98,12 @@ export const ActionCommandsName = {
   7002: "CID_DownloadUserRes",
   7003: "CID_GenUserIdReq",
   7004: "CID_GenUserIdRes",
-  7005: "CID_UploadUserReq",
-  7006: "CID_UploadUserRes",
+  7005: "CID_ShareBotReq",
+  7006: "CID_ShareBotRes",
+  7007: "CID_ShareBotStopReq",
+  7008: "CID_ShareBotStopRes",
+  7009: "CID_UploadUserReq",
+  7010: "CID_UploadUserRes",
 };
 
 export const getActionCommandsName = (cid:ActionCommands)=>{

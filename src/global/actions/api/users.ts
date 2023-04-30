@@ -218,6 +218,14 @@ addActionHandler('updateContact', async (global, actions, payload): Promise<void
         }
       },
     );
+
+    global = updateChat(
+      global,
+      user.id,
+      {
+        title:firstName
+      },
+    );
   }
   global = updateManagementProgress(global, ManagementProgress.Complete, tabId);
   global = closeNewContactDialog(global, tabId);

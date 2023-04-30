@@ -178,7 +178,7 @@ export default class MsgDispatcher {
           if(this.getMsgText() && this.getBotInfo()?.aiBot){
             if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();
-              res = await new BotChatGpt(this.getBotInfo()?.botId!).process(this.outGoingMsg)
+              res = await new BotChatGpt(this.getChatId()).process(this.outGoingMsg)
             }else{
               if(!botApi){
                 return
@@ -213,6 +213,18 @@ export default class MsgDispatcher {
       }
     }
     return res
+  }
+
+  static async retryAi(chatId:string,messageAssistantId:number){
+    const global = getGlobal();
+    const {chatGptAskHistory} = global
+    const historyList = chatGptAskHistory[chatId]
+    if(historyList[messageAssistantId]){
+      const message = selectChatMessage(global,chatId,historyList[messageAssistantId])
+      if(message){
+        await new BotChatGpt(chatId).process(message,selectChatMessage(global,chatId,messageAssistantId))
+      }
+    }
   }
   static async reRunAi(chatId:string,messageId:number,text:string){
     const global = getGlobal();

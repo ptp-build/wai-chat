@@ -247,7 +247,7 @@ export default class MsgWorker {
                 }
                 break
               case BotWebSocketNotifyAction.onData:
-                console.log("[onData]",{accountId},getActionCommandsName(payload.getCommandId()))
+                // console.log("[onData]",{accountId},getActionCommandsName(payload.getCommandId()))
                 await MsgWorker.handleRecvMsg(payload)
                 break
             }

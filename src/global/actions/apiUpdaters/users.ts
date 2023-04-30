@@ -9,6 +9,10 @@ import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../typ
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
+import {DEBUG} from "../../../config";
+import {currentTs1000} from "../../../worker/share/utils/utils";
+import {DownloadUserReq, DownloadUserRes} from "../../../lib/ptp/protobuf/PTPUser";
+import MsgCommand from "../../../worker/msg/MsgCommand";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -38,6 +42,9 @@ function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_
   // console.log("updateUserStoreData",userStoreDataRes)
   if (userStoreDataRes){
     const {chatFolders,...userStoreData} = userStoreDataRes;
+    if(DEBUG){
+      console.log("updateUserStoreData",userStoreDataRes)
+    }
     return {
       ...global,
       userStoreData,
@@ -109,7 +116,23 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           }else{
             userStoreData = {
               ...userStoreData,
+              chatIds:Object.keys(global.chats.listIds.active),
               chatFolders:JSON.stringify(global.chatFolders)
+            }
+          }
+          if(userStoreData.myBots){
+            if(!userStoreData.chatIdsDeleted){
+              userStoreData.chatIdsDeleted = []
+            }
+            const userIds = [];
+            for (let i = 0; i < userStoreData.myBots.length; i++) {
+              const botId = userStoreData.myBots[i]
+              if(!selectUser(global,botId) && !userStoreData.chatIdsDeleted.includes(botId)){
+                userIds.push(botId)
+              }
+            }
+            if(userIds.length > 0){
+              MsgCommand.downloadUsers(global,userIds).catch(console.error);
             }
           }
           callApiWithPdu(new SyncReq({
@@ -123,7 +146,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
             ...global,
             topCats:{
               ...global.topCats,
-              ...data.payload!.topCats
+              ...data.payload!.topCats,
+              time:currentTs1000()
             }
           }
         case "updateChatGptHistory":

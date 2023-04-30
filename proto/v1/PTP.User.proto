@@ -29,3 +29,27 @@ message DownloadUserRes{
   repeated Common.UserStoreRow users = 1;
   optional Common.ERR err = 100;
 }
+
+message ShareBotReq{
+  required string userId = 1;
+  required string firstName = 2;
+  optional string avatarHash = 3;
+  required string bio = 4;
+  optional string init_system_content = 5;
+  optional string welcome = 6;
+  optional string template = 7;
+}
+
+message ShareBotRes{
+  optional Common.ERR err = 100;
+}
+
+
+message ShareBotStopReq{
+  required string userId = 1;
+}
+
+message ShareBotStopRes{
+  optional Common.ERR err = 100;
+}
+

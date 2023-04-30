@@ -86,6 +86,34 @@ export default class MsgCommandChatGpt{
           ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadMsg',"更新消息"):[]),
         ],
       )
+      if(isMyBot){
+        const {topCats} = getGlobal();
+        let isShared = false;
+        if(topCats.cats){
+          for (let i = 0; i < topCats.cats.length; i++) {
+            if(topCats.cats[i].botIds.indexOf(this.chatId) >= 0){
+              isShared = true;
+              break
+            }
+          }
+        }
+        if(isShared){
+          res.push(
+            [
+              ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/shareBot',"分享机器人"),
+              ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/stopShareBot',"停止分享"),
+            ],
+          )
+        }else {
+          res.push(
+            [
+              ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/shareBot',"分享机器人"),
+            ],
+          )
+        }
+
+
+      }
       res.push(
         [
           ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
@@ -193,7 +221,9 @@ export default class MsgCommandChatGpt{
       await new ChatMsg(this.chatId).setText(welcome).reply();
     }
     if(template){
-      await new ChatMsg(this.chatId).setText("\n你可以复制修改发送下面的例子:\n\n```\n"+template+"```").reply();
+      await new ChatMsg(this.chatId).setText("\n```\n"+template+"```").setInlineButtons([
+        MsgCommand.buildInlineCallbackButton(this.chatId,"ai/send/template","编辑发送")
+      ]).reply();
     }
     if(!welcome && !template){
       await this.chatMsg.setText(`
@@ -508,9 +538,10 @@ ${desc}
         })
       })
       await this.reloadCommands()
-      await this.chatMsg.setText("更新成功").reply()
+      MsgDispatcher.showNotification("更新成功")
+      await this.chatMsg.setJson(commands,"commands:").reply()
     }else{
-      await this.chatMsg.setText("更新失败").reply()
+      MsgDispatcher.showNotification("更新失败")
     }
   }
   async disableApi(messageId:number){
@@ -721,7 +752,26 @@ ${desc}
         .reply()
       return
     }
-
+    if(data.endsWith(`setting/stopShareBot`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("停止分享之后，该机器人不会出现在 用户分享 列表中，点击 停止分享 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`setting/stopShareBot/confirm`,"停止分享"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
+    if(data.endsWith(`setting/shareBot`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
+      await this.chatMsg.setText("分享机器人之后，其他用户将会访问到，点击 分享机器人 进入下一步")
+        .setInlineButtons([
+          MsgCommand.buildInlineCallbackButton(this.chatId,`setting/shareBot/confirm`,"分享机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
+        ])
+        .reply()
+      return
+    }
     if(data.endsWith(`setting/copyBot`)){
       const outGoingMsgId = data.split('/')[data.split("/").length - 3]
       await this.chatMsg.setText("点击 复制机器人 进入下一步")
@@ -746,6 +796,13 @@ ${desc}
     }
 
     switch (data){
+      case `${chatId}/ai/send/template`:
+        const message = selectChatMessage(global,this.chatId,messageId)
+        const text = message?.content.text?.text!.trim();
+        // @ts-ignore
+        document.querySelector('#editable-message-text').focus()
+        document.execCommand('insertText', false, text);
+        return
       case `${chatId}/setting/ai/disableApi/confirm`:
         await this.disableApi(messageId)
         return
@@ -774,24 +831,25 @@ ${desc}
       case `${chatId}/setting/copyBot/confirm`:
         await new MsgCommand(chatId).copyBot(global)
         break
+      case `${chatId}/setting/stopShareBot/confirm`:
+        await new MsgCommand(chatId).stopShareBot(global)
+        break
+      case `${chatId}/setting/shareBot/confirm`:
+        await new MsgCommand(chatId).shareBot(global)
+        break
       case `${chatId}/setting/ai/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
         break
       case `${chatId}/setting/ai/reloadCommands`:
         await this.reloadCommands()
         break
-      case `${chatId}/requestChatStream/stop`:
-        this.chatMsg.update(messageId,{
-          inlineButtons:[
-            [
-              {
-                text: "已停止输出",
-                type: "unsupported"
-              }
-            ]
-          ]
+      case `${chatId}/requestChatStream/retry`:
+        await this.chatMsg.update(messageId,{
+          inlineButtons:[]
         })
-
+        await MsgDispatcher.retryAi(chatId,messageId)
+        break
+      case `${chatId}/requestChatStream/stop`:
         await callApiWithPdu(new StopChatStreamReq({
           chatId:parseInt(chatId),
           msgId:messageId

@@ -849,7 +849,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null],"100":["err","uint32",0]}
                 },
                 TopCatsReq: {
-                    '$': {"1":["time","uint32",0]}
+                    '$': {"1":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 TopCatsRes: {
                     '$': {"1":["payload","string",""],"100":["err","uint32",0]}
@@ -867,6 +867,18 @@ var $conv_message = $createConverter([
                 },
                 GenUserIdRes: {
                     '$': {"1":["userId","uint32",0],"100":["err","uint32",0]}
+                },
+                ShareBotReq: {
+                    '$': {"1":["userId","string",""],"2":["firstName","string",""],"3":["avatarHash","string",""],"4":["bio","string",""],"5":["init_system_content","string",""],"6":["welcome","string",""],"7":["template","string",""]}
+                },
+                ShareBotRes: {
+                    '$': {"100":["err","uint32",0]}
+                },
+                ShareBotStopReq: {
+                    '$': {"1":["userId","string",""]}
+                },
+                ShareBotStopRes: {
+                    '$': {"100":["err","uint32",0]}
                 },
                 UploadUserReq: {
                     '$': {"1":["users","<default.PTP.Common.UserStoreRow",null],"3":["time","uint32",0]}

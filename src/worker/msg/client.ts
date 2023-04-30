@@ -42,8 +42,11 @@ export const handleStopChatStreamReq = async (pdu:Pdu)=>{
   const {msgId,chatId} = StopChatStreamReq.parseMsg(pdu)
   ControllerPool.stop(chatId,msgId)
 }
-
+const replyResult:Record<string, boolean> = {}
 async function handleChatGpt(url:string,chatGpt:string,chatId?:string,msgId?:number){
+  let i = 0;
+  let totalContent = "";
+  replyResult[`${chatId}_${msgId}`] = false;
   requestChatStream(
     url,
     {
@@ -54,7 +57,9 @@ async function handleChatGpt(url:string,chatGpt:string,chatId?:string,msgId?:num
         stream:true
       },
       onMessage:(content, done) =>{
-        console.log(content)
+        if(replyResult[`${chatId}_${msgId}`]){
+          return;
+        }
         let inlineButtons:ApiKeyboardButtons = []
         if(content.startsWith("sign://401/")){
           inlineButtons = [
@@ -77,38 +82,97 @@ async function handleChatGpt(url:string,chatGpt:string,chatId?:string,msgId?:num
           })
           return
         }
-        new ChatMsg(chatId!).update(msgId!,{
-          content:{
-            text:{
-              text:content
-            }
-          },
-        })
+
         if(done){
+          replyResult[`${chatId}_${msgId}`] = true;
+          totalContent = content
+          console.log("====>>> done",content)
+          new ChatMsg(chatId!).update(msgId!,{
+            content:{
+              text:{
+                text:content
+              }
+            },
+            inlineButtons:[]
+          })
           ControllerPool.remove(parseInt(chatId!), msgId!);
+        }else{
+          totalContent = content
+          i++
+          if(i > 1 && content.length > 1){
+            new ChatMsg(chatId!).update(msgId!,{
+              content:{
+                text:{
+                  text:content
+                }
+              },
+              inlineButtons:[
+                [
+                  {
+                    type:"callback",
+                    data:chatId + "/requestChatStream/stop",
+                    text:"停止输出"
+                  }
+                ]
+              ]
+            })
+          }else{
+            new ChatMsg(chatId!).update(msgId!,{
+              content:{
+                text:{
+                  text:content
+                }
+              },
+            })
+          }
         }
       },
       onAbort:(error) =>{
-        new ChatMsg(chatId!).update(msgId!,{
-          content:{
-            text:{
-              text:"user abort"
+        i = 0;
+        if(totalContent.length === 0){
+          new ChatMsg(chatId!).update(msgId!,{
+            content:{
+              text:{
+                text:"user abort"
+              }
+            },
+            inlineButtons:[
+              [
+                {
+                  type:"callback",
+                  data:`${chatId}/requestChatStream/retry`,
+                  text:"重试"
+                }
+              ]
+            ]
+          })
+          ChatMsg.apiUpdate({
+            "@type":"updateGlobalUpdate",
+            data:{
+              action:"updateChatGptHistory",
+              payload:{
+                chatId,
+                msgIdAssistant:undefined,
+              }
             }
-          },
-        })
-        ChatMsg.apiUpdate({
-          "@type":"updateGlobalUpdate",
-          data:{
-            action:"updateChatGptHistory",
-            payload:{
-              chatId,
-              msgIdAssistant:undefined,
-            }
-          }
-        })
+          })
+        }else{
+          new ChatMsg(chatId!).update(msgId!,{
+            inlineButtons:[
+              [
+                {
+                  type:"callback",
+                  data:`${chatId}/requestChatStream/retry`,
+                  text:"重试"
+                }
+              ]
+            ]
+          })
+        }
         ControllerPool.remove(parseInt(chatId!), msgId!);
       },
       onError:(error) =>{
+        i = 0;
         new ChatMsg(chatId!).update(msgId!,{
           content:{
             text:{

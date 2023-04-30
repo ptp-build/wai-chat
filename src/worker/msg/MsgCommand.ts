@@ -1,6 +1,6 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectUser} from "../../global/selectors";
-import {addUsers, addUserStatuses, updateUser} from "../../global/reducers";
+import {updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {ApiBotCommand, ApiKeyboardButton, ApiMessage, ApiUser} from "../../api/types";
 import {currentTs, currentTs1000, showBodyLoading} from "../share/utils/utils";
@@ -8,9 +8,15 @@ import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import {UserStoreRow_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {ERR, UserStoreRow_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {callApiWithPdu} from "./utils";
-import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
+import {
+  DownloadUserReq,
+  DownloadUserRes,
+  ShareBotReq,
+  ShareBotRes, ShareBotStopReq, ShareBotStopRes,
+  UploadUserReq
+} from "../../lib/ptp/protobuf/PTPUser";
 import Account from "../share/Account";
 import {DownloadMsgReq, DownloadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {getPasswordFromEvent} from "../share/utils/password";
@@ -164,26 +170,84 @@ export default class MsgCommand {
     }
     await this.chatMsg.updateText(messageId,`更新成功,共: ${downloadMsgRes.messages ? downloadMsgRes.messages.length : 0} 条`)
   }
-
-  async downloadUser(global:GlobalState,messageId:number){
-    await this.chatMsg.updateText(messageId,"正在更新...")
+  static async downloadUsers(global:GlobalState,userIds:string[]){
+    console.log("[downloadUsers]",userIds)
     const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-      userIds:[this.chatId],
+      userIds
     }).pack())
     const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
-    console.log("downloadUser",downloadUserRes)
+    console.log("[downloadUserRes]",downloadUserRes)
     if(downloadUserRes.users && downloadUserRes.users.length > 0){
-      const {user} = downloadUserRes.users[0]
-      const userId = user!.id
-      global = getGlobal();
-      if(selectUser(global,userId)){
-        global = updateUser(global,user!.id, user as ApiUser)
-        setGlobal(global)
+      for (let i = 0; i < downloadUserRes.users.length; i++) {
+        const {user} = downloadUserRes.users[i]
+        const userId = user!.id
+        global = getGlobal();
+        if(selectUser(global,userId)){
+          global = updateUser(global,user!.id, user as ApiUser)
+          setGlobal(global)
+        }
       }
     }
+  }
+  async downloadUser(global:GlobalState,messageId:number){
+    await this.chatMsg.updateText(messageId,"正在更新...")
+    await MsgCommand.downloadUsers(global,[this.chatId]);
     await this.chatMsg.updateText(messageId,"更新成功")
   }
-
+  async stopShareBot(global:GlobalState){
+    try {
+      showBodyLoading(true)
+      const res = await callApiWithPdu(new ShareBotStopReq({
+        userId:this.chatId,
+      }).pack())
+      if(res && res.pdu){
+        const {err} = ShareBotStopRes.parseMsg(res.pdu)
+        if(err === ERR.NO_ERROR){
+          MsgDispatcher.showNotification("操作成功")
+          showBodyLoading(false)
+          getActions().fetchTopCats()
+          return
+        }
+      }
+    }catch (e){
+      MsgDispatcher.showNotification("操作失败")
+      console.error(e)
+    }
+    showBodyLoading(false)
+  }
+  async shareBot(global:GlobalState){
+    const user = selectUser(global,this.chatId)
+    const init_system_content = new MsgCommandChatGpt(this.chatId).getChatGptConfig("init_system_content") as string
+    const template = new MsgCommandChatGpt(this.chatId).getChatGptConfig("template") as string
+    const welcome = new MsgCommandChatGpt(this.chatId).getChatGptConfig("welcome") as string
+    if(user && user.fullInfo?.botInfo){
+      try {
+        showBodyLoading(true)
+        const res = await callApiWithPdu(new ShareBotReq({
+          userId:this.chatId,
+          avatarHash: user.avatarHash,
+          bio: user.fullInfo.botInfo.description!,
+          firstName: user.firstName!,
+          init_system_content,
+          template,
+          welcome
+        }).pack())
+        if(res && res.pdu){
+          const {err} = ShareBotRes.parseMsg(res.pdu)
+          if(err === ERR.NO_ERROR){
+            MsgDispatcher.showNotification("分享成功")
+            showBodyLoading(false)
+            getActions().fetchTopCats()
+            return
+          }
+        }
+      }catch (e){
+        console.error(e)
+      }
+    }
+    showBodyLoading(false)
+    MsgDispatcher.showNotification("分享失败")
+  }
   async copyBot(global:GlobalState){
     try {
       showBodyLoading(true)
@@ -200,7 +264,6 @@ export default class MsgCommand {
     }finally {
       showBodyLoading(false)
     }
-
   }
 
   async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){

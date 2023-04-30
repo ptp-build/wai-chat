@@ -68,6 +68,7 @@ const ChatResults: FC<OwnProps & StateProps> = ({
 }) => {
   const {
     openTopBotChat,
+    sendBotCommand,
     openChat, addRecentlyFoundChatId, searchMessagesGlobal, setGlobalSearchChatId,
   } = getActions();
 
@@ -93,11 +94,26 @@ const ChatResults: FC<OwnProps & StateProps> = ({
 
   const handleChatClick = useCallback(
     (id: string) => {
-      openTopBotChat({id})
+
+      let global = getGlobal()
+      let shouldSend = false
+      if(!global.chats.byId[id]){
+        openTopBotChat({id})
+        shouldSend = true;
+      }
       openChat({ id, shouldReplaceHistory: true });
 
       if (id !== currentUserId) {
         addRecentlyFoundChatId({ id });
+      }
+
+      if(shouldSend){
+        setTimeout(()=>{
+          addRecentlyFoundChatId({ id });
+          if(shouldSend){
+            sendBotCommand({chatId:id,command:"/start"})
+          }
+        },200)
       }
 
       if (!isMobile) {
