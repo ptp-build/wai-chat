@@ -184,20 +184,23 @@ export default class MsgCommandChatGpt{
 
     const welcome = this.getChatGptConfig("welcome") as string
     const template = this.getChatGptConfig("template") as string
+    const init_system_content = this.getChatGptConfig("init_system_content") as string
 
-    const text = `
-${desc}
-
-/help 获取帮助
-`;
-    await this.chatMsg.setText(text).reply();
+    if(init_system_content){
+      await new ChatMsg(this.chatId).setText(init_system_content).setSenderId("1").reply();
+    }
     if(welcome){
       await new ChatMsg(this.chatId).setText(welcome).reply();
     }
     if(template){
-      await new ChatMsg(this.chatId).setText("你可以复制修改发送下面的例子:\n\n```\n"+template+"```").reply();
+      await new ChatMsg(this.chatId).setText("\n你可以复制修改发送下面的例子:\n\n```\n"+template+"```").reply();
     }
+    if(!welcome && !template){
+      await this.chatMsg.setText(`
+${desc}
 
+`).reply();
+    }
     return STOP_HANDLE_MESSAGE
   }
 
