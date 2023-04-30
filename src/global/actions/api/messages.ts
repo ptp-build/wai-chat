@@ -625,19 +625,15 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
       folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
     }
     if(userStoreData && userStoreData.chatIdsDeleted){
-      userStoreData.chatIdsDeleted.forEach(chatId=>{
-        if(folder.includedChatIds.includes(chatId)){
-          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+      if(folder.id === 1){
+        userStoreData.chatIdsDeleted = userStoreData.chatIdsDeleted.filter(id=>id !== UserIdFirstBot)
+      }
+      userStoreData.chatIdsDeleted.forEach(idDeleted=>{
+        if(folder.includedChatIds.includes(idDeleted)){
+          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== idDeleted)
         }
       })
     }
-    const includedChatIds = []
-    folder.includedChatIds.forEach(chatId=>{
-      if(global.chats.listIds.active.includes(chatId)){
-        includedChatIds.push(chatId)
-      }
-    })
-    folder.includedChatIds = includedChatIds
   })
 
   if(!userStoreData){
