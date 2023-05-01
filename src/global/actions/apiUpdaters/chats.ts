@@ -27,16 +27,19 @@ import type {ActionReturnType, GlobalState} from '../../types';
 import {isLocalMessageId} from "../../helpers";
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {currentTs1000} from "../../../worker/share/utils/utils";
 
 const TYPING_STATUS_CLEAR_DELAY = 6000; // 6 seconds
 
 
 const handleChatFoldersEdit = (global:GlobalState)=>{
   const {userStoreData} = global
-  console.log(userStoreData?.chatFolders)
-  console.log(JSON.stringify(global.chatFolders))
+
   let changed = userStoreData?.chatFolders !== JSON.stringify(global.chatFolders)
-  if(JSON.stringify(global.chats.listIds.active) !== JSON.stringify(userStoreData?.chatIds)){
+  if(
+    JSON.stringify(global.chatFolders) !== userStoreData?.chatFolders ||
+    JSON.stringify(global.chats.listIds.active) !== JSON.stringify(userStoreData?.chatIds)
+  ){
     changed = true;
   }
   global = {
@@ -44,7 +47,8 @@ const handleChatFoldersEdit = (global:GlobalState)=>{
     userStoreData:{
       ...userStoreData,
       chatFolders:JSON.stringify(global.chatFolders),
-      chatIds:global.chats.listIds.active
+      chatIds:global.chats.listIds.active,
+      time:currentTs1000()
     }
   }
 

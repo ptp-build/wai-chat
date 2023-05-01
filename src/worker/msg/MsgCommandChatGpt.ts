@@ -140,6 +140,10 @@ export default class MsgCommandChatGpt{
     const global = getGlobal();
     const {chatGptAskHistory} = global
     const messageIds:number[] = []
+    if(!chatGptAskHistory || !chatGptAskHistory[this.chatId]){
+      MsgDispatcher.showNotification("没有找到ai聊天记录")
+      return
+    }
     Object.keys(chatGptAskHistory[this.chatId]).forEach((id)=>{
       const msgId = parseInt(id)
       const userMsgId = chatGptAskHistory[this.chatId][msgId]
