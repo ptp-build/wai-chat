@@ -218,8 +218,6 @@ export class Pdu {
   }
 }
 
-let seq_num = 0;
-
 export default class BaseMsg {
   private __cid?: any;
   public msg?: any;
@@ -272,10 +270,7 @@ export default class BaseMsg {
   }
   protected __pack(): Pdu {
     const pdu = new Pdu();
-    if (seq_num > 10000) {
-      seq_num = 0;
-    }
-    pdu.writeData(this.__E(), this.__cid, ++seq_num);
+    pdu.writeData(this.__E(), this.__cid, 0);
     return pdu;
   }
 }

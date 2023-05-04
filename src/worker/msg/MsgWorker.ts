@@ -28,9 +28,33 @@ import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
+import {ChatGptStreamStatus} from "../../lib/ptp/protobuf/PTPCommon/types";
 
 let messageIds:number[] = [];
-
+class Msg{
+  static text:string = ""
+  static async run(chatId:string,msgId:number,reply:string,streamStatus:ChatGptStreamStatus){
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_START){
+      Msg.text = "";
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_GOING){
+      Msg.text += reply;
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_DONE){
+      Msg.text = reply;
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_ERROR){
+      Msg.text = reply;
+    }
+    await new ChatMsg(chatId!).update(msgId,{
+      content:{
+        text:{
+          text:Msg.text
+        }
+      }
+    })
+  }
+}
 export default class MsgWorker {
   private botInfo?: ApiBotInfo;
   private chat: ApiChat;
@@ -80,18 +104,29 @@ export default class MsgWorker {
       }
     })
   }
+  static async handleStreamMsg(chatId:string,msgId:number,reply:string,streamStatus:ChatGptStreamStatus){
+
+    await Msg.run(chatId,msgId,reply,streamStatus)
+  }
   static async handleSendBotMsgRes(pdu:Pdu){
-    const {reply,msgId,message,chatId} = SendBotMsgRes.parseMsg(pdu)
+    const {reply,msgId,streamStatus,message,chatId} = SendBotMsgRes.parseMsg(pdu)
     console.log("[SendBotMsgRes]",reply,message)
     if(reply){
       if(msgId){
-        await new ChatMsg(chatId!).update(msgId,{
-          content:{
-            text:{
-              text:reply
+
+        if(streamStatus !== undefined && chatId){
+          await MsgWorker.handleStreamMsg(chatId,msgId,reply,streamStatus)
+        }else{
+          await new ChatMsg(chatId!).update(msgId,{
+            content:{
+              text:{
+                text:reply
+              }
             }
-          }
-        })
+          })
+        }
+
+
       }else{
         await new ChatMsg(chatId!).setText(reply).reply();
       }

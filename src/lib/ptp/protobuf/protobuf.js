@@ -666,6 +666,9 @@ var $conv_message = $createConverter([
                 AUTH_TYPE: {
                     '@': {"AUTH_TYPE_USERNAME":0,"AUTH_TYPE_EMAIL":1,"AUTH_TYPE_MOBILE":2}
                 },
+                ChatGptStreamStatus: {
+                    '@': {"ChatGptStreamStatus_START":0,"ChatGptStreamStatus_GOING":1,"ChatGptStreamStatus_DONE":2,"ChatGptStreamStatus_ERROR":3}
+                },
                 ClientInfo: {
                     '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
                 },
@@ -818,7 +821,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false],"5":["message","default.PTP.Common.PbMsg",null]}
+                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}
                 },
                 UpdateCmdReq: {
                     '$': {"1":["botApi","string",""],"2":["chatId","string",""]}

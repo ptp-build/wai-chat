@@ -17,7 +17,12 @@ enum EncryptType{
   EncryptType_Message = 2;
   EncryptType_Media = 3;
 }
-
+enum ChatGptStreamStatus{
+  ChatGptStreamStatus_START = 0;
+  ChatGptStreamStatus_GOING = 1;
+  ChatGptStreamStatus_DONE = 2;
+  ChatGptStreamStatus_ERROR = 3;
+}
 enum QrCodeType{
   QrCodeType_MNEMONIC = 1;
 }
