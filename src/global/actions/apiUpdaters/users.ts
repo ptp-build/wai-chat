@@ -12,6 +12,7 @@ import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import {DEBUG} from "../../../config";
 import {currentTs1000} from "../../../worker/share/utils/utils";
 import MsgCommand from "../../../worker/msg/MsgCommand";
+import {UserIdFirstBot} from "../../../worker/setting";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -105,28 +106,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         case "updateBots":
           return handleUpdateBots(global,data.payload.user);
         case "onLogged":
-          let {userStoreData} = global
-          if(!userStoreData){
-            userStoreData = {
-              time:0,
-              chatIds:Object.keys(global.chats.listIds.active),
-              chatFolders:JSON.stringify(global.chatFolders)
-            }
-          }else{
-            userStoreData = {
-              ...userStoreData,
-              chatIds:Object.keys(global.chats.listIds.active),
-              chatFolders:JSON.stringify(global.chatFolders)
-            }
-          }
-          if(userStoreData.myBots){
-            if(!userStoreData.chatIdsDeleted){
-              userStoreData.chatIdsDeleted = []
-            }
-          }
-          callApiWithPdu(new SyncReq({
-            userStoreData,
-          }).pack()).catch(console.error)
+          callApiWithPdu(new SyncReq({}).pack()).catch(console.error)
           break
         case "updateUserStoreData":
           global = updateUserStoreData(global,data.payload!.userStoreData)
@@ -139,7 +119,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
             for (let i = 0; i < userStoreData1.myBots.length; i++) {
               const botId = userStoreData1.myBots[i]
               if(!selectUser(global,botId) && !userStoreData1.chatIdsDeleted.includes(botId)){
-                if(botId !== "0"){
+                if(botId !== "0" && botId !== UserIdFirstBot){
                   userIds.push(botId)
                 }
               }
@@ -150,6 +130,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
               },500)
             }
           }
+
           return global
         case "updateTopCats":
           return {
