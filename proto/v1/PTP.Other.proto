@@ -9,7 +9,6 @@ message OtherNotify{
   required Common.ERR err = 100;
 }
 
-
 message StopChatStreamReq{
   required uint32 chatId = 1;
   required uint32 msgId = 2;

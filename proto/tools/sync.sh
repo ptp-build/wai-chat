@@ -85,3 +85,5 @@ sync_dir() {
 
 sync_dir $PROJECT_DIR/../wai-chat-bot/src/lib/ptp/protobuf/
 sync_dir $PROJECT_DIR/../wai-chat-rpa/src/lib/ptp/protobuf/
+sync_dir $PROJECT_DIR/../wai-electron/src/lib/ptp/protobuf/
+

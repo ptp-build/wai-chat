@@ -175,28 +175,20 @@ export default class MsgDispatcher {
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
           let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
 
+          if(this.params.botInfo?.botId === UserIdFirstBot){
+            botApi = MsgCommandSetting.getBotApi()
+            return this.handleBotMsg(botApi)
+          }
           if(this.getMsgText() && this.getBotInfo()?.aiBot){
             if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();
-              res = await new BotChatGpt(this.getBotInfo()?.botId!).process(this.outGoingMsg)
+              res = await new BotChatGpt(this.getChatId()).process(this.outGoingMsg)
             }else{
               if(!botApi){
                 return
               }
               this.outGoingMsg = await this.sendOutgoingMsg();
-
-              const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
-                botApi,
-                chatId:this.getChatId(),
-                text:this.getMsgText()}
-              ).pack())
-              if(SendBotMsgReqRes){
-                const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
-                if(reply){
-                  await new ChatMsg(this.getChatId()).setText(reply).reply()
-                }
-              }
-              return this.outGoingMsg
+              return this.handleBotMsg(botApi)
             }
           }
         }
@@ -213,6 +205,32 @@ export default class MsgDispatcher {
       }
     }
     return res
+  }
+  async handleBotMsg(botApi:string){
+
+    const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
+      botApi,
+      chatId:this.getChatId(),
+      text:this.getMsgText()}
+    ).pack())
+    if(SendBotMsgReqRes){
+      const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
+      if(reply){
+        await new ChatMsg(this.getChatId()).setText(reply).reply()
+      }
+    }
+    return this.outGoingMsg
+  }
+  static async retryAi(chatId:string,messageAssistantId:number){
+    const global = getGlobal();
+    const {chatGptAskHistory} = global
+    const historyList = chatGptAskHistory[chatId]
+    if(historyList[messageAssistantId]){
+      const message = selectChatMessage(global,chatId,historyList[messageAssistantId])
+      if(message){
+        await new BotChatGpt(chatId).process(message,selectChatMessage(global,chatId,messageAssistantId))
+      }
+    }
   }
   static async reRunAi(chatId:string,messageId:number,text:string){
     const global = getGlobal();

@@ -88,8 +88,10 @@ import {
   DEFAULT_AVATARS,
   DEFAULT_CREATE_USER_BIO,
   DEFAULT_PROMPT,
+  DEFAULT_WAI_USER_BIO,
   LoadAllChats,
-  SERVER_BOT_USER_ID_START, TopCats,
+  SERVER_BOT_USER_ID_START,
+  TopCats,
   UserIdFirstBot
 } from "../../../worker/setting";
 import * as cacheApi from '../../../util/cacheApi';
@@ -100,10 +102,13 @@ import ChatMsg from "../../../worker/msg/ChatMsg";
 
 import {resizeImage} from '../../../util/imageResize';
 import {callApiWithPdu} from "../../../worker/msg/utils";
-import {GenUserIdReq, GenUserIdRes} from "../../../lib/ptp/protobuf/PTPUser";
-import {currentTs1000} from "../../../worker/share/utils/utils";
+import {DownloadUserReq, DownloadUserRes, GenUserIdReq, GenUserIdRes} from "../../../lib/ptp/protobuf/PTPUser";
+import {currentTs, currentTs1000} from "../../../worker/share/utils/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
-import {UserStoreData} from "../../../lib/ptp/protobuf/PTPCommon";
+import MsgCommand from "../../../worker/msg/MsgCommand";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
+import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -181,7 +186,7 @@ addActionHandler('openTopBotChat', (global, actions, payload): ActionReturnType 
   }
 })
 
-addActionHandler('openChat', (global, actions, payload): ActionReturnType => {
+addActionHandler('openChat', async (global, actions, payload): ActionReturnType => {
   const {
     id, threadId = MAIN_THREAD_ID,
   } = payload;
@@ -209,6 +214,8 @@ addActionHandler('openChat', (global, actions, payload): ActionReturnType => {
     //todo
     // actions.requestChatUpdate({ chatId: id });
   }
+
+  MsgCommand.downloadUser(id).catch(console.error)
 
   if (threadId !== MAIN_THREAD_ID) {
     actions.requestThreadInfoUpdate({ chatId: id, threadId });
@@ -651,6 +658,7 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
     user.id = await getUserId(global)
   }
   const userId = user.id;
+  user.updatedAt = currentTs();
   if(user.fullInfo && user.fullInfo.botInfo){
     user.fullInfo.botInfo.botId = userId;
     if(user.fullInfo.botInfo.commands){
@@ -731,6 +739,7 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
   setGlobal(global)
   if(CLOUD_MESSAGE_API){
     callApiWithPdu(new SyncReq({userStoreData:getGlobal().userStoreData}).pack()).catch(console.error)
+    MsgCommand.uploadUser(global,userId).catch(console.error)
   }
 
   if(activeChatFolderRow){
@@ -738,6 +747,7 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
     actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
   }
   actions.openChat({id: userId,shouldReplaceHistory: true,});
+  new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
   actions.sendBotCommand({chatId:userId,command:"/start",tabId})
 }
 addActionHandler('createChat', async (global, actions, payload)=> {
@@ -770,6 +780,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
         progress: ChatCreationProgress.Complete,
       },
     }, tabId);
+    setGlobal(global)
   }catch (e){
     console.error(e)
     global = getGlobal();
@@ -2088,12 +2099,80 @@ addActionHandler('toggleTopicPinned', (global, actions, payload): ActionReturnTy
 });
 
 
-const initChats = (firstLoad?:boolean)=>{
+const initChats = async (firstLoad?:boolean)=>{
+  let global = getGlobal()
+  let startChatId = UserIdFirstBot
+  const {hash} = window.location
+  if(hash){
+    const initChatId = hash.replace("#","")
+    let chat = selectChat(global,initChatId)
+    let user = selectUser(global,initChatId)
+    if(initChatId.startsWith("-")){
+      if(!chat){
+
+      }
+    }else{
+      if(!user){
+        const res = await callApiWithPdu(new DownloadUserReq({userId:initChatId,updatedAt:0}).pack())
+        if(res){
+          const {userBuf,err} = DownloadUserRes.parseMsg(res.pdu)
+          global = getGlobal()
+          if(err === ERR.NO_ERROR && userBuf){
+            const user = PbUser.parseMsg(new Pdu(userBuf)) as ApiUser;
+            //@ts-ignore
+            chat = ChatMsg.buildDefaultChat(user);
+            global = addChats(global,{
+              [initChatId]:chat as ApiChat
+            })
+            global = updateChatListIds(global,"active", [initChatId])
+
+            global = addUsers(global,{
+              [initChatId]:user as ApiUser
+            })
+            global = addUserStatuses(global,{
+              [initChatId]:{
+                "type": "userStatusEmpty"
+              }
+            })
+            startChatId = initChatId
+          }
+          firstLoad = true
+        }else{
+          if(!chat){
+            //@ts-ignore
+            chat = ChatMsg.buildDefaultChat(user);
+            global = addChats(global,{
+              [initChatId]:chat as ApiChat
+            })
+            global = updateChatListIds(global,"active", [initChatId])
+
+            startChatId = initChatId
+          }else{
+
+          }
+        }
+      }else{
+        if(!chat){
+          //@ts-ignore
+          chat = ChatMsg.buildDefaultChat(user);
+          global = addChats(global,{
+            [initChatId]:chat as ApiChat
+          })
+          global = updateChatListIds(global,"active", [initChatId])
+          startChatId = initChatId
+        }else{
+
+        }
+      }
+    }
+
+  }
+  setGlobal(global)
   setTimeout(async ()=>{
     if(firstLoad){
-      getActions().openChat({id: UserIdFirstBot,shouldReplaceHistory: true,});
+      getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
       setTimeout(async ()=>{
-        getActions().sendBotCommand({chatId:UserIdFirstBot,command:"/start"})
+        getActions().sendBotCommand({chatId:startChatId,command:"/start"})
       },500)
     }
   },500)
@@ -2150,6 +2229,58 @@ export async function loadChats<T extends GlobalState>(
         }
       }
     }else {
+      if(!global.chats.byId[UserIdFirstBot]) {
+        const chat = LoadAllChats.chats.find(chat=>chat.id === UserIdFirstBot)
+        const listIds = global.chats.listIds.active || []
+        if(chat){
+          listIds.push(chat.id)
+          let {chatIdsDeleted,chatIds} = global.userStoreData!
+          if(!chatIdsDeleted){
+            chatIdsDeleted = []
+          }
+          if(!chatIds){
+            chatIds = []
+          }
+          if(chatIdsDeleted.includes(chat.id)){
+            chatIdsDeleted = chatIdsDeleted.filter(id=>id!== chat.id)
+          }
+          if(!chatIds.includes(chat.id)){
+            chatIds.push(chat.id)
+          }
+          global = {
+            ...global,
+            userStoreData:{
+              ...global.userStoreData,
+              chatIds,
+              chatIdsDeleted,
+            },
+            chats: {
+              ...global.chats,
+              byId:{
+                ...global.chats.byId,
+                [chat.id]:chat,
+              },
+              listIds:{
+                ...global.chats.listIds,
+                active:listIds
+              }
+            }
+          }
+        }
+      }
+      global = updateUser(global,UserIdFirstBot,{
+        fullInfo:{
+          ...selectUser(global,UserIdFirstBot)!.fullInfo,
+          bio:DEFAULT_WAI_USER_BIO
+        },
+        usernames:[
+          {
+            "username": "wai",
+            "isActive": true,
+            "isEditable": true
+          }
+        ]
+      })
       global = {
         ...global,
         chats: {
@@ -2161,7 +2292,7 @@ export async function loadChats<T extends GlobalState>(
         },
       };
       setGlobal(global);
-      initChats()
+      await initChats()
       return
     }
     // result = await callApi('fetchChats', {
@@ -2315,7 +2446,7 @@ export async function loadChats<T extends GlobalState>(
     };
 
     setGlobal(global);
-    initChats(firstLoad)
+    await initChats(firstLoad)
   }catch (e){
     console.error(e)
   }

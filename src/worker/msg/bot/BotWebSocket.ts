@@ -26,7 +26,7 @@ export enum BotWebSocketState {
 export type MsgHandleType = (msgConnId:number,notifies:BotWebSocketNotify[])=>void
 
 let reconnect_cnt = 0;
-let seq_num = 0;
+let seq_num = 10;
 let clients: Record<string, BotWebSocket> = {};
 
 let currentMsgConn: BotWebSocket | null = null;
@@ -155,7 +155,7 @@ export default class BotWebSocket {
       clientInfo:Account.getCurrentAccount()!.getClientInfo(),
       sign:Account.getCurrentAccount()?.getSession()!
     }).pack())
-    console.log("[onLogin]")
+    console.log("[onLogin] ok")
     this.notifyState(BotWebSocketState.logged);
   }
   notify(notifyList:BotWebSocketNotify[]) {
@@ -167,6 +167,12 @@ export default class BotWebSocket {
     if(e.data && e.data.byteLength && e.data.byteLength > 16){
       let pdu = new Pdu(Buffer.from(e.data));
       const seq_num = pdu.getSeqNum();
+      if(DEBUG){
+        console.log("[onData]",seq_num,pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
+      }
+      if(pdu.getCommandId() === 5001){
+        return
+      }
       if(DEBUG){
         console.log("[onData]",seq_num,pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
       }
@@ -272,14 +278,14 @@ export default class BotWebSocket {
   ) {
     seq_num += 1;
     if(seq_num > 100000){
-      seq_num = 1
+      seq_num = 10
     }
     pdu.updateSeqNo(seq_num)
+    if(DEBUG){
+      console.log("sendPduWithCallback",getActionCommandsName(pdu.getCommandId()),"seq_num:",seq_num,pdu.getSeqNum())
+    }
     return new Promise<Pdu>((resolve, reject) => {
       if (this.isConnect()) {
-        if(DEBUG){
-          console.log("[sendPduWithCallback]",pdu.getSeqNum(),pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
-        }
         this.__sending_msg_map[pdu.getSeqNum()] = true;
         this.send(pdu.getPbData())
         this.waitForMsgCallback(pdu.getSeqNum(), timeout)

@@ -90,7 +90,7 @@ import type {
 import { typify } from '../lib/teact/teactn';
 import type { P2pMessage } from '../lib/secret-sauce';
 import type { ApiCredentials } from '../components/payment/PaymentModal';
-import {PbChatFolder_Type, PbUserSetting_Type, UserStoreData_Type} from "../lib/ptp/protobuf/PTPCommon/types";
+import {PbChatFolder_Type, UserMessageStoreData_Type, UserStoreData_Type} from "../lib/ptp/protobuf/PTPCommon/types";
 
 export type MessageListType =
   'thread'
@@ -581,6 +581,7 @@ export type AiReplyHistoryType = {msgId:number,role:AiReplyHistoryRole,}
 
 export type GlobalState = {
   userStoreData?:UserStoreData_Type
+  userMessageStoreData?:Record<string, UserMessageStoreData_Type>
   topCats:{
     time?:number,
     topSearchPlaceHolder?:string,
@@ -591,7 +592,6 @@ export type GlobalState = {
   },
   aiReplyHistory:Record<string, AiReplyHistoryType[]>
   chatGptAskHistory:Record<string, Record<number, number>>
-  messagesDeleted:Record<string, number[]>
   userSetting?:UserStoreData_Type,
   waitToSync?:Record<string, WaitToSyncType>;
   showMnemonicModal:boolean;

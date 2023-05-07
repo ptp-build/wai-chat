@@ -71,6 +71,9 @@ export default class ChatMsg {
   setThinking(){
     return this.setText("...")
   }
+  setJson(data:any,tips?:string){
+    return this.setText((tips|| "") + "```json\n"+JSON.stringify(data,null,2)+"```");
+  }
   setText(text:string){
     let {content} = this;
     if(!content){
@@ -202,7 +205,7 @@ export default class ChatMsg {
       photos:photos || [],
       usernames: [
         {
-          "username": "Bot_"+userId,
+          "username": "Bot"+userId,
           "isActive": true,
           "isEditable": true
         }

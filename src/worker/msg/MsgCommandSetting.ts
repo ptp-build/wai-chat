@@ -1,34 +1,33 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectChatMessage, selectChatMessages, selectUser} from "../../global/selectors";
-import {addChats, addUsers, updateChatListIds, updateUser} from "../../global/reducers";
+import {selectChatMessage, selectChatMessages} from "../../global/selectors";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiKeyboardButtons} from "../../api/types";
+import {ApiBotCommand, ApiKeyboardButtons, ApiMessage} from "../../api/types";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
+import {MessageStoreRow_Type, PbMsg_Type, QrCodeType} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {
-  MessageStoreRow_Type,
-  PbMsg_Type,
-  QrCodeType,
-  UserStoreData_Type,
-  UserStoreRow_Type
-} from "../../lib/ptp/protobuf/PTPCommon/types";
-import {DownloadMsgReq, DownloadMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
-import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
+  DownloadMsgReq,
+  DownloadMsgRes,
+  UpdateCmdReq,
+  UpdateCmdRes,
+  UploadMsgReq,
+  UploadMsgRes
+} from "../../lib/ptp/protobuf/PTPMsg";
 import Mnemonic from "../../lib/ptp/wallet/Mnemonic";
 import Account from "../share/Account";
 import {AuthNativeReq} from "../../lib/ptp/protobuf/PTPAuth";
 import {GlobalState} from "../../global/types";
 import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
-import {SyncReq, SyncRes} from "../../lib/ptp/protobuf/PTPSync";
 import MsgCommand from "./MsgCommand";
 import {Decoder} from "@nuintun/qrcode";
-import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
+import {PbMsg, PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, UserIdFirstBot} from "../setting";
+import {CHATGPT_PROXY_API, CLOUD_MESSAGE_API, DEBUG} from "../../config";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE} from "../setting";
 import ChatMsg from "./ChatMsg";
+import {showModalFromEvent} from "../share/utils/modal";
 
 let currentSyncBotContext:string|undefined;
 
@@ -48,18 +47,48 @@ export default class MsgCommandSetting{
       console.log("> userStoreData",getGlobal().userStoreData)
       console.log("> topCats",getGlobal().topCats)
     }
-    //@ts-ignore
-    await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
-    return this.chatMsg.setText(DEFAULT_START_TIPS).reply()
+    let tips = DEFAULT_START_TIPS
+    if(CLOUD_MESSAGE_API){
+      const res = await callApiWithPdu(new UpdateCmdReq({
+        botApi:MsgCommandSetting.getBotApi(),
+        chatId,
+      }).pack())
+      if(res){
+        const {commands,startTips} = UpdateCmdRes.parseMsg(res.pdu)
+        await new MsgCommand(chatId).reloadCommands(commands as ApiBotCommand[])
+        tips = startTips!
+      }
+    }else{
+      //@ts-ignore
+      await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    }
+
+    return this.chatMsg.setText(tips).reply()
+  }
+  static getBotApi(){
+    return DEBUG ? 'http://localhost:2235/api/wai' : `${CHATGPT_PROXY_API}/wai`
   }
 
   async setting(outGoingMsgId:number) {
     const {chatId} = this;
     //@ts-ignore
     await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
-    return  this.chatMsg.setText("设置面板")
-      .setInlineButtons(this.getInlineButtons(outGoingMsgId))
-      .reply()
+    // return  this.chatMsg.setText("设置面板")
+    //   .setInlineButtons(this.getInlineButtons(outGoingMsgId))
+    //   .reply()
+
+    const address = Account.getCurrentAccount()?.getSessionAddress()
+    await this.chatMsg.setText("当前账户:\n```\n"+address+"```").setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
+      MsgCommand.buildInlineButton(chatId,"",'unsupported'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
+      MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
+      MsgCommand.buildInlineCallbackButton(chatId,"setting/clearHistory","清除历史记录",'callback'),
+      MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + "/setting/cancel","取消",'callback'),
+      // MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
+    ]).reply()
+    return STOP_HANDLE_MESSAGE
   }
 
   getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
@@ -98,7 +127,6 @@ export default class MsgCommandSetting{
   }
 
   async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){
-    const {chatId} = this
     if(files && files.length > 0){
       const file = files[0]
       const qrcode = new Decoder();
@@ -107,26 +135,28 @@ export default class MsgCommandSetting{
       try {
         const result = await qrcode.scan(blobUrl)
         if(result && result.data.startsWith('wai://')){
-          const mnemonic =  result.data
-          const qrcodeData = mnemonic.replace('wai://','')
-          const qrcodeDataBuf = Buffer.from(qrcodeData,'hex')
-          const decodeRes = PbQrCode.parseMsg(new Pdu(qrcodeDataBuf))
-          if(decodeRes){
-            const {type,data} = decodeRes;
-            if(type !== QrCodeType.QrCodeType_MNEMONIC){
-              throw new Error("解析二维码失败")
-            }
-            const {password} = await getPasswordFromEvent(undefined,true);
-            const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
-            if(res){
-              await this.setMnemonic(res,password);
-              return;
-            }
-          }
+          await this.handleMnemonic(result.data)
         }
       }catch (e){
       }finally {
         getActions().showNotification({message:"解析二维码失败"})
+      }
+    }
+  }
+  async handleMnemonic(mnemonic:string){
+    const qrcodeData = mnemonic.replace('wai://','')
+    const qrcodeDataBuf = Buffer.from(qrcodeData,'hex')
+    const decodeRes = PbQrCode.parseMsg(new Pdu(qrcodeDataBuf))
+    if(decodeRes){
+      const {type,data} = decodeRes;
+      if(type !== QrCodeType.QrCodeType_MNEMONIC){
+        throw new Error("解析二维码失败")
+      }
+      const {password} = await getPasswordFromEvent(undefined,true);
+      const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
+      if(res){
+        await this.setMnemonic(res,password);
+        return;
       }
     }
   }
@@ -247,24 +277,16 @@ export default class MsgCommandSetting{
     }
 
     switch (data){
-      case `${chatId}/setting/cloud`:
-        await this.chatMsg.update(messageId,{
-          inlineButtons:[
-            [
-              {
-                data:`${chatId}/setting/uploadFolder`,
-                text:"上传所有机器人",
-                type:"callback"
-              },
-              {
-                data:`${chatId}/setting/downloadFolder`,
-                text:"下载所有机器人",
-                type:"callback"
-              },
-            ],
-            MsgCommand.buildInlineBackButton(chatId,messageId,'setting/back',"< 返回")
-          ],
+      case `${chatId}/setting/importMnemonic`:
+        const {value} = await showModalFromEvent({
+          initVal:"",
+          title:"助记词加密代码",
+          type:"multipleInput",
+          placeholder:"请输入以 wai:// 开头的助记词加密代码"
         })
+        if(value && value.startsWith("wai://")){
+          await this.handleMnemonic(value)
+        }
         break
       case `${chatId}/setting/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
@@ -273,16 +295,7 @@ export default class MsgCommandSetting{
         //@ts-ignore
         await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
         break
-      case `${chatId}/setting/uploadFolder`:
-        const message1 = await this.chatMsg.setText("正在上传...").reply()
-        await MsgCommandSetting.syncFolders(true)
-        await this.chatMsg.updateText(message1.id,"上传成功")
-        break
-      case `${chatId}/setting/downloadFolder`:
-        const message2 = await this.chatMsg.setText("正在下载...").reply()
-        await MsgCommandSetting.syncFolders(false)
-        await this.chatMsg.updateText(message2.id,"下载成功")
-        break
+
       case `${chatId}/setting/syncMessage`:
         getActions().updateGlobal({
           showPickBotModal:true
@@ -302,6 +315,7 @@ export default class MsgCommandSetting{
           MsgCommand.buildInlineButton(chatId,"",'unsupported'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
           MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
         ]).reply()
         break
@@ -319,107 +333,6 @@ export default class MsgCommandSetting{
           await this.enableSync(global,password,messageId)
         }
         break
-    }
-  }
-
-  static async syncFolders(isUpload:boolean){
-    let global = getGlobal();
-    const chats = global.chats.byId
-    const chatIds = Object.keys(chats).filter(id=>id !== "1");
-    //@ts-ignore
-    const chatIdsDeleted:string[] = global.chatIdsDeleted;
-    console.log("【local】",{chatIds,chatIdsDeleted})
-    const userStoreData:UserStoreData_Type|undefined = isUpload ?{
-      time:currentTs(),
-      chatFolders:JSON.stringify(global.chatFolders),
-      chatIds,
-      chatIdsDeleted
-    } :undefined
-
-    const res = await callApiWithPdu(new SyncReq({
-      userStoreData
-    }).pack())
-    const syncRes = SyncRes.parseMsg(res!.pdu)
-
-    let users:UserStoreRow_Type[] = [];
-    if(isUpload){
-      for (let index = 0; index < chatIds.length; index++) {
-        const userId = chatIds[index];
-        const user = selectUser(global,userId);
-        if(user?.photos && user.photos[0] === null){
-          user.photos = []
-        }
-        users.push({
-          time:currentTs(),
-          userId,
-          user
-        })
-      }
-
-      await callApiWithPdu(new UploadUserReq({
-        users,
-        time:currentTs()
-      }).pack())
-    }
-
-    if(syncRes.userStoreData){
-      let {chatFolders,...res} = syncRes.userStoreData
-      console.log("【remote userStoreData】",res,"chatFolders:",chatFolders ? JSON.parse(chatFolders):[])
-      if(!chatFolders){
-        // @ts-ignore
-        chatFolders = global.chatFolders
-      }else{
-        chatFolders = JSON.parse(chatFolders)
-      }
-      res.chatIdsDeleted?.forEach(id=>{
-        if(!chatIdsDeleted.includes(id)){
-          chatIdsDeleted.push(id)
-        }
-      })
-      if(res.chatIds){
-        const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-          userIds:res.chatIds.filter(id=>id!== UserIdFirstBot),
-        }).pack())
-        if(DownloadUserReqRes){
-          const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
-          console.log("【DownloadUserRes】",downloadUserRes.users)
-          global = getGlobal();
-          if(downloadUserRes.users){
-            const addUsersObj = {}
-            const addChatsObj = {}
-            for (let index = 0; index < downloadUserRes.users.length; index++) {
-              const {user} = downloadUserRes.users[index];
-              if(!chatIdsDeleted.includes(user!.id) && user!.id !== UserIdFirstBot){
-                if(chatIds.includes(user!.id)){
-                  // @ts-ignore
-                  global = updateUser(global,user!.id, user!)
-                }else{
-                  chatIds.push(user?.id!)
-                  // @ts-ignore
-                  addUsersObj[user!.id] = user!
-                  // @ts-ignore
-                  addChatsObj[user!.id] = ChatMsg.buildDefaultChat(user!)
-                }
-              }
-            }
-            if(Object.keys(addUsersObj).length > 0){
-              global = addUsers(global,addUsersObj)
-              global = addChats(global,addChatsObj)
-            }
-          }
-          global = updateChatListIds(global, "active", chatIds);
-          // @ts-ignore
-          global = {...global,chatFolders}
-          setGlobal({
-            ...global,
-          })
-        }
-      }else{
-        getActions().updateGlobal({
-          chatIdsDeleted:chatIdsDeleted || [],
-          chatFolders
-        })
-      }
     }
   }
 
@@ -457,7 +370,7 @@ export default class MsgCommandSetting{
           })
         }
       }
-      await this.uploadMsgList(messages)
+      // await this.uploadMsgList(messages)
 
     }else{
       const res = await callApiWithPdu(new DownloadMsgReq({
@@ -486,18 +399,26 @@ export default class MsgCommandSetting{
     }
   }
 
-  async uploadMsgList(messages:MessageStoreRow_Type[]){
-    if(messages.length > 0){
-      const res = await callApiWithPdu(new UploadMsgReq({
-        messages,
-        chatId:this.chatId,
-        time:currentTs(),
-      }).pack())
-      if(!res){
-        getActions().showNotification({message:"上传失败"})
-      }else{
-        getActions().showNotification({message:"上传成功"})
-      }
+  static async uploadMsgList(chatId:string,messagesList:ApiMessage[]){
+    let global = getGlobal();
+    const messages = messagesList.map(message=>Buffer.from(new PbMsg(message as PbMsg_Type).pack().getPbData()))
+    const res = await callApiWithPdu(new UploadMsgReq({
+      messages,
+      chatId:chatId,
+    }).pack())
+    if(res && res.pdu){
+      const {userMessageStoreData} = UploadMsgRes.parseMsg(res.pdu)
+      global = getGlobal();
+      setGlobal({
+        ...global,
+        userMessageStoreData:{
+          ...global.userMessageStoreData,
+          [chatId]:userMessageStoreData
+        }
+      })
+      getActions().showNotification({message:"保存成功"})
+    }else{
+      getActions().showNotification({message:"保存失败"})
     }
   }
 }

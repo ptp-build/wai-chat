@@ -12,7 +12,7 @@ export function handleMessageTextCode(msgSend:Partial<ApiMessage> | ApiMessage){
   return msgSend
 }
 
-export function handleBotCmdText(msgSend:Partial<ApiMessage> | ApiMessage,botInfo:ApiBotInfo){
+export function handleBotCmdText(msgSend:Partial<ApiMessage> | ApiMessage,botInfo:ApiBotInfo,userNames:Record<string, string> ={}){
   const commands:string[] = []
   if(botInfo && botInfo.commands){
     botInfo.commands.forEach(cmd=>commands.push(cmd.command))
@@ -26,7 +26,7 @@ export function handleBotCmdText(msgSend:Partial<ApiMessage> | ApiMessage,botInf
       // @ts-ignore
       msgSend.content.text!.entities = [
         ...msgSend.content.text!.entities||[],
-        ...parseEntities(msgSend.content.text!.text!,commands)
+        ...parseEntities(msgSend.content.text!.text!,commands,userNames)
       ]
     }
   }

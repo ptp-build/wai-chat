@@ -45,6 +45,9 @@ export default function useInnerHandlers(
   }, [avatarPeer, openChat]);
 
   const handleSenderClick = useCallback(() => {
+    if(senderPeer?.id === "1"){
+      return;
+    }
     if (!senderPeer) {
       showNotification({ message: lang('HidAccount') });
 

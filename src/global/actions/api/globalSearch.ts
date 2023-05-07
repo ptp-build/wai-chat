@@ -21,8 +21,14 @@ const searchThrottled = throttle((cb) => cb(), 500, false);
 
 addActionHandler('fetchTopCats', async (global, actions, payload) => {
   const {topCats} = global
+  let timeBot = 0;
+  topCats.cats.forEach(cat=>{
+    cat.botIds.forEach(botId=>{
+      selectUser(global,botId)
+    })
+  })
   callApiWithPdu(new TopCatsReq({
-    time:topCats.time || 0
+    time:topCats.time || 0,
   }).pack()).catch(console.error)
 })
 

@@ -75,7 +75,6 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
     if (result) {
       const currentUser = currentUserId && selectUser(global, currentUserId);
       if (currentUser) {
-        shouldUpdateLocalDb = true;
         global = getGlobal()
         global = updateUser(
           global,

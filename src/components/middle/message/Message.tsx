@@ -1068,9 +1068,9 @@ const Message: FC<OwnProps & StateProps> = ({
   }
 
   function renderSenderName() {
-    if(sender?.id === "1"){
-      return
-    }
+    // if(sender?.id === "1"){
+    //   return
+    // }
     const media = photo || video || location;
     const shouldRender = !(isCustomShape && !viaBotId) && (
       (withSenderName && (!media || hasTopicChip)) || asForwarded || viaBotId || forceSenderName

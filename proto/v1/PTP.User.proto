@@ -13,8 +13,7 @@ message GenUserIdRes{
 }
 
 message UploadUserReq{
-  repeated Common.UserStoreRow users = 1;
-  required uint32 time = 3;
+  required bytes userBuf = 2;
 }
 
 message UploadUserRes{
@@ -22,10 +21,30 @@ message UploadUserRes{
 }
 
 message DownloadUserReq{
-  repeated string userIds = 1;
+  required string userId = 2;
+  optional uint32 updatedAt = 3;
 }
 
 message DownloadUserRes{
-  repeated Common.UserStoreRow users = 1;
+  optional bytes userBuf = 2;
   optional Common.ERR err = 100;
 }
+
+message ShareBotReq{
+  required string catTitle = 1;
+  required Common.PbCatBot catBot = 2;
+}
+
+message ShareBotRes{
+  optional Common.ERR err = 100;
+}
+
+
+message ShareBotStopReq{
+  required string userId = 1;
+}
+
+message ShareBotStopRes{
+  optional Common.ERR err = 100;
+}
+

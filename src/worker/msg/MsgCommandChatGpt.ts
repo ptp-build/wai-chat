@@ -1,5 +1,5 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {downloadFromLink, isPositiveInteger, showBodyLoading} from "../share/utils/utils";
+import {currentTs, downloadFromLink, isPositiveInteger, showBodyLoading} from "../share/utils/utils";
 import {ApiKeyboardButtons} from "../../api/types";
 import {GlobalState} from "../../global/types";
 import {getGlobal, setGlobal} from "../../global";
@@ -18,12 +18,18 @@ import {callApiWithPdu} from "./utils";
 import {StopChatStreamReq} from "../../lib/ptp/protobuf/PTPOther";
 import MsgCommand from "./MsgCommand";
 import {showModalFromEvent} from "../share/utils/modal";
-import {PbAiBot_Type, PbChatGpBotConfig_Type, PbChatGptModelConfig_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {
+  ERR,
+  PbAiBot_Type,
+  PbChatGpBotConfig_Type,
+  PbChatGptModelConfig_Type
+} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {requestUsage} from "../../lib/ptp/functions/requests";
 import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
 import ChatMsg from "./ChatMsg";
 import {generateImageFromDiv} from "../share/utils/canvas";
+import {ShareBotReq, ShareBotStopReq, ShareBotStopRes} from "../../lib/ptp/protobuf/PTPUser";
 
 export default class MsgCommandChatGpt{
   private chatId: string;
@@ -36,19 +42,19 @@ export default class MsgCommandChatGpt{
   setOutGoingMsgId(outGoingMsgId?:number){
     this.outGoingMsgId = outGoingMsgId
   }
-  isMyBot(){
+  static isMyBot(chatId:string){
     const global = getGlobal();
     const {userStoreData} = global
     const {myBots} = userStoreData || {}
-    const i = parseInt(this.chatId)
+    const i = parseInt(chatId)
     if(i < parseInt(SERVER_BOT_USER_ID_START)){
       return true;
     }
-    return myBots && myBots.includes(this.chatId)
+    return myBots && myBots.includes(chatId)
   }
   getInlineButtons(outGoingMsgId:number):ApiKeyboardButtons{
     const chatId = this.chatId
-    const isMyBot = this.isMyBot()
+    const isMyBot = MsgCommandChatGpt.isMyBot(this.chatId)
     const isEnableAi = this.getAiBotConfig('enableAi')
     const disableClearHistory = this.getAiBotConfig('disableClearHistory')
     const res = [
@@ -76,27 +82,20 @@ export default class MsgCommandChatGpt{
       }
       res.push(
         [
-          ...MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/copyBot',"复制机器人"),
+          ...MsgCommand.buildInlineCallbackButton(chatId,'/setting/copyBot',"复制机器人"),
         ],
       )
+      if(isMyBot){
+        res.push([
+          ...MsgCommand.buildInlineCallbackButton(this.chatId,"setting/shareBot","分享机器人")
+        ])
+      }
       res.push(
         [
-          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/uploadUser',"上传机器人"):[]),
-          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadUser',"更新机器人"):[]),
-          ...(true ? MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + '/setting/downloadMsg',"更新消息"):[]),
+          ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
         ],
       )
-      // res.push(
-      //   [
-      //     ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/customApi',"自定义机器人Api"),
-      //   ],
-      // )
     }
-    // res.push(
-    //   [
-    //     ...MsgCommand.buildInlineCallbackButton(chatId,'setting/signGen',"生成签名"),
-    //   ],
-    // )
 
     res.push([
       {
@@ -112,6 +111,10 @@ export default class MsgCommandChatGpt{
     const global = getGlobal();
     const {chatGptAskHistory} = global
     const messageIds:number[] = []
+    if(!chatGptAskHistory || !chatGptAskHistory[this.chatId]){
+      MsgDispatcher.showNotification("没有找到ai聊天记录")
+      return
+    }
     Object.keys(chatGptAskHistory[this.chatId]).forEach((id)=>{
       const msgId = parseInt(id)
       const userMsgId = chatGptAskHistory[this.chatId][msgId]
@@ -184,20 +187,25 @@ export default class MsgCommandChatGpt{
 
     const welcome = this.getChatGptConfig("welcome") as string
     const template = this.getChatGptConfig("template") as string
+    const init_system_content = this.getChatGptConfig("init_system_content") as string
 
-    const text = `
-${desc}
-
-/help 获取帮助
-`;
-    await this.chatMsg.setText(text).reply();
+    if(init_system_content){
+      await new ChatMsg(this.chatId).setText(init_system_content).setSenderId("1").reply();
+    }
     if(welcome){
       await new ChatMsg(this.chatId).setText(welcome).reply();
     }
     if(template){
-      await new ChatMsg(this.chatId).setText("你可以复制修改发送下面的例子:\n\n```\n"+template+"```").reply();
+      await new ChatMsg(this.chatId).setText("\n```\n"+template+"```").setInlineButtons([
+        MsgCommand.buildInlineCallbackButton(this.chatId,"ai/send/template","编辑发送")
+      ]).reply();
     }
+    if(!welcome && !template){
+      await this.chatMsg.setText(`
+${desc}
 
+`).reply();
+    }
     return STOP_HANDLE_MESSAGE
   }
 
@@ -243,13 +251,13 @@ ${desc}
     tips += "\n```\n请将: ${text}，翻译成：中文 , 输出格式为:{\"reply\":\"\"}```"
     tips += "\n假设你的提问是：hello , 那么您将得到输出：{\"reply\":\"你好\"}"
 
-    if(!this.isMyBot()){
+    if(!MsgCommandChatGpt.isMyBot(this.chatId)){
       tips += "\n\n你可以 /setting > 复制机器人 修改此选项"
       if(!templateSubmit){
         templateSubmit =  "未设置";
       }
     }
-    return await this.chatMsg.setInlineButtons(this.isMyBot() ? [
+    return await this.chatMsg.setInlineButtons(MsgCommandChatGpt.isMyBot(this.chatId) ? [
       MsgCommand.buildInlineCallbackButton(this.chatId,"templateSubmit","点击修改"),
       MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
     ]:[
@@ -260,14 +268,14 @@ ${desc}
   async systemPrompt(){
     let init_system_content = this.getChatGptConfig("init_system_content") as string
     let tips = ""
-    if(!this.isMyBot()){
+    if(!MsgCommandChatGpt.isMyBot(this.chatId)){
       tips += "\n\n你可以 /setting > 复制机器人 修改此选项"
       if(!init_system_content){
         init_system_content = "未设置"
       }
     }
     return this.chatMsg.setText(this.formatEditableText(init_system_content,"用于提问模版,一般用于指定机器人角色,每次提问都会带入." + tips))
-      .setInlineButtons(this.isMyBot() ?[
+      .setInlineButtons(MsgCommandChatGpt.isMyBot(this.chatId) ?[
         MsgCommand.buildInlineCallbackButton(this.chatId,`init_system_content`,"点击修改"),
         MsgCommand.buildInlineCallbackButton(this.chatId,`${this.outGoingMsgId}/setting/cancel`,"取消"),
       ]:[
@@ -337,6 +345,7 @@ ${desc}
     const user = selectUser(global,this.chatId);
     global = updateUser(global,this.chatId,{
       ...user,
+      updatedAt:currentTs(),
       fullInfo:{
         ...user?.fullInfo,
         botInfo:{
@@ -349,6 +358,9 @@ ${desc}
       }
     })
     setGlobal(global)
+    if(MsgCommandChatGpt.isMyBot(this.chatId)){
+      MsgCommand.uploadUser(getGlobal(),this.chatId).catch(console.error)
+    }
   }
   changeChatGptConfig(chatGptConfig:Partial<PbChatGpBotConfig_Type>){
     let global = getGlobal();
@@ -462,13 +474,67 @@ ${desc}
     ]).reply()
   }
 
+  getShareBotCatsInlineButtons(){
+    const buttons = []
+    const {topCats} = getGlobal();
+    let canStop = false
+    if(topCats.cats){
+      let row = []
+      const cats = topCats.cats.slice(1)
+      for (let i = 0; i < cats.length; i++) {
+        const title = cats[i].title
+        if(cats[i].botIds.includes(this.chatId)){
+          canStop = true;
+          row.push(...MsgCommand.buildInlineButton(this.chatId,title,"unsupported"))
+        }else{
+          row.push(...MsgCommand.buildInlineCallbackButton(this.chatId,"setting/shareBot/"+title,title))
+        }
+
+        if((i+1) % 4 === 0){
+          buttons.push(row)
+          row = []
+        }
+      }
+    }
+    if(canStop){
+      buttons.push([
+        ...MsgCommand.buildInlineCallbackButton(this.chatId,"setting/stopShareBot/confirm","取消分享")
+      ])
+    }
+    return {buttons,canStop}
+  }
+
+  getShareBotInlineButtons(messageId:number){
+    let {buttons} = this.getShareBotCatsInlineButtons()
+    const chatId = this.chatId;
+
+    return [
+      ...buttons,
+      [
+        ...MsgCommand.buildInlineBackButton(chatId,messageId,'setting/ai/back',"< 返回"),
+      ]
+    ]
+  }
+
+  getCopyBotInlineButtons(messageId:number){
+    const chatId = this.chatId;
+    return [
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,'setting/copyBot/confirm',"下一步"),
+      ],
+      [
+        ...MsgCommand.buildInlineBackButton(chatId,messageId,'setting/ai/back',"< 返回"),
+      ]
+    ]
+  }
+
   getCustomApiInlineButtons(messageId:number){
     const botApi = this.getAiBotConfig('botApi')
     const chatId = this.chatId;
     return [
       [
         ...MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/setApi',botApi ? "修改Api": "设置Api"),
-        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/disableApi',"禁用Api"):[]),
+        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,this.outGoingMsgId + '/setting/ai/disableApi',"禁用Api"):[]),
         ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId,'setting/ai/updateCmd',"更新命令"):[]),
       ],
       [
@@ -476,6 +542,118 @@ ${desc}
       ]
     ]
   }
+  async copyBot(messageId:number){
+    await this.chatMsg.update(messageId,{
+      content:{
+        text:{
+          text:"点击 下一步，复制机器人"
+        }
+      },
+      inlineButtons:this.getCopyBotInlineButtons(messageId)
+    })
+  }
+
+  async stopShareBot(messageId:number){
+    const {chatId} = this;
+    try {
+      showBodyLoading(true)
+      const global = getGlobal()
+      const {topCats} = global
+      topCats.cats.forEach(cat=>{
+        if(cat.botIds.includes(chatId)){
+          cat.botIds = cat.botIds.filter(id=>id !== chatId)
+        }
+      })
+      //@ts-ignore
+      setGlobal({...global,topCats})
+      const res = await callApiWithPdu(new ShareBotStopReq({
+        userId:this.chatId,
+      }).pack())
+      if(res && res.pdu){
+        const {err} = ShareBotStopRes.parseMsg(res.pdu)
+        if(err === ERR.NO_ERROR){
+          MsgDispatcher.showNotification("操作成功")
+          const buttons1 = selectChatMessage(getGlobal(),chatId,messageId)?.inlineButtons!
+          const {buttons}= this.getShareBotCatsInlineButtons()
+          await new ChatMsg(chatId).update(messageId,{
+            inlineButtons:[
+              ...buttons,
+              ...buttons1.slice(buttons1.length - 1),
+            ]
+          })
+          showBodyLoading(false)
+          return
+        }
+      }
+    }catch (e){
+      MsgDispatcher.showNotification("操作失败")
+      console.error(e)
+    }
+    showBodyLoading(false)
+  }
+  async shareBotConfirm(messageId:number,data:string){
+    const {chatId} = this;
+    let catTitle = data.split("/")[data.split("/").length - 1]
+    showBodyLoading(true)
+    let global = getGlobal()
+    const user = selectUser(global,chatId);
+    const {topCats} = global
+    topCats.cats.forEach(cat=>{
+      if(cat.title === catTitle){
+        cat.botIds.push(chatId)
+      }else{
+        cat.botIds = cat.botIds.filter(id=>id !== chatId)
+      }
+    })
+
+    global = updateUser(getGlobal(),chatId,{
+      updatedAt:currentTs()
+    })
+    //@ts-ignore
+    setGlobal({...global,topCats})
+    global = getGlobal()
+    await MsgCommand.uploadUser(global,chatId)
+    catTitle = catTitle.trim()
+    const res = await callApiWithPdu(new ShareBotReq({
+      catTitle,
+      catBot:{
+        "cat": "",
+        "userId": chatId,
+        "firstName": user?.firstName,
+        "avatarHash": user?.avatarHash,
+        "bio":user?.fullInfo?.bio,
+        "init_system_content": this.getChatGptConfig("init_system_content") as string,
+        "welcome": this.getChatGptConfig("welcome") as string,
+        "template": this.getChatGptConfig("template") as string,
+        "outputText": this.getChatGptConfig("outputText") as string,
+        "templateSubmit": this.getChatGptConfig("templateSubmit") as string,
+      }
+    }).pack())
+    if(res){
+      MsgDispatcher.showNotification("分享成功")
+      const buttons1 = selectChatMessage(getGlobal(),chatId,messageId)?.inlineButtons!
+      let {buttons} = this.getShareBotCatsInlineButtons()
+      await new ChatMsg(chatId).update(messageId,{
+        inlineButtons:[
+          ...buttons,
+          ...buttons1.slice(buttons1.length - 1),
+        ]
+      })
+
+    }
+    showBodyLoading(false)
+  }
+  async shareBot(messageId:number){
+    await this.chatMsg.update(messageId,{
+      content:{
+        text:{
+          text:"选择分类"
+        }
+      },
+      inlineButtons:this.getShareBotInlineButtons(messageId)
+    })
+  }
+
   async customApi(messageId:number){
     await this.chatMsg.update(messageId,{
       content:{
@@ -505,9 +683,10 @@ ${desc}
         })
       })
       await this.reloadCommands()
-      await this.chatMsg.setText("更新成功").reply()
+      MsgDispatcher.showNotification("更新成功")
+      await this.chatMsg.setJson(commands,"commands:").reply()
     }else{
-      await this.chatMsg.setText("更新失败").reply()
+      MsgDispatcher.showNotification("更新失败")
     }
   }
   async disableApi(messageId:number){
@@ -570,7 +749,7 @@ ${desc}
   }
   async aiModel(outGoingMsgId:number){
     const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type
-    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons(outGoingMsgId);
+    const inlineButtons:ApiKeyboardButtons = this.getAiModelInlineButtons(outGoingMsgId) as ApiKeyboardButtons;
     return this.chatMsg.setText(`当前模型:【${modelConfig.model}】`).setInlineButtons(inlineButtons).reply()
   }
   async handleChangeModelConfig(messageId:number,key:'model'|'temperature'|'max_tokens'|'presence_penalty',data:string){
@@ -697,42 +876,41 @@ ${desc}
       return
     }
 
-    if(data.endsWith(`setting/downloadUser`)){
-      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
-      await this.chatMsg.setText("Wai遵循本地优先策略,更新机器人将会覆盖本地,点击 更新机器人 进入下一步")
-        .setInlineButtons([
-          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/downloadUser/confirm`,"更新机器人"),
-          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
-        ])
-        .reply()
+    if(data.endsWith(`setting/shareBot`)){
+      await this.shareBot(messageId)
       return
     }
 
-    if(data.endsWith(`setting/downloadMsg`)){
-      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
-      await this.chatMsg.setText("Wai遵循本地优先策略,更新消息将会从云端已保存的消息覆盖到本地,点击 更新消息 进入下一步")
-        .setInlineButtons([
-          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/downloadMsg/confirm`,"更新消息"),
-          MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
-        ])
-        .reply()
+    if(data.indexOf(`setting/shareBot/`) > -1){
+      await this.shareBotConfirm(messageId,data)
       return
     }
-
     if(data.endsWith(`setting/copyBot`)){
-      const outGoingMsgId = data.split('/')[data.split("/").length - 3]
-      await this.chatMsg.setText("点击 复制机器人 进入下一步")
+      await this.copyBot(messageId);
+      return
+    }
+
+    if(data.endsWith(`setting/ai/disableApi`)){
+      const outGoingMsgId = data.split('/')[data.split("/").length - 4]
+      this.setOutGoingMsgId(Number(outGoingMsgId));
+      await this.chatMsg.setText("点击 禁用 进入下一步")
         .setInlineButtons([
-          MsgCommand.buildInlineCallbackButton(this.chatId,`/setting/copyBot/confirm`,"复制机器人"),
+          MsgCommand.buildInlineCallbackButton(this.chatId,`setting/ai/disableApi/confirm`,"禁用"),
           MsgCommand.buildInlineCallbackButton(this.chatId,`${outGoingMsgId}/setting/cancel`,"取消")
         ])
         .reply()
       return
     }
-
 
     switch (data){
-      case `${chatId}/setting/ai/disableApi`:
+      case `${chatId}/ai/send/template`:
+        const message = selectChatMessage(global,this.chatId,messageId)
+        const text = message?.content.text?.text!.trim();
+        // @ts-ignore
+        document.querySelector('#editable-message-text').focus()
+        document.execCommand('insertText', false, text);
+        return
+      case `${chatId}/setting/ai/disableApi/confirm`:
         await this.disableApi(messageId)
         return
       case `${chatId}/setting/ai/setApi`:
@@ -749,16 +927,22 @@ ${desc}
         await this.export(messageId,data.replace(`${chatId}/setting/export/`,""))
         return
       case `${chatId}/setting/uploadUser/confirm`:
-        await new MsgCommand(chatId).uploadUser(global,messageId)
+        await MsgCommand.uploadUser(global,chatId)
         return
       case `${chatId}/setting/downloadUser/confirm`:
-        await new MsgCommand(chatId).downloadUser(global,messageId)
+        await MsgCommand.downloadUser(chatId)
         return
       case `${chatId}/setting/downloadMsg/confirm`:
-        await new MsgCommand(chatId).downloadMsg(global,messageId)
+        // await new MsgCommand(chatId).downloadMsg(global,messageId)
         return
       case `${chatId}/setting/copyBot/confirm`:
-        await new MsgCommand(chatId).copyBot(global)
+        await new MsgCommand(chatId).copyBot(global,messageId)
+        break
+      case `${chatId}/setting/stopShareBot/confirm`:
+        await this.stopShareBot(messageId)
+        break
+      case `${chatId}/setting/shareBot/confirm`:
+        await this.shareBot(messageId)
         break
       case `${chatId}/setting/ai/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
@@ -766,18 +950,13 @@ ${desc}
       case `${chatId}/setting/ai/reloadCommands`:
         await this.reloadCommands()
         break
-      case `${chatId}/requestChatStream/stop`:
-        this.chatMsg.update(messageId,{
-          inlineButtons:[
-            [
-              {
-                text: "已停止输出",
-                type: "unsupported"
-              }
-            ]
-          ]
+      case `${chatId}/requestChatStream/retry`:
+        await this.chatMsg.update(messageId,{
+          inlineButtons:[]
         })
-
+        await MsgDispatcher.retryAi(chatId,messageId)
+        break
+      case `${chatId}/requestChatStream/stop`:
         await callApiWithPdu(new StopChatStreamReq({
           chatId:parseInt(chatId),
           msgId:messageId
@@ -891,7 +1070,7 @@ ${desc}
     }
     return commands
   }
-  private async reloadCommands() {
+  async reloadCommands() {
     // @ts-ignore
     await new MsgCommand(this.chatId).reloadCommands(this.getCommands())
   }

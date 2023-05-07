@@ -2,13 +2,16 @@ import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
 import type {ApiUser, ApiUserStatus} from '../../../api/types';
 
-import {addUsers, addUserStatuses, deleteContact, replaceUsers, replaceUserStatuses, updateUser,} from '../../reducers';
+import {addUsers, addUserStatuses, deleteContact, replaceUserStatuses, updateUser,} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
 import {selectIsCurrentUserPremium, selectUser} from '../../selectors';
 import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../types';
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
+import {DEBUG} from "../../../config";
+import {currentTs1000} from "../../../worker/share/utils/utils";
+import MsgCommand from "../../../worker/msg/MsgCommand";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -38,9 +41,16 @@ function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_
   // console.log("updateUserStoreData",userStoreDataRes)
   if (userStoreDataRes){
     const {chatFolders,...userStoreData} = userStoreDataRes;
+    if(DEBUG){
+      console.log("updateUserStoreData",userStoreDataRes)
+    }
     return {
       ...global,
-      userStoreData
+      userStoreData,
+      chatFolders:{
+        ...global.chatFolders,
+        ...(chatFolders ? JSON.parse(chatFolders!):{})
+      }
     }
   }else{
     return global
@@ -105,21 +115,50 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
           }else{
             userStoreData = {
               ...userStoreData,
+              chatIds:Object.keys(global.chats.listIds.active),
               chatFolders:JSON.stringify(global.chatFolders)
             }
           }
+          if(userStoreData.myBots){
+            if(!userStoreData.chatIdsDeleted){
+              userStoreData.chatIdsDeleted = []
+            }
+          }
+
           callApiWithPdu(new SyncReq({
             userStoreData,
           }).pack()).catch(console.error)
           break
         case "updateUserStoreData":
-          return updateUserStoreData(global,data.payload!.userStoreData)
+          global = updateUserStoreData(global,data.payload!.userStoreData)
+          let userStoreData1 = global.userStoreData!
+          if(userStoreData1.myBots){
+            if(!userStoreData1.chatIdsDeleted){
+              userStoreData1.chatIdsDeleted = []
+            }
+            const userIds = [];
+            for (let i = 0; i < userStoreData1.myBots.length; i++) {
+              const botId = userStoreData1.myBots[i]
+              if(!selectUser(global,botId) && !userStoreData1.chatIdsDeleted.includes(botId)){
+                if(botId !== "0"){
+                  userIds.push(botId)
+                }
+              }
+            }
+            if(userIds.length > 0){
+              setTimeout(()=>{
+                MsgCommand.downloadUsers(userIds).catch(console.error);
+              },500)
+            }
+          }
+          return global
         case "updateTopCats":
           return {
             ...global,
             topCats:{
               ...global.topCats,
-              ...data.payload!.topCats
+              ...data.payload!.topCats,
+              time:currentTs1000()
             }
           }
         case "updateChatGptHistory":

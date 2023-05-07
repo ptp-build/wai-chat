@@ -1,43 +1,45 @@
-import { addActionHandler, getGlobal, setGlobal } from '../../index';
+import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type { ApiUpdateChat } from '../../../api/types';
-import { MAIN_THREAD_ID } from '../../../api/types';
+import type {ApiUpdateChat} from '../../../api/types';
+import {MAIN_THREAD_ID} from '../../../api/types';
 
 import {ARCHIVED_FOLDER_ID, CLOUD_MESSAGE_API, MAX_ACTIVE_PINNED_CHATS} from '../../../config';
-import { buildCollectionByKey, omit, pick } from '../../../util/iteratees';
-import { closeMessageNotifications, notifyAboutMessage } from '../../../util/notifications';
+import {buildCollectionByKey, omit, pick} from '../../../util/iteratees';
+import {closeMessageNotifications, notifyAboutMessage} from '../../../util/notifications';
 import {
+  leaveChat,
+  replaceThreadParam,
   updateChat,
   updateChatListIds,
   updateChatListType,
-  replaceThreadParam,
-  leaveChat, updateTopic,
+  updateTopic,
 } from '../../reducers';
 import {
   selectChat,
-  selectCommonBoxChatId,
-  selectIsChatListed,
   selectChatListType,
+  selectCommonBoxChatId,
   selectCurrentMessageList,
+  selectIsChatListed,
   selectThreadParam,
 } from '../../selectors';
-import { updateUnreadReactions } from '../../reducers/reactions';
+import {updateUnreadReactions} from '../../reducers/reactions';
 import type {ActionReturnType, GlobalState} from '../../types';
 import {isLocalMessageId} from "../../helpers";
-import {currentTs1000} from "../../../worker/share/utils/utils";
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
-import {pack} from "html2canvas/dist/types/css/types/color";
+import {currentTs1000} from "../../../worker/share/utils/utils";
 
 const TYPING_STATUS_CLEAR_DELAY = 6000; // 6 seconds
 
 
 const handleChatFoldersEdit = (global:GlobalState)=>{
   const {userStoreData} = global
-  console.log(userStoreData?.chatFolders)
-  console.log(JSON.stringify(global.chatFolders))
+
   let changed = userStoreData?.chatFolders !== JSON.stringify(global.chatFolders)
-  if(JSON.stringify(global.chats.listIds.active) !== JSON.stringify(userStoreData?.chatIds)){
+  if(
+    JSON.stringify(global.chatFolders) !== userStoreData?.chatFolders ||
+    JSON.stringify(global.chats.listIds.active) !== JSON.stringify(userStoreData?.chatIds)
+  ){
     changed = true;
   }
   global = {
@@ -45,10 +47,11 @@ const handleChatFoldersEdit = (global:GlobalState)=>{
     userStoreData:{
       ...userStoreData,
       chatFolders:JSON.stringify(global.chatFolders),
-      chatIds:global.chats.listIds.active
+      chatIds:global.chats.listIds.active,
+      time:currentTs1000()
     }
   }
-  debugger
+
   if(changed && CLOUD_MESSAGE_API){
     callApiWithPdu(new SyncReq({userStoreData:global.userStoreData}).pack()).catch(console.error)
   }

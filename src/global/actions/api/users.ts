@@ -25,6 +25,8 @@ import {getServerTime} from '../../../util/serverTime';
 import * as langProvider from '../../../util/langProvider';
 import type {ActionReturnType} from '../../types';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
+import MsgCommand from "../../../worker/msg/MsgCommand";
+import {currentTs} from "../../../worker/share/utils/utils";
 
 const TOP_PEERS_REQUEST_COOLDOWN = 60; // 1 min
 const runThrottledForSearch = throttle((cb) => cb(), 500, false);
@@ -181,6 +183,7 @@ addActionHandler('updateContact', async (global, actions, payload): Promise<void
   setGlobal(global);
 
   let result;
+
   // if (!user.isContact && user.phoneNumber) {
   //   result = await callApi('importContact', { phone: user.phoneNumber, firstName, lastName });
   // } else {
@@ -209,6 +212,7 @@ addActionHandler('updateContact', async (global, actions, payload): Promise<void
       global,
       user.id,
       {
+        updatedAt:currentTs(),
         firstName,
         lastName,
         fullInfo:{
@@ -218,10 +222,19 @@ addActionHandler('updateContact', async (global, actions, payload): Promise<void
         }
       },
     );
+
+    global = updateChat(
+      global,
+      user.id,
+      {
+        title:firstName
+      },
+    );
   }
   global = updateManagementProgress(global, ManagementProgress.Complete, tabId);
   global = closeNewContactDialog(global, tabId);
   setGlobal(global);
+  MsgCommand.uploadUser(getGlobal(),userId).catch(console.error)
 });
 
 addActionHandler('deleteContact', async (global, actions, payload): Promise<void> => {

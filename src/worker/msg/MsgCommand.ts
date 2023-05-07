@@ -1,14 +1,13 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectUser} from "../../global/selectors";
-import {addUsers, addUserStatuses, updateUser} from "../../global/reducers";
+import {addChats, addUsers, addUserStatuses, updateChatListIds, updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiBotCommand, ApiKeyboardButton, ApiMessage, ApiUser} from "../../api/types";
-import {currentTs, currentTs1000, showBodyLoading} from "../share/utils/utils";
+import {ApiBotCommand, ApiChat, ApiKeyboardButton, ApiMessage, ApiUser, ApiUserStatus} from "../../api/types";
+import {currentTs1000, showBodyLoading} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
 import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import {UserStoreRow_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {callApiWithPdu} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import Account from "../share/Account";
@@ -17,6 +16,8 @@ import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
 import ChatMsg from "./ChatMsg";
 import {createBot} from "../../global/actions/api/chats";
+import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
+import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 
 export default class MsgCommand {
   private chatId: string;
@@ -112,79 +113,141 @@ export default class MsgCommand {
       return true;
     }
   }
-  async uploadUser(global:GlobalState,messageId:number){
-    const chatId = this.chatId;
-    await this.chatMsg.updateText(messageId,'正在上传...')
-
-    const users:UserStoreRow_Type[] = [];
-    const ids = [chatId]
-    for (let i = 0; i < ids.length; i++) {
-      if(i > 0){
-        break
-      }
-      const id = ids[i];
-      users.push({
-        time:currentTs(),
-        userId:id!,
-        user:selectUser(global,chatId)
-      })
-    }
-    const res = await callApiWithPdu(new UploadUserReq({
-      users,
-      time:currentTs()
-    }).pack())
-    if(res){
-      await this.chatMsg.updateText(messageId,"上传成功")
-    }else{
-      await this.chatMsg.updateText(messageId,"上传失败")
+  static async downloadUsers(userIds:string[]){
+    console.log("[downloadUsers]",userIds)
+    for (let i = 0; i < userIds.length; i++) {
+      await MsgCommand.downloadUser(userIds[i])
     }
   }
+  static async downloadUser(userId:string){
+    let global = getGlobal();
 
-  async downloadMsg(global:GlobalState,messageId:number) {
-    await this.chatMsg.updateText(messageId, "正在更新...")
-    const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
-      chatId:this.chatId
+    const userLocal = selectUser(global,userId)
+    const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
+      userId,
+      updatedAt:userLocal?.updatedAt ? userLocal.updatedAt : 0
     }).pack())
-    const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
-    console.log("downloadMsgRes",downloadMsgRes,global.messages.byChatId[this.chatId])
-    if(downloadMsgRes.messages){
-      for (let i = 0; i < downloadMsgRes.messages.length; i++) {
-        const {message} = downloadMsgRes.messages[i];
-        if(message){
-          if(message.previousLocalId){
-            delete message.previousLocalId
+    if(DownloadUserReqRes){
+      const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes.pdu!)
+      if(downloadUserRes.userBuf){
+        const user = PbUser.parseMsg(new Pdu(Buffer.from(downloadUserRes.userBuf)))
+        if(
+          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
+          && userLocal.fullInfo.botInfo.aiBot.chatGptConfig && userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key
+        ){
+          user.fullInfo!.botInfo!.aiBot!.chatGptConfig!.api_key = userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key
+        }
+        if(
+          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
+          && userLocal.fullInfo.botInfo.aiBot.commandsFromApi
+        ){
+          user.fullInfo!.botInfo!.aiBot!.commandsFromApi = userLocal.fullInfo.botInfo.aiBot.commandsFromApi
+        }
+
+        if(
+          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.commands
+        ){
+          user.fullInfo!.botInfo!.commands = userLocal.fullInfo.botInfo.commands
+        }
+        console.log("[downloadUserRes]",user)
+        const chatIds:string[] = []
+        const users:Record<string, ApiUser> = {}
+        const usersStatus:Record<string, ApiUserStatus> = {}
+        const chats:Record<string, ApiChat> = {}
+        const userId = user.id
+        global = getGlobal();
+        if(userLocal){
+          global = updateUser(global,user!.id, user as ApiUser)
+          setGlobal(global)
+        }else{
+          chatIds.push(userId)
+          users[userId] = user as ApiUser
+          usersStatus[userId] = {
+            type:"userStatusEmpty"
           }
-          if(selectChatMessage(global,this.chatId,message!.id)){
-            await this.chatMsg.update(message!.id,message as ApiMessage)
-          }else{
-            await this.chatMsg.sendNewMessage(message as ApiMessage)
-          }
+          chats[userId] = ChatMsg.buildDefaultChat(user as ApiUser) as ApiChat
+        }
+
+        if(chatIds.length > 0){
+          global = updateChatListIds(global, "active", chatIds);
+          global = addUsers(global,users)
+          global = addUserStatuses(global,usersStatus)
+          global = addChats(global,chats)
+          setGlobal(global)
         }
       }
     }
-    await this.chatMsg.updateText(messageId,`更新成功,共: ${downloadMsgRes.messages ? downloadMsgRes.messages.length : 0} 条`)
+    new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
+    await MsgCommand.downloadSavedMsg(userId)
+  }
+  static async uploadUser(global:GlobalState,chatId:string){
+    const user = selectUser(global,chatId);
+
+    if(
+      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
+      && user.fullInfo.botInfo.aiBot.chatGptConfig && user.fullInfo.botInfo.aiBot.chatGptConfig.api_key
+    ){
+      user.fullInfo.botInfo.aiBot.chatGptConfig.api_key = ""
+    }
+    if(
+      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
+      && user.fullInfo.botInfo.aiBot.commandsFromApi
+    ){
+      user.fullInfo.botInfo.aiBot.commandsFromApi = []
+    }
+
+    if(
+      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.commands
+    ){
+      user.fullInfo.botInfo.commands = []
+    }
+    const userBuf = Buffer.from(new PbUser(user).pack().getPbData())
+
+    return await callApiWithPdu(new UploadUserReq({
+      userBuf,
+    }).pack())
   }
 
-  async downloadUser(global:GlobalState,messageId:number){
-    await this.chatMsg.updateText(messageId,"正在更新...")
-    const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
-      userIds:[this.chatId],
+  static async downloadSavedMsg(chatId:string) {
+    let global = getGlobal()
+    const userMessageStoreData = global.userMessageStoreData[chatId]
+    const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
+      chatId,
+      time:userMessageStoreData?.time || 0
     }).pack())
-    const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes?.pdu!)
-    console.log("downloadUser",downloadUserRes)
-    if(downloadUserRes.users && downloadUserRes.users.length > 0){
-      const {user} = downloadUserRes.users[0]
-      const userId = user!.id
-      global = getGlobal();
-      if(selectUser(global,userId)){
-        global = updateUser(global,user!.id, user as ApiUser)
-        setGlobal(global)
+    if(DownloadMsgReqRes && DownloadMsgReqRes.pdu){
+      const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
+      console.log("downloadMsgRes",downloadMsgRes)
+      if(downloadMsgRes.messages){
+        for (let i = 0; i < downloadMsgRes.messages.length; i++) {
+          const buf = downloadMsgRes.messages[i];
+          const message = PbMsg.parseMsg(new Pdu(Buffer.from(buf)))
+          if(message){
+            if(message.previousLocalId){
+              delete message.previousLocalId
+            }
+            if(selectChatMessage(global,chatId,message!.id)){
+              await new ChatMsg(chatId).update(message!.id,message as ApiMessage)
+            }else{
+              await new ChatMsg(chatId).sendNewMessage(message as ApiMessage)
+            }
+          }
+        }
+      }
+      if(downloadMsgRes.userMessageStoreData){
+        global = getGlobal()
+        setGlobal({
+          ...global,
+          userMessageStoreData:{
+            ...global.userMessageStoreData,
+            [chatId]:downloadMsgRes.userMessageStoreData
+          }
+        })
       }
     }
-    await this.chatMsg.updateText(messageId,"更新成功")
   }
 
-  async copyBot(global:GlobalState){
+  async copyBot(global:GlobalState,messageId:number){
     try {
       showBodyLoading(true)
       const {chatId} = this;
@@ -194,13 +257,19 @@ export default class MsgCommand {
         id:"",
         firstName:user?.firstName + "(复制)",
       } as ApiUser;
+      MsgDispatcher.showNotification("复制成功")
+      ChatMsg.apiUpdate({
+        '@type': 'deleteMessages',
+        ids: [messageId],
+        chatId,
+      })
       await createBot(global,getActions(),user);
     }catch (e){
       console.error(e)
+      MsgDispatcher.showNotification("复制失败")
     }finally {
       showBodyLoading(false)
     }
-
   }
 
   async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){

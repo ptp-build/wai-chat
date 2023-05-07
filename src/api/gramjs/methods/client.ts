@@ -21,13 +21,13 @@ import ChatMsg from '../../../worker/msg/ChatMsg';
 import {
   handleAuthNative,
   handleAuthNativeReq,
-  handleSendBotMsgReq, handleStopChatStreamReq,
+  handleSendBotMsgReq,
+  handleStopChatStreamReq,
   handleUpdateCmdReq
 } from '../../../worker/msg/client';
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import BotWebSocket from "../../../worker/msg/bot/BotWebSocket";
-
 
 const DEFAULT_USER_AGENT = 'Unknown UserAgent';
 const DEFAULT_PLATFORM = 'Unknown platform';
@@ -391,7 +391,7 @@ export async function sendWithCallback(buff:Uint8Array){
   const account = Account.getCurrentAccount()!
   let pdu = new Pdu(Buffer.from(buff))
   if(DEBUG){
-    console.log(pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
+    console.log("sendWithCallback", getActionCommandsName(pdu.getCommandId()))
   }
   switch (pdu.getCommandId()) {
     case ActionCommands.CID_SendBotMsgReq:
@@ -404,12 +404,6 @@ export async function sendWithCallback(buff:Uint8Array){
       return await handleAuthNativeReq(pdu);
     case ActionCommands.CID_GenMsgIdReq:
       return await MsgWorker.genMsgId(pdu);
-    case ActionCommands.CID_UploadMsgReq:
-      pdu = await MsgWorker.beforeUploadMsgReq(pdu);
-      break
-    case ActionCommands.CID_UploadUserReq:
-      pdu = await MsgWorker.beforeUploadUserReq(pdu);
-      break
     case ActionCommands.CID_SyncReq:
     case ActionCommands.CID_TopCatsReq:
       BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
@@ -430,15 +424,5 @@ export async function sendWithCallback(buff:Uint8Array){
     return;
   }
   const arrayBuffer = await res.arrayBuffer();
-  let buf = Buffer.from(arrayBuffer);
-  const pduRes = new Pdu(buf)
-  switch (pduRes.getCommandId()) {
-    case ActionCommands.CID_DownloadMsgRes:
-      buf = await MsgWorker.afterDownloadMsgReq(pduRes)
-      break
-    case ActionCommands.CID_DownloadUserRes:
-      buf = await MsgWorker.afterDownloadUserReq(pduRes)
-      break
-  }
-  return buf;
+  return Buffer.from(arrayBuffer);
 }

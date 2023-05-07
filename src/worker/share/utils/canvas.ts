@@ -44,7 +44,7 @@ export async function generateImageFromDiv(ids: string[], gapHeight: number,back
   return URL.createObjectURL(blob);
 }
 
-export function canvasToPDF(canvas, pageWidth, pageHeight) {
+// export function canvasToPDF(canvas, pageWidth, pageHeight) {
   // const pdfHeight = 842;
   // const pageCount = Math.ceil(canvas.height / pdfHeight);
   // const pdf = new jsPDF("p", "pt", "a4");
@@ -78,9 +78,9 @@ export function canvasToPDF(canvas, pageWidth, pageHeight) {
   // pdf.save("tes.pdf")
   // const dateUri = pdf.output("datauristring");
   // return dateUri
-}
+// }
 
-export function textToPDF(text, fileName) {
+// export function textToPDF(text, fileName) {
   // const lines = text.split('\n');
   // const doc = new jsPDF();
   // let cursorY = 10;
@@ -96,4 +96,4 @@ export function textToPDF(text, fileName) {
   // });
   //
   // doc.save(fileName);
-}
+// }

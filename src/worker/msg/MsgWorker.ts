@@ -1,5 +1,5 @@
-import {ApiAttachment, ApiBotInfo, ApiChat, ApiChatFolder, ApiMessage, ApiUser} from "../../api/types";
-import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID, MEDIA_CACHE_NAME_WAI} from "../../config";
+import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUser} from "../../api/types";
+import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID} from "../../config";
 import {DownloadMsgRes, GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {
@@ -19,19 +19,38 @@ import {DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
 import {sleep} from "../../lib/gramjs/Helpers";
 import {Api as GramJs} from "../../lib/gramjs";
 import {blobToDataUri, fetchBlob} from "../../util/files";
-import * as cacheApi from "../../util/cacheApi";
-import {Type} from "../../util/cacheApi";
-import {DownloadRes} from "../../lib/ptp/protobuf/PTPFile";
-import {uploadFileCache} from "../../lib/gramjs/client/uploadFile";
 import BotWebSocket, {BotWebSocketNotifyAction, BotWebSocketState} from "./bot/BotWebSocket";
 import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
-import {InitAppRes} from "../../lib/ptp/protobuf/PTPAuth";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
+import {ChatGptStreamStatus} from "../../lib/ptp/protobuf/PTPCommon/types";
 
 let messageIds:number[] = [];
-
+class Msg{
+  static text:string = ""
+  static async run(chatId:string,msgId:number,reply:string,streamStatus:ChatGptStreamStatus){
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_START){
+      Msg.text = "";
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_GOING){
+      Msg.text += reply;
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_DONE){
+      Msg.text = reply;
+    }
+    if(streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_ERROR){
+      Msg.text = reply;
+    }
+    await new ChatMsg(chatId!).update(msgId,{
+      content:{
+        text:{
+          text:Msg.text
+        }
+      }
+    })
+  }
+}
 export default class MsgWorker {
   private botInfo?: ApiBotInfo;
   private chat: ApiChat;
@@ -81,18 +100,29 @@ export default class MsgWorker {
       }
     })
   }
+  static async handleStreamMsg(chatId:string,msgId:number,reply:string,streamStatus:ChatGptStreamStatus){
+
+    await Msg.run(chatId,msgId,reply,streamStatus)
+  }
   static async handleSendBotMsgRes(pdu:Pdu){
-    const {reply,msgId,message,chatId} = SendBotMsgRes.parseMsg(pdu)
+    const {reply,msgId,streamStatus,message,chatId} = SendBotMsgRes.parseMsg(pdu)
     console.log("[SendBotMsgRes]",reply,message)
     if(reply){
       if(msgId){
-        await new ChatMsg(chatId!).update(msgId,{
-          content:{
-            text:{
-              text:reply
+
+        if(streamStatus !== undefined && chatId){
+          await MsgWorker.handleStreamMsg(chatId,msgId,reply,streamStatus)
+        }else{
+          await new ChatMsg(chatId!).update(msgId,{
+            content:{
+              text:{
+                text:reply
+              }
             }
-          }
-        })
+          })
+        }
+
+
       }else{
         await new ChatMsg(chatId!).setText(reply).reply();
       }
@@ -145,66 +175,6 @@ export default class MsgWorker {
       }
     })
   }
-  static async handleInitAppRes(pdu:Pdu){
-    // let {chats,topCats,users,messages,chatFolders} = InitAppRes.parseMsg(pdu)
-    // let chatsList = []
-    // if(chats){
-    //   chatsList = JSON.parse(chats)
-    // }
-    // let usersList = []
-    // if(users){
-    //   usersList = JSON.parse(users)
-    // }
-    //
-    //
-    // if(messages){
-    //   messages = JSON.parse(messages)
-    // }
-    //
-    // if(chatFolders){
-    //   chatFolders = JSON.parse(chatFolders)
-    // }
-    //
-    // for (let i = 0; i < usersList?.length; i++) {
-    //   if (users != null) {
-    //     const user = usersList[i] as ApiUser;
-    //     ChatMsg.apiUpdate({
-    //       "@type":"updateUser",
-    //       id:user.id,
-    //       user
-    //     })
-    //   }
-    // }
-    //
-    // for (let i = 0; i < chatsList?.length; i++) {
-    //   if (chats != null) {
-    //     const chat = chatsList[i] as ApiChat;
-    //     ChatMsg.apiUpdate({
-    //       "@type":"updateChat",
-    //       id:chat.id,
-    //       chat
-    //     })
-    //   }
-    // }
-    //
-    // for (let i = 0; i < chatFolders?.length; i++) {
-    //   if (chatFolders != null) {
-    //     const folder = chatFolders[i] as ApiChatFolder;
-    //     ChatMsg.apiUpdate({
-    //       "@type":"updateChatFolder",
-    //       id:folder.id,
-    //       folder
-    //     })
-    //   }
-    // }
-    //
-    // for (let i = 0; i < messages?.length; i++) {
-    //   if (messages != null) {
-    //     const message = messages[i] as ApiMessage;
-    //     await new ChatMsg(message.chatId).sendNewMessage(message)
-    //   }
-    // }
-  }
   static async handleRecvMsg(pdu:Pdu){
     switch (pdu.getCommandId()) {
       case ActionCommands.CID_SyncRes:
@@ -215,9 +185,6 @@ export default class MsgWorker {
         break
       case ActionCommands.CID_SendBotMsgRes:
         await MsgWorker.handleSendBotMsgRes(pdu);
-        break
-      case ActionCommands.CID_InitAppRes:
-        await MsgWorker.handleInitAppRes(pdu);
         break
     }
   }
@@ -247,7 +214,7 @@ export default class MsgWorker {
                 }
                 break
               case BotWebSocketNotifyAction.onData:
-                console.log("[onData]",{accountId,payload})
+                // console.log("[onData]",{accountId},getActionCommandsName(payload.getCommandId()))
                 await MsgWorker.handleRecvMsg(payload)
                 break
             }
@@ -265,154 +232,7 @@ export default class MsgWorker {
       }
     }
   }
-  static async beforeUploadUserReq(pdu:Pdu){
-    const {users,...res} = UploadUserReq.parseMsg(pdu)
-    if(users){
-      for (let i = 0; i < users?.length; i++) {
-        if (users) {
-          if(
-            (users.length === 1 && users[0].user!.photos && users[0].user!.photos.length > 0 )
-          ){
-            const photo = users[0].user!.photos[0];
-            let id;
-            if(photo && photo.id){
-              id = photo.id;
-            }
-            if(id){
-              let arrayBuffer = await cacheApi.fetch(MEDIA_CACHE_NAME_WAI, id, Type.ArrayBuffer);
-              if(arrayBuffer){
-                // @ts-ignore
-                const res = DownloadRes.parseMsg(new Pdu(Buffer.from(arrayBuffer)));
-                if(!res || !res.file){
-                  break
-                }
-                await uploadFileCache(res.file!)
-              }
-            }
-          }
-          const {time,user} = users[i]
-          let buf = Buffer.from(new PbUser(user!).pack().getPbData())
-          const password = "Wai" + time!.toString();
-          // console.log("accountId",account.getAccountId())
-          // console.log("entropy",await Account.getCurrentAccount()!.getEntropy())
-          const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
-          const bb = popByteBuffer();
-          writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
-          writeInt16(bb, 1);
-          writeInt32(bb, time!);
-          writeInt32(bb, 0);
-          writeBytes(bb, cipher);
-          users[i].buf = Buffer.from(toUint8Array(bb));
-          users[i].user = undefined
-          // console.log("userId",user?.id)
-          // console.log("buf",buf)
-          // console.log("cipher",cipher)
-          // console.log("msg buf",users[i].buf)
-        }
-      }
-    }
 
-    return new UploadUserReq({users,...res}).pack()
-  }
-  static async afterDownloadUserReq(pdu:Pdu){
-    const {users,...res} = DownloadUserRes.parseMsg(pdu)
-    if(users){
-      for (let i = 0; i < users?.length; i++) {
-        if (users) {
-          const {buf} = users[i]
-          const bbDecode = wrapByteBuffer(Buffer.from(buf!))
-          const len = readInt32(bbDecode);
-          const encrypt = readInt16(bbDecode) === 1;
-          const time = readInt32(bbDecode);
-          const reverse = readInt32(bbDecode);
-          let cipher = readBytes(bbDecode,len - 14);
-          const password = "Wai"+time.toString();
-          // console.log("encode",Buffer.from(buf!).toString("hex"))
-          // console.log("cipher",Buffer.from(cipher).toString("hex"))
-          const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
-          // console.log("userId",user?.id)
-          // console.log("buf",buf)
-          // console.log("cipher",cipher)
-          // console.log("msg buf",user)
-          users[i].user = PbUser.parseMsg(new Pdu(Buffer.from(buf2)));
-          users[i].buf = undefined
-        }
-      }
-    }
-
-    return Buffer.from(new DownloadUserRes({...res,users}).pack().getPbData())
-  }
-  static async afterDownloadMsgReq(pdu:Pdu){
-    const {messages,...res} = DownloadMsgRes.parseMsg(pdu)
-    if(messages){
-      for (let i = 0; i < messages?.length; i++) {
-        const {buf} = messages[i]
-        const bbDecode = wrapByteBuffer(Buffer.from(buf!))
-        const len = readInt32(bbDecode);
-        const encrypt = readInt16(bbDecode) === 1;
-        const time = readInt32(bbDecode);
-        const reverse = readInt32(bbDecode);
-        let cipher = readBytes(bbDecode,len - 14);
-        const password = "Wai"+time.toString();
-        // console.log("encode",Buffer.from(buf!).toString("hex"))
-        // console.log("cipher",Buffer.from(cipher).toString("hex"))
-        const buf2 = await Account.getCurrentAccount()!.decryptData(Buffer.from(cipher),password)
-        messages[i].message = PbMsg.parseMsg(new Pdu(Buffer.from(buf2)))
-        messages[i].buf = undefined
-        // console.log("userId",user?.id)
-        // console.log("buf",buf)
-        // console.log("cipher",cipher)
-        // console.log("msg buf",users[i].buf)
-      }
-    }
-    return Buffer.from(new DownloadMsgRes({...res,messages}).pack().getPbData())
-  }
-  static async beforeUploadMsgReq(pdu:Pdu){
-    const {messages,...res} = UploadMsgReq.parseMsg(pdu)
-
-    if(messages){
-      if(messages.length === 1){
-        const {photo,voice,audio,document} = messages[0].message!.content;
-        let id;
-        if(photo && photo.id){
-          id = photo.id;
-        }else if(voice && voice.id){
-          id = voice.id;
-        }else if(audio && audio.id){
-          id = audio.id;
-        }else if(document && document.id){
-          id = document.id;
-        }
-        if(id){
-          let arrayBuffer = await cacheApi.fetch(MEDIA_CACHE_NAME_WAI, id, Type.ArrayBuffer);
-
-          if(arrayBuffer){
-            // @ts-ignore
-            const {file} = DownloadRes.parseMsg(new Pdu(Buffer.from(arrayBuffer)));
-            await uploadFileCache(file!)
-          }
-        }
-      }
-      for (let i = 0; i < messages?.length; i++) {
-        const {time,message} = messages[i]
-        let buf = Buffer.from(new PbMsg(message!).pack().getPbData())
-        const password = "Wai"+time!.toString();
-        const cipher = await Account.getCurrentAccount()!.encryptData(buf,password)
-        const bb = popByteBuffer();
-        writeInt32(bb, cipher?.length + 4 + 4 + 4 + 2);
-        writeInt16(bb, 1);
-        writeInt32(bb, time!);
-        writeInt32(bb, 0);
-        writeBytes(bb, cipher);
-        messages[i].buf = Buffer.from(toUint8Array(bb));
-        messages[i].message = undefined
-        // console.log("buf",buf)
-        // console.log("cipher",cipher)
-        // console.log("msg buf",messages[i].buf)
-      }
-    }
-    return new UploadMsgReq({messages,...res}).pack()
-  }
   static async genMessageId(isLocal?:boolean):Promise<number>{
     let msgId = isLocal ? getNextLocalMessageId() : parseInt(getNextLocalMessageId().toString()) % LOCAL_MESSAGE_MIN_ID;
     if(messageIds.length > 10){

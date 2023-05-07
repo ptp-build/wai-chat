@@ -666,6 +666,9 @@ var $conv_message = $createConverter([
                 AUTH_TYPE: {
                     '@': {"AUTH_TYPE_USERNAME":0,"AUTH_TYPE_EMAIL":1,"AUTH_TYPE_MOBILE":2}
                 },
+                ChatGptStreamStatus: {
+                    '@': {"ChatGptStreamStatus_START":0,"ChatGptStreamStatus_GOING":1,"ChatGptStreamStatus_DONE":2,"ChatGptStreamStatus_ERROR":3}
+                },
                 ClientInfo: {
                     '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
                 },
@@ -673,13 +676,13 @@ var $conv_message = $createConverter([
                     '@': {"EncryptType_Wallet":0,"EncryptType_Group":1,"EncryptType_Message":2,"EncryptType_Media":3}
                 },
                 ERR: {
-                    '@': {"NO_ERROR":0,"ERR_SYSTEM":1,"ERR_AUTH_LOGIN":2,"ERR_AUTH_NEED":3}
+                    '@': {"NO_ERROR":0,"ERR_SYSTEM":1,"ERR_AUTH_LOGIN":2,"ERR_AUTH_NEED":3,"ERR_NOT_FOUND":4}
                 },
                 FileInfo: {
                     '$': {"1":["id","string",""],"2":["size","uint64",{"low":0,"high":0,"unsigned":true}],"3":["part","uint32",0],"4":["part_total","uint32",0],"5":["buf","bytes",[]],"6":["type","string",""]}
                 },
                 MessageStoreRow: {
-                    '$': {"1":["message","default.PTP.Common.PbMsg",null],"3":["messageId","uint32",0],"4":["time","uint32",0],"5":["buf","bytes",[]]}
+                    '$': {"1":["messageId","uint32",0],"2":["buf","bytes",[]]}
                 },
                 PbAction: {
                     '$': {"1":["text","string",""],"2":["type","string",""]}
@@ -692,6 +695,9 @@ var $conv_message = $createConverter([
                 },
                 PbBotInfo: {
                     '$': {"1":["botId","string",""],"2":["description","string",""],"4":["menuButton","default.PTP.Common.PbMenuButton",null],"5":["commands","<default.PTP.Common.PbCommands",null],"6":["photo","default.PTP.Common.PbPhoto",null],"7":["aiBot","default.PTP.Common.PbAiBot",null]}
+                },
+                PbCatBot: {
+                    '$': {"1":["cat","string",""],"2":["userId","string",""],"3":["firstName","string",""],"4":["avatarHash","string",""],"5":["bio","string",""],"6":["init_system_content","string",""],"7":["welcome","string",""],"8":["outputText","string",""],"9":["template","string",""],"10":["templateSubmit","string",""],"11":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 PbChat: {
                     '$': {"1":["type","string",""],"2":["id","string",""],"3":["title","string",""],"4":["usernames","<default.PTP.Common.PbUsernames",null],"5":["isMuted","bool",false],"6":["isMin","bool",false],"7":["hasPrivateLink","bool",false],"8":["isSignaturesShown","bool",false],"9":["accessHash","string",""],"10":["isVerified","bool",false],"11":["isJoinToSend","bool",false],"12":["isJoinRequest","bool",false],"13":["isForum","bool",false],"14":["isListed","bool",false],"15":["settings","default.PTP.Common.PbSettings",null],"16":["lastMessage","default.PTP.Common.PbMsg",null]}
@@ -760,7 +766,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["width","uint32",0],"2":["height","uint32",0],"3":["dataUri","string",""]}
                 },
                 PbUser: {
-                    '$': {"1":["id","string",""],"2":["firstName","string",""],"3":["usernames","<default.PTP.Common.PbUsernames",null],"4":["isMin","bool",false],"5":["isPremium","bool",false],"6":["type","string",""],"7":["hasVideoAvatar","bool",false],"8":["canBeInvitedToGroup","bool",false],"9":["phoneNumber","string",""],"10":["noStatus","bool",false],"11":["accessHash","string",""],"12":["fullInfo","default.PTP.Common.PbFullInfo",null],"13":["lastName","string",""],"14":["isSelf","bool",false],"15":["avatarHash","string",""],"16":["photos","<default.PTP.Common.PbPhoto",null]}
+                    '$': {"1":["id","string",""],"2":["firstName","string",""],"3":["usernames","<default.PTP.Common.PbUsernames",null],"4":["isMin","bool",false],"5":["isPremium","bool",false],"6":["type","string",""],"7":["hasVideoAvatar","bool",false],"8":["canBeInvitedToGroup","bool",false],"9":["phoneNumber","string",""],"10":["noStatus","bool",false],"11":["accessHash","string",""],"12":["fullInfo","default.PTP.Common.PbFullInfo",null],"13":["lastName","string",""],"14":["isSelf","bool",false],"15":["avatarHash","string",""],"16":["photos","<default.PTP.Common.PbPhoto",null],"17":["updatedAt","uint32",0]}
                 },
                 PbUsernames: {
                     '$': {"1":["username","string",""],"2":["isActive","bool",false],"3":["isEditable","bool",false]}
@@ -796,17 +802,11 @@ var $conv_message = $createConverter([
                 }
             },
             Msg: {
-                AnswerCallbackButtonReq: {
-                    '$': {"1":["chatId","string",""],"2":["messageId","uint32",0],"3":["data","string",""],"4":["accessHash","string",""],"5":["isGame","bool",false]}
-                },
-                AnswerCallbackButtonRes: {
-                    '$': {"1":["message","string",""],"2":["url","string",""],"3":["alert","string",""],"100":["err","uint32",0]}
-                },
                 DownloadMsgReq: {
-                    '$': {"1":["chatId","string",""]}
+                    '$': {"1":["chatId","string",""],"2":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 DownloadMsgRes: {
-                    '$': {"1":["messages","<default.PTP.Common.MessageStoreRow",null],"100":["err","uint32",0]}
+                    '$': {"1":["messages","<bytes",null],"2":["userMessageStoreData","default.PTP.Common.UserMessageStoreData",null],"100":["err","uint32",0]}
                 },
                 GenMsgIdReq: {
                     '$': {"1":["isLocal","bool",false]}
@@ -814,26 +814,8 @@ var $conv_message = $createConverter([
                 GenMsgIdRes: {
                     '$': {"1":["messageId","uint64",{"low":0,"high":0,"unsigned":true}],"100":["err","uint32",0]}
                 },
-                MsgDeleteReq: {
-                    '$': {"1":["user_id","string",""],"2":["chat_id","string",""],"3":["msg_ids","[uint32",null],"4":["revoke","bool",false]}
-                },
-                MsgDeleteRes: {
-                    '$': {"100":["err","uint32",0]}
-                },
-                MsgListReq: {
-                    '$': {"1":["chatId","string",""],"2":["lastMessageId","uint32",0],"3":["limit","uint32",0],"4":["isUp","bool",false]}
-                },
-                MsgListRes: {
-                    '$': {"1":["payload","string",""],"100":["err","uint32",0]}
-                },
-                MsgUpdateReq: {
-                    '$': {"1":["user_id","string",""],"2":["chat_id","string",""],"3":["msg_id","uint32",0],"4":["text","string",""]}
-                },
-                MsgUpdateRes: {
-                    '$': {"100":["err","uint32",0]}
-                },
                 RemoveMessagesReq: {
-                    '$': {"1":["messageIds","[uint32",null]}
+                    '$': {"1":["messageIds","[uint32",null],"2":["chatId","string",""]}
                 },
                 RemoveMessagesRes: {
                     '$': {"100":["err","uint32",0]}
@@ -842,25 +824,19 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamEnd","bool",false],"5":["message","default.PTP.Common.PbMsg",null]}
-                },
-                SendReq: {
-                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msg","default.PTP.Common.PbMsg",null]}
-                },
-                SendRes: {
-                    '$': {"1":["chatId","string",""],"2":["action","string",""],"3":["msg","default.PTP.Common.PbMsg",null],"4":["text","string",""],"5":["localId","uint32",0],"100":["err","uint32",0]}
+                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}
                 },
                 UpdateCmdReq: {
                     '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
                 },
                 UpdateCmdRes: {
-                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null],"2":["chatId","string",""]}
+                    '$': {"1":["commands","<default.PTP.Common.PbCommands",null],"2":["chatId","string",""],"3":["startTips","string",""]}
                 },
                 UploadMsgReq: {
-                    '$': {"1":["messages","<default.PTP.Common.MessageStoreRow",null],"2":["chatId","string",""],"3":["time","uint32",0]}
+                    '$': {"1":["messages","<bytes",null],"2":["chatId","string",""]}
                 },
                 UploadMsgRes: {
-                    '$': {"100":["err","uint32",0]}
+                    '$': {"1":["userMessageStoreData","default.PTP.Common.UserMessageStoreData",null],"100":["err","uint32",0]}
                 }
             },
             Other: {
@@ -879,7 +855,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["userStoreData","default.PTP.Common.UserStoreData",null],"100":["err","uint32",0]}
                 },
                 TopCatsReq: {
-                    '$': {"1":["time","uint32",0]}
+                    '$': {"1":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 TopCatsRes: {
                     '$': {"1":["payload","string",""],"100":["err","uint32",0]}
@@ -887,10 +863,10 @@ var $conv_message = $createConverter([
             },
             User: {
                 DownloadUserReq: {
-                    '$': {"1":["userIds","<string",null]}
+                    '$': {"2":["userId","string",""],"3":["updatedAt","uint32",0]}
                 },
                 DownloadUserRes: {
-                    '$': {"1":["users","<default.PTP.Common.UserStoreRow",null],"100":["err","uint32",0]}
+                    '$': {"2":["userBuf","bytes",[]],"100":["err","uint32",0]}
                 },
                 GenUserIdReq: {
                     '$': {}
@@ -898,8 +874,20 @@ var $conv_message = $createConverter([
                 GenUserIdRes: {
                     '$': {"1":["userId","uint32",0],"100":["err","uint32",0]}
                 },
+                ShareBotReq: {
+                    '$': {"1":["catTitle","string",""],"2":["catBot","default.PTP.Common.PbCatBot",null]}
+                },
+                ShareBotRes: {
+                    '$': {"100":["err","uint32",0]}
+                },
+                ShareBotStopReq: {
+                    '$': {"1":["userId","string",""]}
+                },
+                ShareBotStopRes: {
+                    '$': {"100":["err","uint32",0]}
+                },
                 UploadUserReq: {
-                    '$': {"1":["users","<default.PTP.Common.UserStoreRow",null],"3":["time","uint32",0]}
+                    '$': {"2":["userBuf","bytes",[]]}
                 },
                 UploadUserRes: {
                     '$': {"100":["err","uint32",0]}

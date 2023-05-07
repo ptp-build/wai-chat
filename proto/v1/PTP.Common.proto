@@ -9,6 +9,7 @@ enum ERR{
   ERR_SYSTEM = 1;
   ERR_AUTH_LOGIN = 2;
   ERR_AUTH_NEED = 3;
+  ERR_NOT_FOUND = 4;
 }
 
 enum EncryptType{
@@ -17,7 +18,12 @@ enum EncryptType{
   EncryptType_Message = 2;
   EncryptType_Media = 3;
 }
-
+enum ChatGptStreamStatus{
+  ChatGptStreamStatus_START = 0;
+  ChatGptStreamStatus_GOING = 1;
+  ChatGptStreamStatus_DONE = 2;
+  ChatGptStreamStatus_ERROR = 3;
+}
 enum QrCodeType{
   QrCodeType_MNEMONIC = 1;
 }
@@ -97,6 +103,7 @@ message PbUser {
   optional bool isSelf = 14;
   optional string avatarHash = 15;
   repeated PbPhoto photos = 16;
+  optional uint32 updatedAt = 17;
 }
 
 message PbSettings {
@@ -293,10 +300,8 @@ message PbQrCode {
 }
 
 message MessageStoreRow{
-  optional PbMsg message = 1;
-  required uint32 messageId = 3;
-  optional bytes buf = 5;
-  optional uint32 time = 4;
+  required uint32 messageId = 1;
+  optional bytes buf = 2;
 }
 
 message UserStoreRow{
@@ -322,9 +327,23 @@ message UserMessageStoreData{
   required uint64 time = 4;
 }
 
-
 message ClientInfo{
   required string deviceModel = 1;
   required string systemVersion = 2;
   required string appVersion = 3;
 }
+
+message PbCatBot{
+  required string cat = 1;
+  required string userId = 2;
+  required string firstName = 3;
+  optional string avatarHash = 4;
+  optional string bio = 5;
+  optional string init_system_content = 6;
+  optional string welcome = 7;
+  optional string outputText = 8;
+  optional string template = 9;
+  optional string templateSubmit = 10;
+  required uint64 time = 11;
+}
+

@@ -102,6 +102,7 @@ export default class BotChatGpt{
     }
     try {
       if(!botApi){
+        // @ts-ignore
         botApi = CHATGPT_PROXY_API
       }
       const res = await callApiWithPdu(new SendBotMsgReq({

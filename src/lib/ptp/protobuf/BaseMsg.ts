@@ -189,9 +189,11 @@ export class Pdu {
   }
 
   public updateSeqNo(seq_num:number){
+    this._bb = wrapByteBuffer(this._pbData)
     this._bb.offset = 10;
     writeInt16(this._bb, seq_num);
     this._pbHeader.seq_num = seq_num;
+    this.setPbData(toUint8Array(this._bb));
   }
   readPbData() {
     const headerBb = wrapByteBuffer(this._pbData.slice(0, HEADER_LEN));
@@ -215,8 +217,6 @@ export class Pdu {
     return this._pbHeader.seq_num;
   }
 }
-
-let seq_num = 0;
 
 export default class BaseMsg {
   private __cid?: any;
@@ -270,10 +270,7 @@ export default class BaseMsg {
   }
   protected __pack(): Pdu {
     const pdu = new Pdu();
-    if (seq_num > 10000) {
-      seq_num = 0;
-    }
-    pdu.writeData(this.__E(), this.__cid, ++seq_num);
+    pdu.writeData(this.__E(), this.__cid, 0);
     return pdu;
   }
 }

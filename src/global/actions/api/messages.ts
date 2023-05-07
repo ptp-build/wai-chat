@@ -106,6 +106,8 @@ import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 import {getPasswordFromEvent} from '../../../worker/share/utils/password';
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
+import {UserIdFirstBot} from "../../../worker/setting";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -600,7 +602,7 @@ addActionHandler('deleteScheduledMessages', (global, actions, payload): ActionRe
 addActionHandler('deleteHistory', async (global, actions, payload): Promise<void> => {
   const { chatId, shouldDeleteForAll, tabId = getCurrentTabId() } = payload!;
   const chat = selectChat(global, chatId);
-  if (!chat) {
+  if (!chat || chatId === UserIdFirstBot) {
     return;
   }
   // await callApi('deleteHistory', { chat, shouldDeleteForAll });
@@ -624,19 +626,15 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
       folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
     }
     if(userStoreData && userStoreData.chatIdsDeleted){
-      userStoreData.chatIdsDeleted.forEach(chatId=>{
-        if(folder.includedChatIds.includes(chatId)){
-          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== chatId)
+      if(folder.id === 1){
+        userStoreData.chatIdsDeleted = userStoreData.chatIdsDeleted.filter(id=>id !== UserIdFirstBot)
+      }
+      userStoreData.chatIdsDeleted.forEach(idDeleted=>{
+        if(folder.includedChatIds.includes(idDeleted)){
+          folder.includedChatIds = folder.includedChatIds.filter(id=>id !== idDeleted)
         }
       })
     }
-    const includedChatIds = []
-    folder.includedChatIds.forEach(chatId=>{
-      if(global.chats.listIds.active.includes(chatId)){
-        includedChatIds.push(chatId)
-      }
-    })
-    folder.includedChatIds = includedChatIds
   })
 
   if(!userStoreData){
@@ -655,10 +653,6 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
     chatFolders:{
       ...global.chatFolders,
       byId:chatFolders.byId
-    },
-    messagesDeleted:{
-      ...global.messagesDeleted,
-      [chatId]:[]
     }
   }
   userStoreData.chatFolders = JSON.stringify(global.chatFolders)
@@ -1653,7 +1647,7 @@ addActionHandler('showOriginalMessage', (global, actions, payload): ActionReturn
   return global;
 });
 
-addActionHandler('translateMessages', (global, actions, payload): ActionReturnType => {
+addActionHandler('translateMessages', (global, actions, payload) => {
   const {
     chatId, messageIds, toLanguageCode = selectLanguageCode(global),
   } = payload;
@@ -1667,15 +1661,15 @@ addActionHandler('translateMessages', (global, actions, payload): ActionReturnTy
     });
     messages[parseInt(id)] = selectChatMessage(global,chatId,id)?.content.text!
   });
-
+  setGlobal(global)
+  const apiKey = new MsgCommandChatGpt(chatId!).getChatGptConfig("api_key")
   callApi('translateText', {
     chat,
+    apiKey,
     messageIds,
     messages,
     toLanguageCode,
   });
-
-  return global;
 });
 
 addActionHandler('loadMessageViews', async (global, actions, payload): Promise<void> => {

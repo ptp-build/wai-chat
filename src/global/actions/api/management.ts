@@ -19,6 +19,8 @@ import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import * as langProvider from '../../../util/langProvider';
 import {blobToDataUri, fetchBlob, imgToBlob} from "../../../util/files";
 import {resizeImage} from "../../../util/imageResize";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import MsgCommand from "../../../worker/msg/MsgCommand";
 
 addActionHandler('checkPublicLink', async (global, actions, payload): Promise<void> => {
   const { username, tabId = getCurrentTabId() } = payload;
@@ -456,6 +458,7 @@ addActionHandler('uploadContactProfilePhoto', async (global, actions, payload): 
   // @ts-ignore
   global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
   setGlobal(global);
+  MsgCommand.uploadUser(getGlobal(),userId).catch(console.error)
 
   const { id, accessHash } = user;
   // const newUser = await callApi('fetchFullUser', { id, accessHash });
@@ -466,7 +469,6 @@ addActionHandler('uploadContactProfilePhoto', async (global, actions, payload): 
   //   return;
   // }
   // actions.loadProfilePhotos({ profileId: userId });
-  global = getGlobal();
 
   global = getGlobal();
   global = updateManagementProgress(global, ManagementProgress.Complete, tabId);

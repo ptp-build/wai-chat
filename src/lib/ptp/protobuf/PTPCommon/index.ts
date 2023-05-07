@@ -5,6 +5,7 @@ export { default as PbAction } from './PbAction';
 export { default as PbAiBot } from './PbAiBot';
 export { default as PbAudio } from './PbAudio';
 export { default as PbBotInfo } from './PbBotInfo';
+export { default as PbCatBot } from './PbCatBot';
 export { default as PbChat } from './PbChat';
 export { default as PbChatFolder } from './PbChatFolder';
 export { default as PbChatGpBotConfig } from './PbChatGpBotConfig';

@@ -19,15 +19,15 @@ import type {
   ApiVideo,
   OnApiUpdate,
 } from '../../types';
-import {ApiKeyboardButtons, MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
+import {MAIN_THREAD_ID, MESSAGE_DELETED,} from '../../types';
 
 import {
-  ALL_FOLDER_ID, CHATGPT_PROXY_API,
+  ALL_FOLDER_ID,
+  CHATGPT_PROXY_API,
   DEBUG,
   GIF_MIME_TYPE,
   MAX_INT_32,
   MENTION_UNREAD_SLICE,
-  MESSAGE_LIST_SLICE,
   PINNED_MESSAGES_LIMIT,
   REACTION_UNREAD_SLICE,
   SUPPORTED_IMAGE_CONTENT_TYPES,
@@ -73,19 +73,17 @@ import {requestChatUpdate} from './chats';
 import {getEmojiOnlyCountForMessage} from '../../../global/helpers/getEmojiOnlyCountForMessage';
 import {getServerTimeOffset} from '../../../util/serverTime';
 import {uploadFileV1} from "../../../lib/gramjs/client/uploadFile";
-import {MsgListReq, MsgListRes} from "../../../lib/ptp/protobuf/PTPMsg";
-import Account from '../../../worker/share/Account';
-import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import MsgWorker from "../../../worker/msg/MsgWorker";
-import {ControllerPool, requestChatStream} from "../../../lib/ptp/functions/requests";
-import ChatMsg from "../../../worker/msg/ChatMsg";
+import {requestChatStream} from "../../../lib/ptp/functions/requests";
 import {ChatModelConfig} from "../../../worker/setting";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
 
 type TranslateTextParams = ({
   text: ApiFormattedText[];
+  apiKey?:string;
 } | {
   chat: ApiChat;
   messageIds: number[];
@@ -1681,7 +1679,7 @@ export async function translateText(params: TranslateTextParams) {
   let result;
   const isMessageTranslation = 'chat' in params;
   if (isMessageTranslation) {
-    const { chat, messageIds,messages, toLanguageCode } = params;
+    const { chat, messageIds,messages, toLanguageCode,apiKey } = params;
     // result = await invokeRequest(new GramJs.messages.TranslateText({
     //   peer: buildInputPeer(chat.id, chat.accessHash),
     //   id: messageIds,
@@ -1689,13 +1687,12 @@ export async function translateText(params: TranslateTextParams) {
     // }));
 
     const chatId = chat.id
-
     const res = await requestChatStream(
       CHATGPT_PROXY_API+"/v1/chat/completions",
       {
         body:{
           ...ChatModelConfig,
-          apiKey:"",
+          apiKey,
           systemPrompt:"你现在是一名专业的翻译官",
           messages:[
             {

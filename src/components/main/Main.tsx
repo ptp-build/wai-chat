@@ -1,38 +1,31 @@
-import type { FC } from '../../lib/teact/teact';
-import React, {
-  useEffect, memo, useCallback, useState, useRef,
-} from '../../lib/teact/teact';
-import { getActions, getGlobal, withGlobal } from '../../global';
+import type {FC} from '../../lib/teact/teact';
+import React, {memo, useCallback, useEffect, useRef, useState,} from '../../lib/teact/teact';
+import {getActions, getGlobal, withGlobal} from '../../global';
 
-import type { AnimationLevel, LangCode } from '../../types';
-import type {
-  ApiAttachBot,
-  ApiChat, ApiMessage, ApiUser,
-} from '../../api/types';
-import type { ApiLimitTypeWithModal, TabState } from '../../global/types';
+import type {AnimationLevel, LangCode} from '../../types';
+import type {ApiAttachBot, ApiChat, ApiMessage, ApiUser,} from '../../api/types';
+import type {ApiLimitTypeWithModal, TabState} from '../../global/types';
 
 import '../../global/actions/all';
-import {
-  BASE_EMOJI_KEYWORD_LANG, DEBUG, INACTIVE_MARKER,
-} from '../../config';
-import { IS_ANDROID } from '../../util/environment';
+import {BASE_EMOJI_KEYWORD_LANG, DEBUG, INACTIVE_MARKER,} from '../../config';
+import {IS_ANDROID} from '../../util/environment';
 import {
   selectChatMessage,
-  selectTabState,
   selectCurrentMessageList,
   selectIsCurrentUserPremium,
   selectIsForwardModalOpen,
   selectIsMediaViewerOpen,
   selectIsRightColumnShown,
   selectIsServiceChatReady,
+  selectTabState,
   selectUser,
 } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
-import { waitForTransitionEnd } from '../../util/cssAnimationEndListeners';
-import { processDeepLink } from '../../util/deeplink';
-import { parseInitialLocationHash, parseLocationHash } from '../../util/routing';
-import { fastRaf } from '../../util/schedulers';
-import { Bundles, loadBundle } from '../../util/moduleLoader';
+import {waitForTransitionEnd} from '../../util/cssAnimationEndListeners';
+import {processDeepLink} from '../../util/deeplink';
+import {parseInitialLocationHash, parseLocationHash} from '../../util/routing';
+import {fastRaf} from '../../util/schedulers';
+import {Bundles, loadBundle} from '../../util/moduleLoader';
 import updateIcon from '../../util/updateIcon';
 
 import useEffectWithPrevDeps from '../../hooks/useEffectWithPrevDeps';
@@ -42,7 +35,7 @@ import useSyncEffect from '../../hooks/useSyncEffect';
 import usePreventPinchZoomGesture from '../../hooks/usePreventPinchZoomGesture';
 import useForceUpdate from '../../hooks/useForceUpdate';
 import useShowTransition from '../../hooks/useShowTransition';
-import { dispatchHeavyAnimationEvent } from '../../hooks/useHeavyAnimationCheck';
+import {dispatchHeavyAnimationEvent} from '../../hooks/useHeavyAnimationCheck';
 import useInterval from '../../hooks/useInterval';
 import useAppLayout from '../../hooks/useAppLayout';
 import useTimeout from '../../hooks/useTimeout';
@@ -83,10 +76,6 @@ import AttachBotRecipientPicker from './AttachBotRecipientPicker.async';
 
 import './Main.scss';
 import PasswordModal from "../ui/PasswordModal";
-import Modal from "../ui/Modal";
-import QrCode from "../common/QrCode";
-import {UserIdFirstBot} from "../../worker/setting";
-import ChatOrUserPicker from "../common/ChatOrUserPicker";
 import MnemonicModal from "../ui/MnemonicModal";
 import PickBotModal from "../ui/PickBotModal";
 import GlobalModal from "../ui/GlobalModal";

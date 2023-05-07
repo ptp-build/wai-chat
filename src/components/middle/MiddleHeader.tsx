@@ -40,7 +40,7 @@ import {
   selectScheduledIds,
   selectThreadInfo,
   selectThreadParam,
-  selectThreadTopMessageId,
+  selectThreadTopMessageId, selectUser,
 } from '../../global/selectors';
 import useEnsureMessage from '../../hooks/useEnsureMessage';
 import useWindowSize from '../../hooks/useWindowSize';
@@ -78,6 +78,7 @@ type OwnProps = {
 };
 
 type StateProps = {
+  isBot?:boolean;
   chat?: ApiChat;
   pinnedMessageIds?: number[] | number;
   messagesById?: Record<number, ApiMessage>;
@@ -101,6 +102,7 @@ type StateProps = {
 };
 
 const MiddleHeader: FC<OwnProps & StateProps> = ({
+  isBot,
   chatId,
   threadId,
   messageListType,
@@ -363,6 +365,7 @@ const MiddleHeader: FC<OwnProps & StateProps> = ({
             <PrivateChatInfo
               key={chatId}
               userId={chatId}
+              withDesc={isBot}
               typingStatus={typingStatus}
               status={connectionStatusText}
               withDots={Boolean(connectionStatusText)}
@@ -518,7 +521,7 @@ export default memo(withGlobal<OwnProps>(
     const shouldSendJoinRequest = Boolean(chat?.isNotJoined && chat.isJoinRequest);
     const typingStatus = selectThreadParam(global, chatId, threadId, 'typingStatus');
     const focusedMessage = selectTabState(global).focusedMessage;
-
+    const isBot = Boolean(isUserId(chatId) && selectUser(global,chatId)?.fullInfo?.botInfo)
     const state: StateProps = {
       typingStatus,
       isLeftColumnShown,
@@ -527,6 +530,7 @@ export default memo(withGlobal<OwnProps>(
       audioMessage,
       chat,
       messagesCount,
+      isBot,
       isChatWithSelf: selectIsChatWithSelf(global, chatId),
       lastSyncTime,
       shouldSkipHistoryAnimations,

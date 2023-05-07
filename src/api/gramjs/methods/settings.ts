@@ -48,6 +48,7 @@ import {
 } from "../../../lib/ptp/protobuf/PTPAuth";
 import {ERR} from "../../../lib/ptp/protobuf/PTPCommon/types";
 import Account from "../../../worker/share/Account";
+import {currentTs} from "../../../worker/share/utils/utils";
 
 const BETA_LANG_CODES = ['ar', 'fa', 'id', 'ko', 'uz', 'en'];
 
@@ -216,6 +217,7 @@ export async function uploadContactProfilePhoto({
       users: [
         {
           ...user,
+          updatedAt:currentTs(),
           avatarHash: id,
           photos: [
             {
