@@ -425,6 +425,7 @@ function processEntity(
         </MentionLink>
       );
     case ApiMessageEntityTypes.Mention:
+
       return (
         <MentionLink username={entityText}>
           {renderNestedMessagePart()}

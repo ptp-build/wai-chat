@@ -24,21 +24,24 @@ message GenMsgIdRes{
 }
 
 message UploadMsgReq{
-  repeated Common.MessageStoreRow messages = 1;
+  repeated bytes messages = 1;
   required string chatId = 2;
-  required uint32 time = 3;
 }
 
 message UploadMsgRes{
+  required Common.UserMessageStoreData userMessageStoreData = 1;
   optional Common.ERR err = 100;
+
 }
 
 message DownloadMsgReq{
   required string chatId = 1;
+  optional uint64 time = 2;
 }
 
 message DownloadMsgRes{
-  repeated Common.MessageStoreRow messages = 1;
+  repeated bytes messages = 1;
+  optional Common.UserMessageStoreData userMessageStoreData = 2;
   optional Common.ERR err = 100;
 }
 
@@ -48,8 +51,9 @@ message UpdateCmdReq{
 }
 
 message UpdateCmdRes{
-  optional string chatId = 2;
   repeated Common.PbCommands commands = 1;
+  optional string chatId = 2;
+  optional string startTips = 3;
 }
 
 message SendBotMsgReq{

@@ -13,20 +13,20 @@ import {showBodyLoading} from "../../worker/share/utils/utils";
 import {WaterMark} from "../../worker/setting";
 import {fetchBlob} from "../../util/files";
 import {copyBlobToClipboard} from "../../util/clipboard";
-import {selectChatMessage} from "../../global/selectors";
+import {selectChatMessage, selectUser} from "../../global/selectors";
 
 export type OwnProps = {
   isOpen: boolean;
   messageId:number,
   chatId:string,
-  aiAssitantMsgId?:number,
+  aiAssistantMsgId?:number,
   aiUserMsgId?:number,
   onClose: () => void;
 };
 
 const ShareModel: FC<OwnProps> = ({
   isOpen,
-  aiAssitantMsgId,
+  aiAssistantMsgId,
   aiUserMsgId,
   messageId,
   chatId,
@@ -41,17 +41,21 @@ const ShareModel: FC<OwnProps> = ({
       showBodyLoading(true);
       let url;
       const watermark = WaterMark
-      if(aiAssitantMsgId && aiUserMsgId){
+
+      const message = selectChatMessage(global,chatId,messageId);
+      if(message?.chatId){
+        const user = selectUser(getGlobal(),message?.chatId!)
+        setText(`我正在使用 @WaiChatBot ${user?.firstName} ,\n${user?.fullInfo?.bio}\n#Wai\n${window.location.href}\n`)
+      }
+
+      if(aiAssistantMsgId && aiUserMsgId){
         url = await generateImageFromDiv(
-          ['message'+aiUserMsgId,'message'+aiAssitantMsgId],
+          ['message'+aiUserMsgId,'message'+aiAssistantMsgId],
           20,
           "#99BA92",
           watermark
         );
         const message = selectChatMessage(global,chatId,aiUserMsgId);
-        if(message){
-          setText(message.content.text!.text)
-        }
       }else{
         url = await generateImageFromDiv(
           ['message'+messageId],
@@ -59,15 +63,7 @@ const ShareModel: FC<OwnProps> = ({
           "#99BA92",
           watermark
         );
-        const message = selectChatMessage(global,chatId,messageId);
-        if(message && message.content.text){
-          const {text} = message.content.text
-          if(text.length  < 50){
-            setText(text)
-          }else{
-            setText(text.substring(0,50))
-          }
-        }
+
       }
 
       setImageUrl(url)
@@ -99,6 +95,9 @@ const ShareModel: FC<OwnProps> = ({
       }}
       title={"分享"}
     >
+      <div>
+        {text}
+      </div>
       <div className={"share-image-wrap"}>
         {
           imageUrl &&
@@ -107,14 +106,14 @@ const ShareModel: FC<OwnProps> = ({
       </div>
       <div className={"share-image-actions"}>
         <Button type="button" onClick={handleCopyClipboard} ripple={true} isLoading={!imageUrl} disabled={!imageUrl}>
-          点击复制
+          点击复制图片
         </Button>
         <Button
-          href={`https://twitter.com/intent/tweet?text=${text}&url=${window.location.href}&hashtags=${encodeURIComponent("wai,ChatGpt")}&via=&media=${encodeURIComponent(imageUrl)}`}
+          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&via=&media=${encodeURIComponent(imageUrl)}`}
           type="button"
           target={"_blank"}
           ripple={true} disabled={!readyToForward}>
-          分享到 Twitter
+          点击打开 Twitter 手动粘贴图片
         </Button>
       </div>
     </Modal>

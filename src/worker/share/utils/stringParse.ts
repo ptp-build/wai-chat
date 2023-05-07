@@ -33,16 +33,19 @@ export function parseCodeBlock(text:string,entities?:any[]) {
   };
 }
 
-function parseMentionName(text:string) {
+function parseMentionName(text:string,userNames:Record<string, string> ={}) {
   const regex = /@\w+/g;
   let match;
   let result = [];
   while ((match = regex.exec(text)) !== null) {
-    result.push({
-      type:ApiMessageEntityTypes.MentionName,
-      offset: match.index,
-      length: match[0].length
-    });
+    if(userNames[match[0]]){
+      result.push({
+        type:ApiMessageEntityTypes.MentionName,
+        userId:userNames[match[0]],
+        offset: match.index,
+        length: match[0].length
+      });
+    }
   }
   return result
 }
@@ -61,9 +64,9 @@ export function parseCmd(text: string, commands: string[]) {
   return matches;
 }
 
-export function parseEntities(text:string,commands:string[]){
+export function parseEntities(text:string,commands:string[],userNames:Record<string, string> ={}){
   return [
     ...parseCmd(text,commands),
-    ...parseMentionName(text),
+    ...parseMentionName(text,userNames),
   ]
 }

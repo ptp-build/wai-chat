@@ -282,9 +282,9 @@ export const handleUpdateCmdReq = async (pdu:Pdu)=>{
           return;
         }
         // @ts-ignore
-        const {commands} = await res.json();
+        const {commands,startTips} = await res.json();
         return new UpdateCmdRes({
-          commands
+          commands,startTips
         }).pack().getPbData()
       }else{
         const botWs = BotWebSocket.getInstance(parseInt(chatId!))

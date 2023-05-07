@@ -76,12 +76,14 @@ import {uploadFileV1} from "../../../lib/gramjs/client/uploadFile";
 import MsgWorker from "../../../worker/msg/MsgWorker";
 import {requestChatStream} from "../../../lib/ptp/functions/requests";
 import {ChatModelConfig} from "../../../worker/setting";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;
 
 type TranslateTextParams = ({
   text: ApiFormattedText[];
+  apiKey?:string;
 } | {
   chat: ApiChat;
   messageIds: number[];
@@ -1677,7 +1679,7 @@ export async function translateText(params: TranslateTextParams) {
   let result;
   const isMessageTranslation = 'chat' in params;
   if (isMessageTranslation) {
-    const { chat, messageIds,messages, toLanguageCode } = params;
+    const { chat, messageIds,messages, toLanguageCode,apiKey } = params;
     // result = await invokeRequest(new GramJs.messages.TranslateText({
     //   peer: buildInputPeer(chat.id, chat.accessHash),
     //   id: messageIds,
@@ -1685,13 +1687,12 @@ export async function translateText(params: TranslateTextParams) {
     // }));
 
     const chatId = chat.id
-
     const res = await requestChatStream(
       CHATGPT_PROXY_API+"/v1/chat/completions",
       {
         body:{
           ...ChatModelConfig,
-          apiKey:"",
+          apiKey,
           systemPrompt:"你现在是一名专业的翻译官",
           messages:[
             {

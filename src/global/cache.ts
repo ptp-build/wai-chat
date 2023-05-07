@@ -324,9 +324,9 @@ export function serializeGlobal<T extends GlobalState>(global: T) {
     ...INITIAL_GLOBAL_STATE,
     ...pick(global, [
       'topCats',
+      'userMessageStoreData',
       "userStoreData",
       "chatGptAskHistory",
-      'messagesDeleted',
       'appConfig',
       'authState',
       'authPhoneNumber',

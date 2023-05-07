@@ -107,6 +107,7 @@ import {getPasswordFromEvent} from '../../../worker/share/utils/password';
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import {UserIdFirstBot} from "../../../worker/setting";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const AUTOLOGIN_TOKEN_KEY = 'autologin_token';
 
@@ -652,10 +653,6 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
     chatFolders:{
       ...global.chatFolders,
       byId:chatFolders.byId
-    },
-    messagesDeleted:{
-      ...global.messagesDeleted,
-      [chatId]:[]
     }
   }
   userStoreData.chatFolders = JSON.stringify(global.chatFolders)
@@ -1650,7 +1647,7 @@ addActionHandler('showOriginalMessage', (global, actions, payload): ActionReturn
   return global;
 });
 
-addActionHandler('translateMessages', (global, actions, payload): ActionReturnType => {
+addActionHandler('translateMessages', (global, actions, payload) => {
   const {
     chatId, messageIds, toLanguageCode = selectLanguageCode(global),
   } = payload;
@@ -1664,15 +1661,15 @@ addActionHandler('translateMessages', (global, actions, payload): ActionReturnTy
     });
     messages[parseInt(id)] = selectChatMessage(global,chatId,id)?.content.text!
   });
-
+  setGlobal(global)
+  const apiKey = new MsgCommandChatGpt(chatId!).getChatGptConfig("api_key")
   callApi('translateText', {
     chat,
+    apiKey,
     messageIds,
     messages,
     toLanguageCode,
   });
-
-  return global;
 });
 
 addActionHandler('loadMessageViews', async (global, actions, payload): Promise<void> => {

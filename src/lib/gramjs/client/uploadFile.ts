@@ -13,6 +13,7 @@ import Account from "../../../worker/share/Account";
 import * as cacheApi from '../../../util/cacheApi';
 import {fileToBuffer} from "../../../worker/share/utils/utils";
 import {ERR, FileInfo_Type} from "../../ptp/protobuf/PTPCommon/types";
+import {Pdu} from "../../ptp/protobuf/BaseMsg";
 
 interface OnProgress {
     isCanceled?: boolean;
@@ -78,7 +79,8 @@ export async function uploadFileV1(
 
     const blob = new Blob([Buffer.from(body)]);
     await cacheApi.save(MEDIA_CACHE_NAME_WAI, fileIdStr, blob);
-
+    const res = DownloadRes.parseMsg(new Pdu(Buffer.from(body)));
+    uploadFileCache(res.file!).catch(console.error)
     return isLarge
         ? new Api.InputFileBig({
             id: fileId,

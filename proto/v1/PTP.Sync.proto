@@ -22,4 +22,3 @@ message TopCatsRes{
   optional string payload = 1;
   optional Common.ERR err = 100;
 }
-

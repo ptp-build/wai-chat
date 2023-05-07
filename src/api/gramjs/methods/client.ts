@@ -404,20 +404,10 @@ export async function sendWithCallback(buff:Uint8Array){
       return await handleAuthNativeReq(pdu);
     case ActionCommands.CID_GenMsgIdReq:
       return await MsgWorker.genMsgId(pdu);
-    case ActionCommands.CID_UploadMsgReq:
-      pdu = await MsgWorker.beforeUploadMsgReq(pdu);
-      break
-    case ActionCommands.CID_UploadUserReq:
-      pdu = await MsgWorker.beforeUploadUserReq(pdu);
-      break
     case ActionCommands.CID_SyncReq:
     case ActionCommands.CID_TopCatsReq:
       BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
       return
-    case ActionCommands.CID_ShareBotStopReq:
-    case ActionCommands.CID_ShareBotReq:
-      const res = await BotWebSocket.getInstance(account.getAccountId()).sendPduWithCallback(pdu)
-      return Buffer.from(res.getPbData())
   }
   if(!account.getSession()){
     return
@@ -434,15 +424,5 @@ export async function sendWithCallback(buff:Uint8Array){
     return;
   }
   const arrayBuffer = await res.arrayBuffer();
-  let buf = Buffer.from(arrayBuffer);
-  const pduRes = new Pdu(buf)
-  switch (pduRes.getCommandId()) {
-    case ActionCommands.CID_DownloadMsgRes:
-      buf = await MsgWorker.afterDownloadMsgReq(pduRes)
-      break
-    case ActionCommands.CID_DownloadUserRes:
-      buf = await MsgWorker.afterDownloadUserReq(pduRes)
-      break
-  }
-  return buf;
+  return Buffer.from(arrayBuffer);
 }

@@ -327,7 +327,7 @@ const MessageContextMenu: FC<OwnProps> = ({
         style={menuStyle}
         ref={scrollableRef}
       >
-        {/* <MenuItem icon="share-filled" onClick={onShare}>{lang('分享')}</MenuItem> */}
+        <MenuItem icon="share-filled" onClick={onShare}>{lang('分享')}</MenuItem>
 
         {canTranslate && <MenuItem icon="language" onClick={onTranslate}>{lang('TranslateMessage')}</MenuItem>}
         {canShowOriginal && <MenuItem icon="language" onClick={onShowOriginal}>{lang('显示原文')}</MenuItem>}

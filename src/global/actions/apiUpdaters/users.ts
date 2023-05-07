@@ -123,23 +123,35 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
             if(!userStoreData.chatIdsDeleted){
               userStoreData.chatIdsDeleted = []
             }
-            const userIds = [];
-            for (let i = 0; i < userStoreData.myBots.length; i++) {
-              const botId = userStoreData.myBots[i]
-              if(!selectUser(global,botId) && !userStoreData.chatIdsDeleted.includes(botId)){
-                userIds.push(botId)
-              }
-            }
-            if(userIds.length > 0){
-              MsgCommand.downloadUsers(global,userIds).catch(console.error);
-            }
           }
+
           callApiWithPdu(new SyncReq({
             userStoreData,
           }).pack()).catch(console.error)
           break
         case "updateUserStoreData":
-          return updateUserStoreData(global,data.payload!.userStoreData)
+          global = updateUserStoreData(global,data.payload!.userStoreData)
+          let userStoreData1 = global.userStoreData!
+          if(userStoreData1.myBots){
+            if(!userStoreData1.chatIdsDeleted){
+              userStoreData1.chatIdsDeleted = []
+            }
+            const userIds = [];
+            for (let i = 0; i < userStoreData1.myBots.length; i++) {
+              const botId = userStoreData1.myBots[i]
+              if(!selectUser(global,botId) && !userStoreData1.chatIdsDeleted.includes(botId)){
+                if(botId !== "0"){
+                  userIds.push(botId)
+                }
+              }
+            }
+            if(userIds.length > 0){
+              setTimeout(()=>{
+                MsgCommand.downloadUsers(userIds).catch(console.error);
+              },500)
+            }
+          }
+          return global
         case "updateTopCats":
           return {
             ...global,

@@ -1,11 +1,18 @@
 import MsgDispatcher from "./MsgDispatcher";
 import {selectChatMessage, selectChatMessages} from "../../global/selectors";
-import {getActions, getGlobal} from "../../global";
-import {ApiKeyboardButtons} from "../../api/types";
+import {getActions, getGlobal, setGlobal} from "../../global";
+import {ApiBotCommand, ApiKeyboardButtons, ApiMessage} from "../../api/types";
 import {callApiWithPdu} from "./utils";
 import {currentTs} from "../share/utils/utils";
 import {MessageStoreRow_Type, PbMsg_Type, QrCodeType} from "../../lib/ptp/protobuf/PTPCommon/types";
-import {DownloadMsgReq, DownloadMsgRes, UploadMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
+import {
+  DownloadMsgReq,
+  DownloadMsgRes,
+  UpdateCmdReq,
+  UpdateCmdRes,
+  UploadMsgReq,
+  UploadMsgRes
+} from "../../lib/ptp/protobuf/PTPMsg";
 import Mnemonic from "../../lib/ptp/wallet/Mnemonic";
 import Account from "../share/Account";
 import {AuthNativeReq} from "../../lib/ptp/protobuf/PTPAuth";
@@ -14,10 +21,10 @@ import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
 import MsgCommand from "./MsgCommand";
 import {Decoder} from "@nuintun/qrcode";
-import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
+import {PbMsg, PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
-import {DEBUG} from "../../config";
+import {CHATGPT_PROXY_API, CLOUD_MESSAGE_API, DEBUG} from "../../config";
 import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE} from "../setting";
 import ChatMsg from "./ChatMsg";
 import {showModalFromEvent} from "../share/utils/modal";
@@ -40,9 +47,26 @@ export default class MsgCommandSetting{
       console.log("> userStoreData",getGlobal().userStoreData)
       console.log("> topCats",getGlobal().topCats)
     }
-    //@ts-ignore
-    await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
-    return this.chatMsg.setText(DEFAULT_START_TIPS).reply()
+    let tips = DEFAULT_START_TIPS
+    if(CLOUD_MESSAGE_API){
+      const res = await callApiWithPdu(new UpdateCmdReq({
+        botApi:MsgCommandSetting.getBotApi(),
+        chatId,
+      }).pack())
+      if(res){
+        const {commands,startTips} = UpdateCmdRes.parseMsg(res.pdu)
+        await new MsgCommand(chatId).reloadCommands(commands as ApiBotCommand[])
+        tips = startTips!
+      }
+    }else{
+      //@ts-ignore
+      await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    }
+
+    return this.chatMsg.setText(tips).reply()
+  }
+  static getBotApi(){
+    return DEBUG ? 'http://localhost:2235/api/wai' : `${CHATGPT_PROXY_API}/wai`
   }
 
   async setting(outGoingMsgId:number) {
@@ -346,7 +370,7 @@ export default class MsgCommandSetting{
           })
         }
       }
-      await this.uploadMsgList(messages)
+      // await this.uploadMsgList(messages)
 
     }else{
       const res = await callApiWithPdu(new DownloadMsgReq({
@@ -375,18 +399,26 @@ export default class MsgCommandSetting{
     }
   }
 
-  async uploadMsgList(messages:MessageStoreRow_Type[]){
-    if(messages.length > 0){
-      const res = await callApiWithPdu(new UploadMsgReq({
-        messages,
-        chatId:this.chatId,
-        time:currentTs(),
-      }).pack())
-      if(!res){
-        getActions().showNotification({message:"上传失败"})
-      }else{
-        getActions().showNotification({message:"上传成功"})
-      }
+  static async uploadMsgList(chatId:string,messagesList:ApiMessage[]){
+    let global = getGlobal();
+    const messages = messagesList.map(message=>Buffer.from(new PbMsg(message as PbMsg_Type).pack().getPbData()))
+    const res = await callApiWithPdu(new UploadMsgReq({
+      messages,
+      chatId:chatId,
+    }).pack())
+    if(res && res.pdu){
+      const {userMessageStoreData} = UploadMsgRes.parseMsg(res.pdu)
+      global = getGlobal();
+      setGlobal({
+        ...global,
+        userMessageStoreData:{
+          ...global.userMessageStoreData,
+          [chatId]:userMessageStoreData
+        }
+      })
+      getActions().showNotification({message:"保存成功"})
+    }else{
+      getActions().showNotification({message:"保存失败"})
     }
   }
 }

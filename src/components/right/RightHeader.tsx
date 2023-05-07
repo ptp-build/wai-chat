@@ -299,7 +299,7 @@ const RightHeader: FC<OwnProps & StateProps> = ({
     }
 
     if (userId) {
-      return lang(isBot ? 'lng_info_bot_title' : 'lng_info_user_title');
+      return lang(isBot ? '' : 'lng_info_user_title');
     }
 
     return lang('GroupInfo.Title');

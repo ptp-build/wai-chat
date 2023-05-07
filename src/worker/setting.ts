@@ -14,6 +14,7 @@ export const DEFAULT_AVATARS:Record<string, string> = {
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
+export const DEFAULT_WAI_USER_BIO = '我是您的Wai助理'
 export const DEFAULT_PROMPT = ''
 export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
@@ -115,7 +116,7 @@ export const CurrentUserInfo = {
   },
   "usernames": [
     {
-      "username": "my-self",
+      "username": "me",
       "isActive": true,
       "isEditable": true
     }
@@ -134,7 +135,7 @@ export let LoadAllChats = {
       "fullInfo": {
         "isBlocked": false,
         "noVoiceMessages": false,
-        "bio": DEFAULT_CREATE_USER_BIO,
+        "bio": DEFAULT_WAI_USER_BIO,
         "botInfo": {
           "botId": UserIdFirstBot,
           "description": DEFAULT_CREATE_USER_BIO,
@@ -163,7 +164,7 @@ export let LoadAllChats = {
       "noStatus": true,
       "usernames": [
         {
-          "username": "first_bot",
+          "username": "wai",
           "isActive": true,
           "isEditable": true
         }

@@ -33,6 +33,7 @@ export interface ApiUser {
 
   // Obtained from GetFullUser / UserFullInfo
   fullInfo?: ApiUserFullInfo;
+  updatedAt?:number
 }
 
 export interface ApiUserFullInfo {

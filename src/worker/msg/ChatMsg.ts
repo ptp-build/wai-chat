@@ -205,7 +205,7 @@ export default class ChatMsg {
       photos:photos || [],
       usernames: [
         {
-          "username": "Bot_"+userId,
+          "username": "Bot"+userId,
           "isActive": true,
           "isEditable": true
         }

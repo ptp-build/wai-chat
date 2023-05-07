@@ -175,6 +175,10 @@ export default class MsgDispatcher {
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
           let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
 
+          if(this.params.botInfo?.botId === UserIdFirstBot){
+            botApi = MsgCommandSetting.getBotApi()
+            return this.handleBotMsg(botApi)
+          }
           if(this.getMsgText() && this.getBotInfo()?.aiBot){
             if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();
@@ -184,19 +188,7 @@ export default class MsgDispatcher {
                 return
               }
               this.outGoingMsg = await this.sendOutgoingMsg();
-
-              const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
-                botApi,
-                chatId:this.getChatId(),
-                text:this.getMsgText()}
-              ).pack())
-              if(SendBotMsgReqRes){
-                const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
-                if(reply){
-                  await new ChatMsg(this.getChatId()).setText(reply).reply()
-                }
-              }
-              return this.outGoingMsg
+              return this.handleBotMsg(botApi)
             }
           }
         }
@@ -214,7 +206,21 @@ export default class MsgDispatcher {
     }
     return res
   }
+  async handleBotMsg(botApi:string){
 
+    const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
+      botApi,
+      chatId:this.getChatId(),
+      text:this.getMsgText()}
+    ).pack())
+    if(SendBotMsgReqRes){
+      const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
+      if(reply){
+        await new ChatMsg(this.getChatId()).setText(reply).reply()
+      }
+    }
+    return this.outGoingMsg
+  }
   static async retryAi(chatId:string,messageAssistantId:number){
     const global = getGlobal();
     const {chatGptAskHistory} = global

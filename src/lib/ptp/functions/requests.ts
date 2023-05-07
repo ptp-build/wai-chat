@@ -210,8 +210,13 @@ export async function requestChatStream(
         finish();
       }else{
         finish();
-        const json = await res.json()
-        return json.choices[0].message.content
+        const text = await res.text()
+        try {
+          const json = JSON.parse(text)
+          return json.choices[0].message.content
+        }catch (e){
+          return text
+        }
       }
     } else if (res.status === 401) {
       console.error("Anauthorized");

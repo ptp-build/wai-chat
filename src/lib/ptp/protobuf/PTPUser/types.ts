@@ -2,10 +2,11 @@
 import type * as PTPCommon from '../PTPCommon/types';
 
 export interface DownloadUserReq_Type {
-  userIds?: string[];
+  userId: string;
+  updatedAt?: number;
 }
 export interface DownloadUserRes_Type {
-  users?: PTPCommon.UserStoreRow_Type[];
+  userBuf?: Buffer;
   err?: PTPCommon.ERR;
 }
 export interface GenUserIdReq_Type {}
@@ -14,13 +15,8 @@ export interface GenUserIdRes_Type {
   err: PTPCommon.ERR;
 }
 export interface ShareBotReq_Type {
-  userId: string;
-  firstName: string;
-  avatarHash?: string;
-  bio: string;
-  init_system_content?: string;
-  welcome?: string;
-  template?: string;
+  catTitle: string;
+  catBot: PTPCommon.PbCatBot_Type;
 }
 export interface ShareBotRes_Type {
   err?: PTPCommon.ERR;
@@ -32,8 +28,7 @@ export interface ShareBotStopRes_Type {
   err?: PTPCommon.ERR;
 }
 export interface UploadUserReq_Type {
-  users?: PTPCommon.UserStoreRow_Type[];
-  time: number;
+  userBuf: Buffer;
 }
 export interface UploadUserRes_Type {
   err?: PTPCommon.ERR;

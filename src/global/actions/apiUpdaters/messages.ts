@@ -70,11 +70,15 @@ import {RemoveMessagesReq} from "../../../lib/ptp/protobuf/PTPMsg";
 const ANIMATION_DELAY = 350;
 
 const handleMessageEntities = (global:GlobalState,chatId:string,message:ApiMessage|Partial<ApiMessage>)=>{
+
+  const userNames:Record<string, string> = {}
+  Object.values(global.users.byId).map(user=>userNames["@"+user.usernames![0].username] = user.id)
+
   if(message.content?.text && (!message.content.text.entities || message.content.text.entities?.length === 0)){
     const user = selectUser(global,chatId)
     message = handleMessageTextCode(message)
     if(user && user.fullInfo?.botInfo){
-      message = handleBotCmdText(message,user.fullInfo.botInfo) as ApiMessage
+      message = handleBotCmdText(message,user.fullInfo.botInfo,userNames) as ApiMessage
     }
   }
   message.isOutgoing = false
@@ -674,12 +678,23 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     }
 
     case 'updateMessageTranslations': {
-      const {
+      let {
         chatId, messageIds, toLanguageCode, translations,
       } = update;
-
+      if(translations && translations.length > 0) {
+        translations = translations.map((t, i) => {
+          let message =  selectChatMessage(global, chatId, messageIds[i])!
+          message = handleMessageEntities(global, chatId, {
+            ...message,
+            content: {
+              ...message.content,
+              text:t
+            }
+          })
+          return message.content.text
+        })
+      }
       global = updateMessageTranslations(global, chatId, messageIds, toLanguageCode, translations);
-
       setGlobal(global);
       break;
     }

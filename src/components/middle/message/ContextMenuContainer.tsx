@@ -71,7 +71,7 @@ export type OwnProps = {
 };
 
 type StateProps = {
-  aiAssitantMsgId?:number,
+  aiAssistantMsgId?:number,
   aiUserMsgId?:number,
   availableReactions?: ApiAvailableReaction[];
   customEmojiSetsInfo?: ApiStickerSetInfo[];
@@ -113,7 +113,7 @@ type StateProps = {
 };
 
 const ContextMenuContainer: FC<OwnProps & StateProps> = ({
-  aiAssitantMsgId,
+  aiAssistantMsgId,
   aiUserMsgId,
   availableReactions,
   isOpen,
@@ -560,7 +560,7 @@ const ContextMenuContainer: FC<OwnProps & StateProps> = ({
 
       <ShareModal
         messageId={message.id}
-        aiAssitantMsgId={aiAssitantMsgId}
+        aiAssistantMsgId={aiAssistantMsgId}
         aiUserMsgId={aiUserMsgId}
         chatId={message.chatId}
         isOpen={isShareModalOpen}
@@ -644,17 +644,17 @@ export default memo(withGlobal<OwnProps>(
 
     const { canTranslate: isTranslationEnabled, language, doNotTranslate } = global.settings.byKey;
     const { chatGptAskHistory } = global;
-    const history = chatGptAskHistory[message.chatId] | {}
-    let aiAssitantMsgId,aiUserMsgId;
+    const history = chatGptAskHistory[message.chatId] || {}
+    let aiAssistantMsgId,aiUserMsgId;
 
     if(history[message.id]){
-      aiAssitantMsgId = message.id
+      aiAssistantMsgId = message.id
       aiUserMsgId = history[message.id]
     }else{
       Object.keys(history).forEach(id=>{
         if(history[id] === message.id){
           aiUserMsgId = message.id
-          aiAssitantMsgId = id
+          aiAssistantMsgId = parseInt(id)
         }
       })
     }
@@ -664,7 +664,7 @@ export default memo(withGlobal<OwnProps>(
       && canTranslateLanguage && !isLocal && !isScheduled && !isAction && !hasTranslation && !message.emojiOnlyCount;
 
     return {
-      aiAssitantMsgId,
+      aiAssistantMsgId,
       aiUserMsgId,
       availableReactions: global.availableReactions,
       noOptions,
