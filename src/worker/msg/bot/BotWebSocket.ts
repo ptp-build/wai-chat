@@ -167,9 +167,6 @@ export default class BotWebSocket {
     if(e.data && e.data.byteLength && e.data.byteLength > 16){
       let pdu = new Pdu(Buffer.from(e.data));
       const seq_num = pdu.getSeqNum();
-      if(DEBUG){
-        console.log("[onData]",seq_num,pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
-      }
       if(pdu.getCommandId() === 5001){
         return
       }

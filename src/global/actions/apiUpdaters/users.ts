@@ -124,7 +124,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
               userStoreData.chatIdsDeleted = []
             }
           }
-
           callApiWithPdu(new SyncReq({
             userStoreData,
           }).pack()).catch(console.error)

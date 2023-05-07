@@ -121,11 +121,12 @@ export default class MsgCommand {
   }
   static async downloadUser(userId:string){
     let global = getGlobal();
-
     const userLocal = selectUser(global,userId)
+    const updatedAt = userLocal?.updatedAt ? userLocal.updatedAt : 0
+    console.log("[downloadUser]",updatedAt,userId,userLocal?.firstName)
     const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
       userId,
-      updatedAt:userLocal?.updatedAt ? userLocal.updatedAt : 0
+      updatedAt
     }).pack())
     if(DownloadUserReqRes){
       const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes.pdu!)
@@ -217,21 +218,26 @@ export default class MsgCommand {
     }).pack())
     if(DownloadMsgReqRes && DownloadMsgReqRes.pdu){
       const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
-      console.log("downloadMsgRes",downloadMsgRes)
+      console.log("downloadMsgRes",chatId,downloadMsgRes)
       if(downloadMsgRes.messages){
         for (let i = 0; i < downloadMsgRes.messages.length; i++) {
           const buf = downloadMsgRes.messages[i];
-          const message = PbMsg.parseMsg(new Pdu(Buffer.from(buf)))
-          if(message){
-            if(message.previousLocalId){
-              delete message.previousLocalId
+          try {
+            const message = PbMsg.parseMsg(new Pdu(Buffer.from(buf)))
+            if(message){
+              if(message.previousLocalId){
+                delete message.previousLocalId
+              }
+              if(selectChatMessage(global,chatId,message!.id)){
+                await new ChatMsg(chatId).update(message!.id,message as ApiMessage)
+              }else{
+                await new ChatMsg(chatId).sendNewMessage(message as ApiMessage)
+              }
             }
-            if(selectChatMessage(global,chatId,message!.id)){
-              await new ChatMsg(chatId).update(message!.id,message as ApiMessage)
-            }else{
-              await new ChatMsg(chatId).sendNewMessage(message as ApiMessage)
-            }
+          }catch (e){
+
           }
+
         }
       }
       if(downloadMsgRes.userMessageStoreData){
