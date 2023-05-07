@@ -21,7 +21,7 @@ const searchThrottled = throttle((cb) => cb(), 500, false);
 
 addActionHandler('fetchTopCats', async (global, actions, payload) => {
   const {topCats} = global
-  if(topCats){
+  if(topCats && topCats.cats){
     topCats.cats.forEach(cat=>{
       cat.botIds.forEach(botId=>{
         selectUser(global,botId)
