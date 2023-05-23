@@ -130,7 +130,6 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
               },500)
             }
           }
-
           return global
         case "updateTopCats":
           return {

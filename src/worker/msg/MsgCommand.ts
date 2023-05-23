@@ -85,7 +85,7 @@ export default class MsgCommand {
     return true;
   }
 
-  async reloadCommands(cmds:ApiBotCommand[]){
+  reloadCommands(cmds:ApiBotCommand[]){
     let global = getGlobal();
     let user = selectUser(global,this.chatId)
     const botInfo = user?.fullInfo?.botInfo;
@@ -108,8 +108,6 @@ export default class MsgCommand {
         }
       })
       setGlobal(global)
-      global = getGlobal()
-      user = selectUser(global,this.chatId)
       return true;
     }
   }
@@ -178,7 +176,11 @@ export default class MsgCommand {
         }
       }
     }
-    new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
+
+    const gpt = new MsgCommandChatGpt(userId);
+    if(gpt.getAiBotConfig("botApi")){
+      await gpt.getCmdListFromRemoteApi();
+    }
     await MsgCommand.downloadSavedMsg(userId)
   }
   static async uploadUser(global:GlobalState,chatId:string){

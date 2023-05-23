@@ -76,7 +76,6 @@ import {uploadFileV1} from "../../../lib/gramjs/client/uploadFile";
 import MsgWorker from "../../../worker/msg/MsgWorker";
 import {requestChatStream} from "../../../lib/ptp/functions/requests";
 import {ChatModelConfig} from "../../../worker/setting";
-import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 const FAST_SEND_TIMEOUT = 1000;
 const INPUT_WAVEFORM_LENGTH = 63;

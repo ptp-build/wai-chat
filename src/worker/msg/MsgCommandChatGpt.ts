@@ -170,7 +170,6 @@ export default class MsgCommandChatGpt{
   }
 
   async setting(outGoingMsgId:number){
-    await this.reloadCommands()
     const text = `设置面板`
     return this.chatMsg.setText(text).setInlineButtons(this.getInlineButtons(outGoingMsgId)).reply();
   }
@@ -181,7 +180,6 @@ export default class MsgCommandChatGpt{
       const global = getGlobal();
       console.log({user:global.users.byId[chatId],messages:global.messages.byChatId[chatId]})
     }
-    await this.reloadCommands();
     const botInfo = this.getBotInfo();
     const desc = botInfo?.description
 
@@ -316,6 +314,9 @@ ${desc}
     'outputText' |
     'templateSubmit'
   ){
+    if(key === "api_key"){
+      return localStorage.getItem("cg-key") || ""
+    }
     const aiBotConfig = this.getAiBotConfig("chatGptConfig") as PbChatGpBotConfig_Type
     if(aiBotConfig && aiBotConfig[key] !== undefined){
       return aiBotConfig[key]
@@ -343,6 +344,8 @@ ${desc}
   changeAiBotConfig(aiConfig:Partial<PbAiBot_Type>){
     let global = getGlobal();
     const user = selectUser(global,this.chatId);
+    const cmds = user!.fullInfo!.botInfo?.commands
+
     global = updateUser(global,this.chatId,{
       ...user,
       updatedAt:currentTs(),
@@ -358,6 +361,10 @@ ${desc}
       }
     })
     setGlobal(global)
+    setTimeout(()=>{
+      //@ts-ignore
+      new MsgCommand(this.chatId).reloadCommands(cmds)
+    },1000)
     if(MsgCommandChatGpt.isMyBot(this.chatId)){
       MsgCommand.uploadUser(getGlobal(),this.chatId).catch(console.error)
     }
@@ -365,7 +372,6 @@ ${desc}
   changeChatGptConfig(chatGptConfig:Partial<PbChatGpBotConfig_Type>){
     let global = getGlobal();
     const user = selectUser(global,this.chatId);
-
     this.changeAiBotConfig({
       ...user?.fullInfo?.botInfo?.aiBot,
       chatGptConfig:{
@@ -431,8 +437,7 @@ ${desc}
     return STOP_HANDLE_MESSAGE
   }
   async apiKey(){
-    const {chatId} = this
-    const api_key = this.getChatGptConfig("api_key") as string
+    const api_key = localStorage.getItem("cg-key") || ""
     const {value} = await showModalFromEvent({
       initVal:api_key,
       title:"请输入apiKey",
@@ -440,7 +445,6 @@ ${desc}
     })
     if(value!== api_key){
       localStorage.setItem("cg-key",value || "")
-      this.changeChatGptConfig({api_key:value})
       MsgDispatcher.showNotification("修改成功")
     }
     return STOP_HANDLE_MESSAGE
@@ -665,8 +669,8 @@ ${desc}
     })
   }
 
-  async updateCmd(messageId:number){
-    const chatId = this.chatId;
+  async getCmdListFromRemoteApi(){
+    const {chatId} = this;
     const botApi = this.getAiBotConfig('botApi') as string
     const res = await callApiWithPdu(new UpdateCmdReq({
       botApi,
@@ -674,18 +678,20 @@ ${desc}
     }).pack())
     if(res){
       const {commands} = UpdateCmdRes.parseMsg(res.pdu)
-      this.changeAiBotConfig({
-        commandsFromApi:commands?.map(cmd=>{
-          return{
-            ...cmd,
-            botId:chatId
-          }
-        })
-      })
-      await this.reloadCommands()
-      MsgDispatcher.showNotification("更新成功")
-      await this.chatMsg.setJson(commands,"commands:").reply()
+      const cmds = [...DEFAULT_BOT_COMMANDS,...commands]
+      new MsgCommand(this.chatId).reloadCommands(cmds)
+      return cmds
     }else{
+      return DEFAULT_BOT_COMMANDS
+    }
+  }
+
+  async updateCmd(){
+    try {
+      const cmdList = await this.getCmdListFromRemoteApi();
+      await this.chatMsg.setJson(cmdList,"commands:").reply()
+      MsgDispatcher.showNotification("更新成功")
+    }catch (e){
       MsgDispatcher.showNotification("更新失败")
     }
   }
@@ -859,7 +865,6 @@ ${desc}
       this.changeAiBotConfig({
         enableAi:isEnable
       })
-      await this.reloadCommands()
       await this.chatMsg.update(messageId,{
         inlineButtons:this.getInlineButtons(Number(outGoingMsgId))
       })
@@ -917,7 +922,7 @@ ${desc}
         await this.setApi(messageId)
         return
       case `${chatId}/setting/ai/updateCmd`:
-        await this.updateCmd(messageId)
+        await this.updateCmd()
         return
       case `${chatId}/setting/ai/customApi`:
         await this.customApi(messageId)
@@ -946,9 +951,6 @@ ${desc}
         break
       case `${chatId}/setting/ai/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
-        break
-      case `${chatId}/setting/ai/reloadCommands`:
-        await this.reloadCommands()
         break
       case `${chatId}/requestChatStream/retry`:
         await this.chatMsg.update(messageId,{
@@ -1036,20 +1038,6 @@ ${desc}
 
         }
         break;
-      case `${chatId}/apiKey`:
-        const res = await showModalFromEvent({
-          type:"singleInput",
-          title:"请输入 ApiKey",
-          placeholder:""
-        });
-        let api_key = this.getChatGptConfig('api_key')
-        if(api_key !== res.value) {
-          api_key = res.value;
-          this.changeChatGptConfig({
-            api_key
-          })
-        }
-        break;
     }
   }
   getCommands(){
@@ -1069,9 +1057,5 @@ ${desc}
       }
     }
     return commands
-  }
-  async reloadCommands() {
-    // @ts-ignore
-    await new MsgCommand(this.chatId).reloadCommands(this.getCommands())
   }
 }
