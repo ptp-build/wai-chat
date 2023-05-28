@@ -18,6 +18,7 @@ import MsgCommandSetting from "./MsgCommandSetting";
 import {selectChatMessage} from "../../global/selectors";
 import BotChatGpt from "./bot/BotChatGpt";
 import ChatMsg from "./ChatMsg";
+import {CHATGPT_PROXY_API} from "../../config";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -174,11 +175,6 @@ export default class MsgDispatcher {
 
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
           let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
-
-          if(this.params.botInfo?.botId === UserIdFirstBot){
-            botApi = MsgCommandSetting.getBotApi()
-            return this.handleBotMsg(botApi)
-          }
           if(this.getMsgText() && this.getBotInfo()?.aiBot){
             if(enableAi){
               this.outGoingMsg = await this.sendOutgoingMsg();

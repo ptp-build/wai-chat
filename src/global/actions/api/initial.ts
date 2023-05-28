@@ -30,14 +30,13 @@ import type {ActionReturnType} from '../../types';
 import {buildCollectionByKey} from '../../../util/iteratees';
 import Account from "../../../worker/share/Account";
 import LocalStorage from "../../../worker/share/db/LocalStorage";
-import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
-import {hashSha256} from "../../../worker/share/utils/helpers";
 import {callApiWithPdu} from "../../../worker/msg/utils";
-import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
 import {getPasswordFromEvent} from "../../../worker/share/utils/password";
 import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
 import ChatMsg from "../../../worker/msg/ChatMsg";
-import { GenMsgIdReq, GenMsgIdRes } from '../../../lib/ptp/protobuf/PTPMsg';
+import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
+import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
+import {DEFAULT_LANG_MNEMONIC} from "../../../worker/setting";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -56,7 +55,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
   Account.setClientKv(new LocalStorage())
   const accountId = Account.getCurrentAccountId();
   let account = Account.getInstance(accountId);
-  const entropy = await account.getEntropy();
+  let entropy = await account.getEntropy();
   const session = account.getSession()
   ChatMsg.setApiUpdate(actions.apiUpdate,async(isLocal?:boolean)=>{
       const res = await callApiWithPdu(new GenMsgIdReq({isLocal:!!isLocal}).pack())
@@ -79,13 +78,26 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
   });
   setTimeout(async ()=>{
     if(!session){
-      const {password} = await getPasswordFromEvent(undefined,true,'showMnemonic',true)
+      const mnemonic1 = Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).getWords()
+      const {password,mnemonic} = await getPasswordFromEvent(
+        undefined,
+        true,
+        'mnemonicPassword',
+        true,
+        {
+          title:"请输入助记词密码",
+          mnemonic:mnemonic1
+        }
+      )
       if(password){
-        await new MsgCommandSetting("").enableSync(getGlobal(),password,undefined)
+        if(mnemonic1 !== mnemonic1){
+          account?.setEntropy(Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).toEntropy(),false)
+        }
+        await new MsgCommandSetting("").doSwitchAccount(getGlobal(),password,undefined)
         return
       }
     }
-  },1000)
+  },500)
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {

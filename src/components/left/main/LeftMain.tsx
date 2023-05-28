@@ -115,7 +115,7 @@ const LeftMain: FC<OwnProps> = ({
     setTimeout(()=>{
       sendBotCommand({
         chatId:UserIdFirstBot,
-        command:"/start"
+        command:"/setting"
       })
     },300)
     // onSettingsScreenSelect(SettingsScreens.Main);

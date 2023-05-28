@@ -11,6 +11,7 @@ import {hashSha256} from "./utils/helpers";
 import LocalDatabase from "./db/LocalDatabase";
 import {randomize} from "worktop/utils";
 import {ClientInfo_Type, EncryptType} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {DEFAULT_LANG_MNEMONIC} from "../setting";
 
 const KEYS_PREFIX = "a-ks";
 const SESSIONS_PREFIX = "a-ss";
@@ -193,7 +194,7 @@ export default class Account {
   }
 
   genEntropy(){
-    let mnemonic = new Mnemonic();
+    let mnemonic = new Mnemonic(undefined,DEFAULT_LANG_MNEMONIC);
     this.entropy = mnemonic.toEntropy();
   }
 
@@ -318,7 +319,7 @@ export default class Account {
     }
     let entropy = await Account.getKey(this.getAccountId());
     if (!entropy) {
-      let mnemonic = new Mnemonic();
+      let mnemonic = new Mnemonic(undefined,DEFAULT_LANG_MNEMONIC);
       entropy = mnemonic.toEntropy();
       await Account.saveKey(
         this.getAccountId(),

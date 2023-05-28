@@ -1,5 +1,6 @@
 import {PbChatGptModelConfig_Type} from "../lib/ptp/protobuf/PTPCommon/types";
 
+export const DEFAULT_LANG_MNEMONIC = "chinese_simplified"
 export const SERVER_USER_ID_START = "20000000"
 export const SERVER_BOT_USER_ID_START = "10000000"
 
@@ -14,7 +15,7 @@ export const DEFAULT_AVATARS:Record<string, string> = {
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
-export const DEFAULT_WAI_USER_BIO = '我是您的Wai助理'
+export const DEFAULT_WAI_USER_BIO = '基于 chatGpt的Ai助手'
 export const DEFAULT_PROMPT = ''
 export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
@@ -93,10 +94,13 @@ export const DEFAULT_CHATGPT_AI_COMMANDS = [
   },
 ]
 
-export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制我：
+export const DEFAULT_START_TIPS = `您好，我是基于chatGpt的Ai小助手
+
+您可以向我提问，我很乐意为您解答问题！
+
+您也可以通过发送以下命令来控制我：
 
 /setting - 设置面板
-
 `
 
 export const CurrentUserInfo = {
@@ -137,6 +141,15 @@ export let LoadAllChats = {
         "noVoiceMessages": false,
         "bio": DEFAULT_WAI_USER_BIO,
         "botInfo": {
+          aiBot:{
+            enableAi:true,
+            chatGptConfig:{
+              modelConfig:ChatModelConfig,
+              api_key:"",
+              init_system_content:DEFAULT_PROMPT,
+              max_history_length:0,
+            },
+          },
           "botId": UserIdFirstBot,
           "description": DEFAULT_CREATE_USER_BIO,
           "menuButton": {
@@ -144,15 +157,6 @@ export let LoadAllChats = {
           },
           "commands": DEFAULT_BOT_COMMANDS
         }
-      },
-      bot:{
-        chatGptConfig:{
-          modelConfig:ChatModelConfig,
-          api_key:"",
-          init_system_content:DEFAULT_PROMPT,
-          max_history_length:0,
-        },
-        enableAi:false,
       },
       "accessHash": "",
       "firstName": NameFirstBot,

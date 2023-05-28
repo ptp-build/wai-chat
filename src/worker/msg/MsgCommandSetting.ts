@@ -1,21 +1,12 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectChatMessage, selectChatMessages} from "../../global/selectors";
+import {selectChatMessage} from "../../global/selectors";
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {ApiBotCommand, ApiKeyboardButtons, ApiMessage} from "../../api/types";
 import {callApiWithPdu} from "./utils";
-import {currentTs} from "../share/utils/utils";
-import {MessageStoreRow_Type, PbMsg_Type, QrCodeType} from "../../lib/ptp/protobuf/PTPCommon/types";
-import {
-  DownloadMsgReq,
-  DownloadMsgRes,
-  UpdateCmdReq,
-  UpdateCmdRes,
-  UploadMsgReq,
-  UploadMsgRes
-} from "../../lib/ptp/protobuf/PTPMsg";
-import Mnemonic from "../../lib/ptp/wallet/Mnemonic";
+import {PbMsg_Type, QrCodeType} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {UpdateCmdReq, UpdateCmdRes, UploadMsgReq, UploadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import Mnemonic, {MnemonicLangEnum} from "../../lib/ptp/wallet/Mnemonic";
 import Account from "../share/Account";
-import {AuthNativeReq} from "../../lib/ptp/protobuf/PTPAuth";
 import {GlobalState} from "../../global/types";
 import {getPasswordFromEvent} from "../share/utils/password";
 import {hashSha256} from "../share/utils/helpers";
@@ -25,7 +16,7 @@ import {PbMsg, PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
 import {CHATGPT_PROXY_API, CLOUD_MESSAGE_API, DEBUG} from "../../config";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE} from "../setting";
+import {DEFAULT_BOT_COMMANDS, DEFAULT_LANG_MNEMONIC, DEFAULT_START_TIPS, STOP_HANDLE_MESSAGE} from "../setting";
 import ChatMsg from "./ChatMsg";
 import {showModalFromEvent} from "../share/utils/modal";
 
@@ -47,20 +38,15 @@ export default class MsgCommandSetting{
       console.log("> userStoreData",getGlobal().userStoreData)
       console.log("> topCats",getGlobal().topCats)
     }
-    let tips = DEFAULT_START_TIPS
-    if(CLOUD_MESSAGE_API){
-      const res = await callApiWithPdu(new UpdateCmdReq({
-        botApi:MsgCommandSetting.getBotApi(),
-        chatId,
-      }).pack())
-      if(res){
-        const {commands,startTips} = UpdateCmdRes.parseMsg(res.pdu)
-        await new MsgCommand(chatId).reloadCommands(commands as ApiBotCommand[])
-        tips = startTips!
-      }
-    }else{
-      //@ts-ignore
-      await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    let tips = localStorage.getItem("DEFAULT_START_TIPS") || DEFAULT_START_TIPS
+    const res = await callApiWithPdu(new UpdateCmdReq({
+      botApi:MsgCommandSetting.getBotApi(),
+      chatId,
+    }).pack())
+    if(res){
+      const {commands,startTips} = UpdateCmdRes.parseMsg(res.pdu)
+      await new MsgCommand(chatId).reloadCommands(commands as ApiBotCommand[])
+      tips = startTips!
     }
 
     return this.chatMsg.setText(tips).reply()
@@ -72,18 +58,19 @@ export default class MsgCommandSetting{
   async setting(outGoingMsgId:number) {
     const {chatId} = this;
     //@ts-ignore
-    await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
+    // await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
     // return  this.chatMsg.setText("设置面板")
     //   .setInlineButtons(this.getInlineButtons(outGoingMsgId))
     //   .reply()
 
     const address = Account.getCurrentAccount()?.getSessionAddress()
-    await this.chatMsg.setText("当前账户:\n```\n"+address+"```").setInlineButtons([
-      MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
-      MsgCommand.buildInlineButton(chatId,"",'unsupported'),
-      MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
-      MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
-      MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
+    const text = "设置";
+    // const text = "当前账户:\n```\n"+address+"```";
+    await this.chatMsg.setText(text).setInlineButtons([
+      // MsgCommand.buildInlineButton(chatId,"",'unsupported'),
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId,"setting/doSwitchAccount",`切换账户 ( ${address?.substring(0,4)}***${address?.substring(address?.length - 4)} )`,'callback'),
+      ],
       MsgCommand.buildInlineCallbackButton(chatId,"setting/clearHistory","清除历史记录",'callback'),
       MsgCommand.buildInlineCallbackButton(chatId,outGoingMsgId + "/setting/cancel","取消",'callback'),
       // MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
@@ -153,16 +140,16 @@ export default class MsgCommandSetting{
         throw new Error("解析二维码失败")
       }
       const {password} = await getPasswordFromEvent(undefined,true);
-      const res = await aesDecrypt(data,Buffer.from(hashSha256(password),"hex"))
+      const res = await aesDecrypt(data,Buffer.from(hashSha256(password!),"hex"))
       if(res){
-        await this.setMnemonic(res,password);
+        await this.changeMnemonic(res,password);
         return;
       }
     }
   }
 
-  async setMnemonic(data:string,password?:string){
-    const mnemonic = new Mnemonic(data)
+  async changeMnemonic(words:string,password?:string){
+    const mnemonic = new Mnemonic(words)
     if(mnemonic.checkMnemonic()){
       if(!password){
         const res = await getPasswordFromEvent(undefined,true)
@@ -186,10 +173,7 @@ export default class MsgCommandSetting{
         const {address, sign} = await account!.signMessage(ts.toString(), pwd);
         const session = Account.formatSession({address,sign,ts,accountId});
         account!.saveSession(session)
-        // await callApiWithPdu(new AuthNativeReq({
-        //   accountId,entropy:mnemonic.toEntropy(),session
-        // }).pack())
-        window.location.reload()
+        setTimeout(()=>window.location.reload(),200)
       }
     }else{
       await this.chatMsg.setText("mnemonic 不合法").reply()
@@ -217,7 +201,7 @@ export default class MsgCommandSetting{
               const resVerify = await account?.verifySession(session,password);
               if(resVerify){
                 Account.setCurrentAccountId(accountId)
-                return await this.enableSync(global,password,messageId)
+                return await this.doSwitchAccount(global,password,messageId)
               }else{
                 return MsgDispatcher.showNotification("密码不正确!")
               }
@@ -229,12 +213,12 @@ export default class MsgCommandSetting{
     }else{
       const {password} = await getPasswordFromEvent(undefined,true)
       if(password){
-        return await this.enableSync(global,password,messageId)
+        return await this.doSwitchAccount(global,password,messageId)
       }
     }
   }
 
-  async enableSync(global:GlobalState,password:string,messageId?:number){
+  async doSwitchAccount(global:GlobalState,password:string,messageId?:number){
     const {chatId} = this;
     const account = Account.getCurrentAccount();
     const pwd = hashSha256(password)
@@ -242,16 +226,13 @@ export default class MsgCommandSetting{
     const {address, sign} = await account!.signMessage(ts.toString(), pwd);
     const session = Account.formatSession({address,sign,ts,accountId:account?.getAccountId()!});
     account!.saveSession(session)
-    const entropy = await account!.getEntropy()
-    const accountId = account!.getAccountId();
+    await account!.getEntropy()
+    account!.getAccountId();
     if(chatId){
       await this.chatMsg.update(messageId!,{
         inlineButtons:[]
       })
     }
-    // await callApiWithPdu(new AuthNativeReq({
-    //   accountId,entropy,session
-    // }).pack())
     setTimeout(()=>window.location.reload(),200)
   }
 
@@ -291,11 +272,6 @@ export default class MsgCommandSetting{
       case `${chatId}/setting/clearHistory`:
         await new MsgCommand(chatId).clearHistory()
         break
-      case `${chatId}/setting/reloadCommand`:
-        //@ts-ignore
-        await new MsgCommand(chatId).reloadCommands(DEFAULT_BOT_COMMANDS)
-        break
-
       case `${chatId}/setting/syncMessage`:
         getActions().updateGlobal({
           showPickBotModal:true
@@ -313,7 +289,7 @@ export default class MsgCommandSetting{
         await this.chatMsg.setText("当前账户:\n```\n"+address+"```").setInlineButtons([
           MsgCommand.buildInlineCallbackButton(chatId,"setting/showMnemonic","导出此账户",'callback'),
           MsgCommand.buildInlineButton(chatId,"",'unsupported'),
-          MsgCommand.buildInlineCallbackButton(chatId,"setting/enableSync","密码登录",'callback'),
+          MsgCommand.buildInlineCallbackButton(chatId,"setting/doSwitchAccount","密码登录",'callback'),
           MsgCommand.buildInlineButton(chatId,"二维码导入",'requestUploadImage'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/importMnemonic","导入",'callback'),
           MsgCommand.buildInlineCallbackButton(chatId,"setting/switchAccount/back/"+JSON.stringify(selectChatMessage(global,chatId,messageId)?.inlineButtons),"< 返回",'callback')
@@ -324,78 +300,23 @@ export default class MsgCommandSetting{
           showMnemonicModal:true
         })
         break
-      case `${chatId}/setting/disableSync`:
-        await this.disableSync(global,messageId)
-        break
-      case `${chatId}/setting/enableSync`:
-        const {password} = await getPasswordFromEvent(undefined,true)
-        if(password){
-          await this.enableSync(global,password,messageId)
-        }
-        break
-    }
-  }
-
-  async disableSync(global:GlobalState,messageId:number){
-    const account = Account.getCurrentAccount();
-    account?.delSession();
-    await this.chatMsg.update(messageId,{
-      inlineButtons:[]
-    })
-    await callApiWithPdu(new AuthNativeReq({
-      accountId:account!.getAccountId(),
-      entropy:await account!.getEntropy(),
-      session:undefined
-    }).pack())
-    setTimeout(()=>window.location.reload(),500)
-  }
-
-  async onSelectSyncBot(){
-    const data = currentSyncBotContext;
-    const isUpload = !data?.endsWith("downloadMessages");
-    currentSyncBotContext = undefined
-    let global = getGlobal();
-    if(isUpload){
-      const messageById = selectChatMessages(global,this.chatId);
-      const messages:MessageStoreRow_Type[] = [];
-      if(messageById){
-        for (let i = 0; i < Object.keys(messageById).length; i++) {
-          const msgId = parseInt(Object.keys(messageById)[i])
-          // @ts-ignore
-          const message:PbMsg_Type = messageById[msgId]
-          messages.push({
-            time:currentTs(),
-            message,
-            messageId:msgId,
+      case `${chatId}/setting/doSwitchAccount`:
+        const entropy = await Account.getCurrentAccount()?.getEntropy();
+        const mnemonic1 = Mnemonic.fromEntropy(entropy!,DEFAULT_LANG_MNEMONIC as MnemonicLangEnum).getWords()
+        const {password,mnemonic} = await getPasswordFromEvent(
+          undefined,
+          true,"mnemonicPassword",false,{
+            title:"切换账户",
+            mnemonic:mnemonic1
           })
-        }
-      }
-      // await this.uploadMsgList(messages)
-
-    }else{
-      const res = await callApiWithPdu(new DownloadMsgReq({
-        chatId:this.chatId,
-      }).pack())
-      if(res){
-        const {err,messages} = DownloadMsgRes.parseMsg(res?.pdu)
-        console.log("messages",messages)
-        if(messages){
-          for (let i = 0; i < messages?.length; i++) {
-            const {message,messageId} = messages[i]
-            const localMsg = selectChatMessage(global,this.chatId,messageId)
-            if(!localMsg){
-              // @ts-ignore
-              MsgDispatcher.newMessage(chatId,messageId,message)
-            }else{
-              // @ts-ignore
-              MsgDispatcher.updateMessage(chatId,messageId,message)
-            }
+        if(password){
+          if(mnemonic === mnemonic1){
+            await this.doSwitchAccount(global,password,messageId)
+          }else{
+            await this.changeMnemonic(mnemonic!,password);
           }
         }
-        getActions().showNotification({message:"更新成功"})
-      }else{
-        getActions().showNotification({message:"更新失败"})
-      }
+        break
     }
   }
 

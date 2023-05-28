@@ -747,7 +747,12 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
     actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
   }
   actions.openChat({id: userId,shouldReplaceHistory: true,});
-  new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
+  const t = new MsgCommandChatGpt(userId)
+  const cmds = t.getCommands();
+  if (cmds){
+    new MsgCommand(userId).reloadCommands(cmds)
+  }
+
   actions.sendBotCommand({chatId:userId,command:"/start",tabId})
 }
 addActionHandler('createChat', async (global, actions, payload)=> {
