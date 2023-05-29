@@ -802,6 +802,12 @@ var $conv_message = $createConverter([
                 }
             },
             Msg: {
+                CallbackButtonReq: {
+                    '$': {"1":["chatId","string",""],"2":["data","string",""]}
+                },
+                CallbackButtonRes: {
+                    '$': {"1":["text","string",""],"2":["inlineButtons","string",""],"3":["chatId","string",""],"100":["err","uint32",0]}
+                },
                 DownloadMsgReq: {
                     '$': {"1":["chatId","string",""],"2":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },

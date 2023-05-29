@@ -1,6 +1,16 @@
 // DO NOT EDIT
 import type * as PTPCommon from '../PTPCommon/types';
 
+export interface CallbackButtonReq_Type {
+  chatId: string;
+  data: string;
+}
+export interface CallbackButtonRes_Type {
+  text: string;
+  inlineButtons?: string;
+  chatId: string;
+  err?: PTPCommon.ERR;
+}
 export interface DownloadMsgReq_Type {
   chatId: string;
   time?: number;

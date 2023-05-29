@@ -150,10 +150,6 @@ export async function requestChatStream(
     onController?: (controller: AbortController) => void;
   },
 ) {
-  const req = makeRequestParam(options.body.messages, {
-    stream: options.body.stream,
-    filterBot:false,
-  });
 
   if(DEBUG){
     console.log("[Request] ", options.body);

@@ -37,6 +37,7 @@ import ChatMsg from "../../../worker/msg/ChatMsg";
 import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
 import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
 import {DEFAULT_LANG_MNEMONIC} from "../../../worker/setting";
+import {currentTs} from "../../../worker/share/utils/utils";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -77,8 +78,11 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     accountId,entropy,session
   });
   setTimeout(async ()=>{
-    const sessionOpened = window.sessionStorage.getItem("sessionOpened")
-    if(!session || !sessionOpened){
+    let sessionCreatedAt = window.sessionStorage.getItem("sessionCreatedAt")
+    if(sessionCreatedAt && parseInt(sessionCreatedAt) + 3600 * 24 < currentTs()){
+      sessionCreatedAt = ""
+    }
+    if(!session || !sessionCreatedAt){
       const mnemonic1 = Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).getWords()
       const {password,mnemonic} = await getPasswordFromEvent(
         undefined,
@@ -96,7 +100,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
           account?.setEntropy(Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).toEntropy(),false)
         }
         await new MsgCommandSetting("").doSwitchAccount(getGlobal(),password,undefined)
-        window.sessionStorage.setItem("sessionOpened","true")
+        window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
         return
       }
     }

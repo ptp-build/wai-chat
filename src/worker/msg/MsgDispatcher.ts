@@ -18,7 +18,6 @@ import MsgCommandSetting from "./MsgCommandSetting";
 import {selectChatMessage} from "../../global/selectors";
 import BotChatGpt from "./bot/BotChatGpt";
 import ChatMsg from "./ChatMsg";
-import {CHATGPT_PROXY_API} from "../../config";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -39,73 +38,77 @@ export type ParamsType = {
 
 export default class MsgDispatcher {
   private params: ParamsType;
-  private outGoingMsg?:ApiMessage
+  private outGoingMsg?: ApiMessage;
+
   constructor(params: ParamsType) {
     this.params = params;
   }
 
-  static showNotification(message:string){
-    getActions().showNotification({message})
+  static showNotification(message: string) {
+    getActions()
+      .showNotification({message});
   }
 
-  getMsgText(){
+  getMsgText() {
     return this.params.text;
   }
 
-  getChatId(){
+  getChatId() {
     return this.params.chat.id;
   }
 
-  getBotInfo(){
+  getBotInfo() {
     const {botInfo} = this.params;
-    return botInfo ? botInfo : undefined
+    return botInfo ? botInfo : undefined;
   }
 
-  async sendOutgoingMsg(){
-    const chatMsg = new ChatMsg(this.getChatId())
+  async sendOutgoingMsg() {
+    const chatMsg = new ChatMsg(this.getChatId());
     return chatMsg.setText(this.getMsgText()!)
       .setSenderId(getGlobal().currentUserId!)
-      .reply()
+      .reply();
   }
 
-  getBotCommands(){
+  getBotCommands() {
     const {botInfo} = this.params;
-    if(botInfo && botInfo.commands){
-      const commands: string[] = []
-      botInfo.commands.forEach(cmd=>commands.push("/"+cmd.command))
-      return commands
-    }else{
-      return []
+    if (botInfo && botInfo.commands) {
+      const commands: string[] = [];
+      botInfo.commands.forEach(cmd => commands.push("/" + cmd.command));
+      return commands;
+    } else {
+      return [];
     }
   }
 
   private isMsgCipher() {
-    if(this.params.entities){
-      return this.params.entities.find(row=>{
-        return row && Object.keys(row).includes("cipher")
-      })
-    }else{
-      return false
+    if (this.params.entities) {
+      return this.params.entities.find(row => {
+        return row && Object.keys(row)
+          .includes("cipher");
+      });
+    } else {
+      return false;
     }
   }
 
-  async processCmd(){
+  async processCmd() {
     const sendMsgText = this.getMsgText();
     const commands = this.getBotCommands();
-    if(sendMsgText && commands.includes(sendMsgText)){
-      if(this.params.botInfo?.botId === UserIdFirstBot){
+    if (sendMsgText && commands.includes(sendMsgText)) {
+
+      if (this.params.botInfo?.botId === UserIdFirstBot) {
         return await this.processFirstBotCmd();
       }
       return await this.processAiBotCmd();
     }
-    return true
+    return true;
   }
 
-  async processAiBotCmd(){
+  async processAiBotCmd() {
     const sendMsgText = this.getMsgText();
     const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
-    msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id)
-    switch(sendMsgText){
+    msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id);
+    switch (sendMsgText) {
       case "/start":
         return await msgCommandChatGpt.start();
       case "/help":
@@ -117,7 +120,7 @@ export default class MsgDispatcher {
       case "/templateSubmit":
         return await msgCommandChatGpt.templateSubmit();
       case "/setting":
-        return msgCommandChatGpt.setting(this.outGoingMsg!.id)
+        return msgCommandChatGpt.setting(this.outGoingMsg!.id);
       case "/reset":
         return await msgCommandChatGpt.reset();
       case "/aiModel":
@@ -134,122 +137,142 @@ export default class MsgDispatcher {
         return await this.processBotApiCmd();
     }
   }
-  async processBotApiCmd(){
+
+  async processBotApiCmd() {
     const sendMsgText = this.getMsgText();
     let botApi = new MsgCommandChatGpt(this.getChatId()).getAiBotConfig("botApi");
-    if(botApi){
-      botApi = botApi as string
+    if (botApi) {
+      botApi = botApi as string;
     }
-    if(botApi){
-      const res = await callApiWithPdu(new SendBotMsgReq({botApi,chatId:this.getChatId(),text:sendMsgText}).pack())
-      if(res){
-        const {reply} =  SendBotMsgRes.parseMsg(res.pdu)
-        if(reply){
-          await new ChatMsg(this.getChatId()).setText(reply).reply()
+    if (botApi) {
+      const res = await callApiWithPdu(new SendBotMsgReq({
+        botApi,
+        chatId: this.getChatId(),
+        text: sendMsgText
+      }).pack());
+      if (res) {
+        const {reply} = SendBotMsgRes.parseMsg(res.pdu);
+        if (reply) {
+          await new ChatMsg(this.getChatId()).setText(reply)
+            .reply();
         }
       }
     }
-    return STOP_HANDLE_MESSAGE
+    return STOP_HANDLE_MESSAGE;
   }
-  async processFirstBotCmd(){
+
+  async processFirstBotCmd() {
     const sendMsgText = this.getMsgText();
     const msgCommandSetting = new MsgCommandSetting(this.getChatId());
-    switch(sendMsgText){
+    switch (sendMsgText) {
       case "/start":
-        return msgCommandSetting.start()
+        return msgCommandSetting.start();
       case "/setting":
         return await msgCommandSetting.setting(this.outGoingMsg!.id);
+      case "/usage":
+
+        const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
+        msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id);
+        return await msgCommandChatGpt.usage(this.outGoingMsg!.id);
     }
   }
-  async process(){
+
+  async process() {
     let res;
-    if(this.getMsgText()?.startsWith("/")){
-      if(!['/apiKey','/maxHistoryLength'].includes(this.getMsgText()!))
-      this.outGoingMsg = await this.sendOutgoingMsg();
+    if (this.getMsgText()
+      ?.startsWith("/")) {
+      if (!['/apiKey', '/maxHistoryLength'].includes(this.getMsgText()!)) {
+        this.outGoingMsg = await this.sendOutgoingMsg();
+      }
       res = await this.processCmd();
     }
-    if(!res){
+    if (!res) {
       try {
-        if(!this.isMsgCipher() && this.getBotInfo()){
+        if (!this.isMsgCipher() && this.getBotInfo()) {
           const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
 
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
           let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
-          if(this.getMsgText() && this.getBotInfo()?.aiBot){
-            if(enableAi){
+          if (this.getMsgText() && this.getBotInfo()?.aiBot) {
+            if (enableAi) {
               this.outGoingMsg = await this.sendOutgoingMsg();
-              res = await new BotChatGpt(this.getChatId()).process(this.outGoingMsg)
-            }else{
-              if(!botApi){
-                return
+              res = await new BotChatGpt(this.getChatId()).process(this.outGoingMsg);
+            } else {
+              if (!botApi) {
+                return;
               }
               this.outGoingMsg = await this.sendOutgoingMsg();
-              return this.handleBotMsg(botApi)
+              return this.handleBotMsg(botApi);
             }
           }
         }
-      }catch (error:any){
-        console.error(error)
-        if(this.outGoingMsg){
+      } catch (error: any) {
+        console.error(error);
+        if (this.outGoingMsg) {
           ChatMsg.apiUpdate({
             '@type': 'updateMessageSendFailed',
             chatId: this.getChatId(),
             localId: this.outGoingMsg.id,
             error: error.message,
-          })
+          });
         }
       }
     }
-    return res
+    return res;
   }
-  async handleBotMsg(botApi:string){
+
+  async handleBotMsg(botApi: string) {
 
     const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
-      botApi,
-      chatId:this.getChatId(),
-      text:this.getMsgText()}
-    ).pack())
-    if(SendBotMsgReqRes){
-      const {reply} =  SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu)
-      if(reply){
-        await new ChatMsg(this.getChatId()).setText(reply).reply()
+        botApi,
+        chatId: this.getChatId(),
+        text: this.getMsgText()
+      }
+    ).pack());
+    if (SendBotMsgReqRes) {
+      const {reply} = SendBotMsgRes.parseMsg(SendBotMsgReqRes.pdu);
+      if (reply) {
+        await new ChatMsg(this.getChatId()).setText(reply)
+          .reply();
       }
     }
-    return this.outGoingMsg
+    return this.outGoingMsg;
   }
-  static async retryAi(chatId:string,messageAssistantId:number){
+
+  static async retryAi(chatId: string, messageAssistantId: number) {
     const global = getGlobal();
-    const {chatGptAskHistory} = global
-    const historyList = chatGptAskHistory[chatId]
-    if(historyList[messageAssistantId]){
-      const message = selectChatMessage(global,chatId,historyList[messageAssistantId])
-      if(message){
-        await new BotChatGpt(chatId).process(message,selectChatMessage(global,chatId,messageAssistantId))
+    const {chatGptAskHistory} = global;
+    const historyList = chatGptAskHistory[chatId];
+    if (historyList[messageAssistantId]) {
+      const message = selectChatMessage(global, chatId, historyList[messageAssistantId]);
+      if (message) {
+        await new BotChatGpt(chatId).process(message, selectChatMessage(global, chatId, messageAssistantId));
       }
     }
   }
-  static async reRunAi(chatId:string,messageId:number,text:string){
+
+  static async reRunAi(chatId: string, messageId: number, text: string) {
     const global = getGlobal();
-    const message = selectChatMessage(global,chatId,messageId)
-    const {chatGptAskHistory} = global
-    const historyList = chatGptAskHistory[chatId]
+    const message = selectChatMessage(global, chatId, messageId);
+    const {chatGptAskHistory} = global;
+    const historyList = chatGptAskHistory[chatId];
     let assistantMsgId;
-    if(historyList){
+    if (historyList) {
       for (let i = 0; i < Object.keys(historyList).length; i++) {
-        const msgIdAssistant = parseInt(Object.keys(historyList)[i])
-        if(historyList[msgIdAssistant]){
-          if(historyList[msgIdAssistant] === messageId){
-            assistantMsgId = msgIdAssistant
-            break
+        const msgIdAssistant = parseInt(Object.keys(historyList)[i]);
+        if (historyList[msgIdAssistant]) {
+          if (historyList[msgIdAssistant] === messageId) {
+            assistantMsgId = msgIdAssistant;
+            break;
           }
         }
       }
     }
-    let assistantMsg:ApiMessage|undefined
-    if(assistantMsgId && message){
-      assistantMsg = selectChatMessage(global,chatId,assistantMsgId)
-      message.content.text!.text = text
-      await new BotChatGpt(chatId).process(message,assistantMsg)
+    let assistantMsg: ApiMessage | undefined;
+    if (assistantMsgId && message) {
+      assistantMsg = selectChatMessage(global, chatId, assistantMsgId);
+      message.content.text!.text = text;
+      await new BotChatGpt(chatId).process(message, assistantMsg)
     }
   }
 }

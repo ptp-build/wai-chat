@@ -111,7 +111,7 @@ export const DEFAULT_START_TIPS = `您好，我是基于chatGpt的Ai小助手
 
 您也可以通过发送以下命令来控制我：
 
-/setting - 设置面板
+⚪ /setting - 设置面板
 `
 
 export const CurrentUserInfo = {

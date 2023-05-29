@@ -71,3 +71,15 @@ message SendBotMsgRes{
   optional Common.ChatGptStreamStatus streamStatus = 4;
   optional Common.PbMsg message = 5;
 }
+
+message CallbackButtonReq{
+  required string chatId = 1;
+  required string data = 2;
+}
+
+message CallbackButtonRes{
+  required string text = 1;
+  optional string inlineButtons = 2;
+  required string chatId = 3;
+  optional Common.ERR err = 100;
+}

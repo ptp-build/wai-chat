@@ -1,3 +1,5 @@
+export { default as CallbackButtonReq } from './CallbackButtonReq';
+export { default as CallbackButtonRes } from './CallbackButtonRes';
 export { default as DownloadMsgReq } from './DownloadMsgReq';
 export { default as DownloadMsgRes } from './DownloadMsgRes';
 export { default as GenMsgIdReq } from './GenMsgIdReq';

@@ -215,8 +215,10 @@ addActionHandler('openChat', async (global, actions, payload): ActionReturnType 
     //todo
     // actions.requestChatUpdate({ chatId: id });
   }
-
-  MsgCommand.downloadUser(id).catch(console.error)
+  //@ts-ignore
+  if(!window.stopOpenChat){
+    MsgCommand.downloadUser(id).catch(console.error)
+  }
 
   if (threadId !== MAIN_THREAD_ID) {
     actions.requestThreadInfoUpdate({ chatId: id, threadId });
