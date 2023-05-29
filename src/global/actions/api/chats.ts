@@ -84,6 +84,7 @@ import {selectCurrentLimit} from '../../selectors/limits';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {
+  ChatModelConfig,
   CurrentUserInfo,
   DEFAULT_AVATARS,
   DEFAULT_CREATE_USER_BIO,
@@ -2276,7 +2277,19 @@ export async function loadChats<T extends GlobalState>(
       global = updateUser(global,UserIdFirstBot,{
         fullInfo:{
           ...selectUser(global,UserIdFirstBot)!.fullInfo,
-          bio:DEFAULT_WAI_USER_BIO
+          bio:DEFAULT_WAI_USER_BIO,
+          botInfo:{
+            ...selectUser(global,UserIdFirstBot)!.fullInfo!.botInfo,
+            aiBot:{
+              enableAi:true,
+              chatGptConfig:{
+                modelConfig:ChatModelConfig,
+                api_key:"",
+                init_system_content:DEFAULT_PROMPT,
+                max_history_length:0,
+              },
+            },
+          }
         },
         usernames:[
           {
