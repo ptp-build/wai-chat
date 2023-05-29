@@ -77,7 +77,8 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     accountId,entropy,session
   });
   setTimeout(async ()=>{
-    if(!session){
+    const sessionOpened = window.sessionStorage.getItem("sessionOpened")
+    if(!session || !sessionOpened){
       const mnemonic1 = Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).getWords()
       const {password,mnemonic} = await getPasswordFromEvent(
         undefined,
@@ -86,18 +87,20 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
         true,
         {
           title:"请输入助记词密码",
-          mnemonic:mnemonic1
+          mnemonic:mnemonic1,
+          backGroundBlack:true
         }
       )
       if(password){
-        if(mnemonic1 !== mnemonic1){
+        if(mnemonic1 !== mnemonic){
           account?.setEntropy(Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).toEntropy(),false)
         }
         await new MsgCommandSetting("").doSwitchAccount(getGlobal(),password,undefined)
+        window.sessionStorage.setItem("sessionOpened","true")
         return
       }
     }
-  },500)
+  },1000)
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {

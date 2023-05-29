@@ -22,6 +22,7 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
   const [open, setOpen] = useState<boolean>(false);
   const [title, setTitle] = useState<string>("Password");
   const [noBackdropClose, setNoBackdropClose] = useState<boolean>(false);
+  const [backGroundBlack, setBackGroundBlack] = useState<boolean>(false);
 
   const [showHitInput, setShowHitInput] = useState<boolean>(false);
   const [passwordHelper, setPasswordHelper] = useState<PasswordHelperType>("");
@@ -63,9 +64,12 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
         setShowHitInput(!e.detail.hideHitInput);
         // @ts-ignore
         const options:PasswordFromEventOptions = e.detail.options as PasswordFromEventOptions || {}
-        const {title,mnemonic} = options
+        const {title,mnemonic,backGroundBlack} = options
         if(title){
           setTitle(title)
+        }
+        if(backGroundBlack !== undefined){
+          setBackGroundBlack(true)
         }
         if(mnemonic){
           setMnemonic(mnemonic)
@@ -97,7 +101,7 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
         setOpen(false)
       }}
       title={title}
-      className=""
+      className={`password-modal${backGroundBlack ? " bg-black":""}`}
     >
       <div className="settings-content password-form custom-scroll background">
         <div className="settings-content-header no-border">

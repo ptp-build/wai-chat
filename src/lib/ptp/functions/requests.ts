@@ -1,4 +1,4 @@
-import {CHATGPT_PROXY_API} from "../../../config";
+import {CHATGPT_PROXY_API, DEBUG} from "../../../config";
 import {PbChatGptModelConfig_Type} from "../protobuf/PTPCommon/types";
 import Account from "../../../worker/share/Account";
 import type {
@@ -155,7 +155,9 @@ export async function requestChatStream(
     filterBot:false,
   });
 
-  console.log("[Request] ", options.body);
+  if(DEBUG){
+    console.log("[Request] ", options.body);
+  }
 
   const controller = new AbortController();
   const reqTimeoutId = setTimeout(() => controller.abort(), TIME_OUT_MS);

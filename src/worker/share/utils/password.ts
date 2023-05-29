@@ -2,7 +2,8 @@ import {PasswordHelperType} from "../../../components/ui/PasswordModal";
 
 export type PasswordFromEventOptions = {
   title?:string,
-  mnemonic?:string
+  mnemonic?:string,
+  backGroundBlack?:boolean
 }
 
 export type PasswordFromEventResult = {
