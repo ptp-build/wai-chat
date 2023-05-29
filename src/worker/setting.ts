@@ -40,6 +40,18 @@ export const ChatModelConfig:PbChatGptModelConfig_Type = {
   presence_penalty: 0,
 }
 
+export const DEFAULT_FIRST_BOT_COMMANDS = [
+  {
+    "command": "start",
+    "description": "开始对话"
+  },
+  {
+    "command": "setting",
+    "description": "设置面板"
+  },
+]
+
+
 export const DEFAULT_BOT_COMMANDS = [
   {
     "command": "start",
@@ -58,7 +70,6 @@ export const DEFAULT_BOT_COMMANDS = [
     "description": "帮助"
   },
 ]
-
 export const DEFAULT_CHATGPT_AI_COMMANDS = [
   {
     "command": "reset",
@@ -155,7 +166,7 @@ export let LoadAllChats = {
           "menuButton": {
             "type": "commands"
           },
-          "commands": DEFAULT_BOT_COMMANDS
+          "commands": DEFAULT_FIRST_BOT_COMMANDS
         }
       },
       "accessHash": "",
