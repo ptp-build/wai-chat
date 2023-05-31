@@ -216,16 +216,17 @@ export default class MsgCommandChatGpt {
     if (init_system_content) {
       await new ChatMsg(this.chatId).setText(init_system_content)
         .setSenderId("1")
-        .setIsOutgoing(true)
+        .setIsOutgoing(!enableAi)
         .reply();
     }
     if (welcome) {
       await new ChatMsg(this.chatId).setText(welcome)
+        .setIsOutgoing(!enableAi)
         .reply();
     }
     if (template) {
       await new ChatMsg(this.chatId).setText("\n```\n" + template + "```")
-        .setIsOutgoing(true)
+        .setIsOutgoing(!enableAi)
         .setInlineButtons([
           MsgCommand.buildInlineCallbackButton(this.chatId, "ai/send/template", "编辑发送")
         ])
@@ -320,7 +321,10 @@ ${help}
         init_system_content = "未设置";
       }
     }
-    return this.chatMsg.setText(this.formatEditableText(init_system_content, "用于指定机器人角色,每次提问都会带入." + tips))
+    return this.chatMsg.setText(this.formatEditableText(init_system_content, `用于指定机器人角色,每次提问都会带入.
+如：
+我希望ni
+     ${tips}`))
       .setInlineButtons(MsgCommandChatGpt.isMyBot(this.chatId) ? [
         MsgCommand.buildInlineCallbackButton(this.chatId, `init_system_content`, "点击修改"),
         MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"),
