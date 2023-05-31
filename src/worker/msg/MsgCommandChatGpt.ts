@@ -205,9 +205,9 @@ export default class MsgCommandChatGpt {
       });
     }
 
-    const botInfo = this.getBotInfo();
+    const enableAi = this.getAiBotConfig('enableAi') as boolean
 
-    new MsgCommand(this.chatId).reloadCommands(ChatMsg.getCmdList(this.chatId,this.getAiBotConfig('enableAi') as boolean));
+    new MsgCommand(this.chatId).reloadCommands(ChatMsg.getCmdList(this.chatId,enableAi));
 
     const welcome = this.getChatGptConfig("welcome") as string;
     const template = this.getChatGptConfig("template") as string;
@@ -225,7 +225,6 @@ export default class MsgCommandChatGpt {
     }
     if (template) {
       await new ChatMsg(this.chatId).setText("\n```\n" + template + "```")
-        .setSenderId("1")
         .setIsOutgoing(true)
         .setInlineButtons([
           MsgCommand.buildInlineCallbackButton(this.chatId, "ai/send/template", "编辑发送")
@@ -236,6 +235,7 @@ export default class MsgCommandChatGpt {
     if (!welcome && !template) {
       await this.help();
     }
+
     return STOP_HANDLE_MESSAGE;
   }
 
@@ -245,7 +245,13 @@ export default class MsgCommandChatGpt {
       return `⚪ /${cmd.command} ${cmd.description}`;
     })
       .join("\n");
-    return await this.chatMsg.setText("\n你可以通过以下指令来控制我:\n\n" + help)
+    return await this.chatMsg.setText(`\n通过以下指令来控制我:
+
+${help}
+
+- ↩️ 使用 control + enter 换行
+- 🎤 长按消息输入框可识别语音进行输入
+    `)
       .setInlineButtons([
         MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, '取消')
       ])
@@ -314,7 +320,7 @@ export default class MsgCommandChatGpt {
         init_system_content = "未设置";
       }
     }
-    return this.chatMsg.setText(this.formatEditableText(init_system_content, "用于提问模版,一般用于指定机器人角色,每次提问都会带入." + tips))
+    return this.chatMsg.setText(this.formatEditableText(init_system_content, "用于指定机器人角色,每次提问都会带入." + tips))
       .setInlineButtons(MsgCommandChatGpt.isMyBot(this.chatId) ? [
         MsgCommand.buildInlineCallbackButton(this.chatId, `init_system_content`, "点击修改"),
         MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"),
@@ -896,13 +902,13 @@ export default class MsgCommandChatGpt {
 
   async ai(){
     await this.chatMsg.setInlineButtons([
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/maxHistoryLength", "每次提问携带历史消息数"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/aiModel", "配置AI模型"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/systemPrompt", "系统 Prompt"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/apiKey", "自定义apiKey"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/aiModel", "设置AI模型"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/templateSubmit", "提问模版"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/maxHistoryLength", "每次提问携带历史消息数"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/template", "提问示例"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/reset", "重置ai记忆,提问只携带 初始化Prompt"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/templateSubmit", "提问模版"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/apiKey", "自定义apiKey"),
       MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"),
     ])
       .setText("Ai 设置")

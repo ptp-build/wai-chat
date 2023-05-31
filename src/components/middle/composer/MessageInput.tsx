@@ -409,24 +409,23 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       // const {startOffset,endOffset} = window.getSelection()!.getRangeAt(0);
       // isFirstEditPos= (startOffset === endOffset) && startOffset === 0;
     // }
+
+
     if (!isComposing && e.key === 'Enter' && !e.shiftKey) {
       if(e.metaKey){
 
       }else{
-        e.preventDefault();
-        closeTextFormatter();
-        onSend();
-        // if (
-        //   !(IS_IOS || IS_ANDROID)
-        //   && (
-        //     (messageSendKeyCombo === 'enter' && !e.shiftKey)
-        //     || (messageSendKeyCombo === 'ctrl-enter' && (e.ctrlKey || e.metaKey))
-        //   )
-        // ) {
-        //   e.preventDefault();
-        //   closeTextFormatter();
-        //   onSend();
-        // }
+        if (
+          !(IS_IOS || IS_ANDROID)
+          && (
+            (messageSendKeyCombo === 'enter' && !e.shiftKey)
+            || (messageSendKeyCombo === 'ctrl-enter' && (e.ctrlKey || e.metaKey))
+          )
+        ) {
+          e.preventDefault();
+          closeTextFormatter();
+          onSend();
+        }
       }
     } else if (!isComposing && e.key === 'ArrowUp' && (!html) && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();

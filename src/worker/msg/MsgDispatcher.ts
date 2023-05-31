@@ -12,7 +12,7 @@ import {
 import {getActions, getGlobal, setGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
 import {SendBotMsgReq, SendBotMsgRes, SendMsgRes, SendTextMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
-import {STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
+import {STOP_HANDLE_MESSAGE} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import {selectChatMessage, selectUser} from "../../global/selectors";
 import BotChatGpt from "./bot/BotChatGpt";
@@ -67,8 +67,11 @@ export default class MsgDispatcher {
   async sendOutgoingMsg(isLocalMsgId?:boolean) {
     const chatMsg = new ChatMsg(this.getChatId());
     const {replyingTo} = this.params
-    let isOutgoing;
-    isOutgoing = true;
+    let isOutgoing = true;
+    const enableAi = new MsgCommandChatGpt(this.getChatId()).getAiBotConfig("enableAi") as boolean;
+    if(enableAi){
+      isOutgoing = false;
+    }
     return chatMsg.setText(this.getMsgText()!).setIsLocalMsgId(!!isLocalMsgId).setReplyToMessageId(replyingTo)
       .setSenderId(getGlobal().currentUserId!)
       .setIsOutgoing(isOutgoing)
@@ -110,6 +113,7 @@ export default class MsgDispatcher {
     const sendMsgText = this.getMsgText();
     const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
     msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id);
+
     switch (sendMsgText) {
       case "/start":
         return await msgCommandChatGpt.start();
