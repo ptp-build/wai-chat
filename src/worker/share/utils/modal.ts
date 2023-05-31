@@ -7,6 +7,7 @@ export type ShowModalFromEventPayload = {
   min?:number
   step?:number
   inputType?:string
+  buttonTxt?:string
 }
 export type ShowModalFromEventResult = {
   value?:string,

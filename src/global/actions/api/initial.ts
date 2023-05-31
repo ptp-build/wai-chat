@@ -32,12 +32,12 @@ import Account from "../../../worker/share/Account";
 import LocalStorage from "../../../worker/share/db/LocalStorage";
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {getPasswordFromEvent} from "../../../worker/share/utils/password";
-import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
 import ChatMsg from "../../../worker/msg/ChatMsg";
 import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
 import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
 import {DEFAULT_LANG_MNEMONIC} from "../../../worker/setting";
 import {currentTs} from "../../../worker/share/utils/utils";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -99,7 +99,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
         if(mnemonic1 !== mnemonic){
           account?.setEntropy(Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).toEntropy(),false)
         }
-        await new MsgCommandSetting("").doSwitchAccount(getGlobal(),password,undefined)
+        await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
         window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
         return
       }

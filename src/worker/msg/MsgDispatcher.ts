@@ -9,15 +9,17 @@ import {
   ApiUser,
   ApiVideo
 } from "../../api/types";
-import {getActions, getGlobal} from "../../global";
+import {getActions, getGlobal, setGlobal} from "../../global";
 import {callApiWithPdu} from "./utils";
-import {SendBotMsgReq, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {SendBotMsgReq, SendBotMsgRes, SendMsgRes, SendTextMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {STOP_HANDLE_MESSAGE, UserIdFirstBot} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import MsgCommandSetting from "./MsgCommandSetting";
-import {selectChatMessage} from "../../global/selectors";
+import {selectChatMessage, selectUser} from "../../global/selectors";
 import BotChatGpt from "./bot/BotChatGpt";
 import ChatMsg from "./ChatMsg";
+import MsgCommand from "./MsgCommand";
+import {showModalFromEvent} from "../share/utils/modal";
+import {updateUser} from "../../global/reducers";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -62,10 +64,14 @@ export default class MsgDispatcher {
     return botInfo ? botInfo : undefined;
   }
 
-  async sendOutgoingMsg() {
+  async sendOutgoingMsg(isLocalMsgId?:boolean) {
     const chatMsg = new ChatMsg(this.getChatId());
-    return chatMsg.setText(this.getMsgText()!)
+    const {replyingTo} = this.params
+    let isOutgoing;
+    isOutgoing = true;
+    return chatMsg.setText(this.getMsgText()!).setIsLocalMsgId(!!isLocalMsgId).setReplyToMessageId(replyingTo)
       .setSenderId(getGlobal().currentUserId!)
+      .setIsOutgoing(isOutgoing)
       .reply();
   }
 
@@ -95,10 +101,6 @@ export default class MsgDispatcher {
     const sendMsgText = this.getMsgText();
     const commands = this.getBotCommands();
     if (sendMsgText && commands.includes(sendMsgText)) {
-
-      if (this.params.botInfo?.botId === UserIdFirstBot) {
-        return await this.processFirstBotCmd();
-      }
       return await this.processAiBotCmd();
     }
     return true;
@@ -113,26 +115,16 @@ export default class MsgDispatcher {
         return await msgCommandChatGpt.start();
       case "/help":
         return await msgCommandChatGpt.help();
-      case "/welcome":
-        return await msgCommandChatGpt.welcome();
-      case "/template":
-        return await msgCommandChatGpt.template();
-      case "/templateSubmit":
-        return await msgCommandChatGpt.templateSubmit();
-      case "/setting":
-        return msgCommandChatGpt.setting(this.outGoingMsg!.id);
-      case "/reset":
-        return await msgCommandChatGpt.reset();
-      case "/aiModel":
-        return await msgCommandChatGpt.aiModel(this.outGoingMsg!.id);
-      case "/systemPrompt":
-        return await msgCommandChatGpt.systemPrompt();
-      case "/apiKey":
-        return await msgCommandChatGpt.apiKey();
-      case "/maxHistoryLength":
-        return await msgCommandChatGpt.maxHistoryLength();
       case "/usage":
+        this.outGoingMsg = await this.sendOutgoingMsg();
         return await msgCommandChatGpt.usage(this.outGoingMsg!.id);
+      case "/ai":
+        return await msgCommandChatGpt.ai();
+      case "/prompts":
+        return await msgCommandChatGpt.prompts();
+      case "/setting":
+        this.outGoingMsg = await this.sendOutgoingMsg();
+        return msgCommandChatGpt.setting(this.outGoingMsg!.id);
       default:
         return await this.processBotApiCmd();
     }
@@ -160,50 +152,44 @@ export default class MsgDispatcher {
     }
     return STOP_HANDLE_MESSAGE;
   }
-
-  async processFirstBotCmd() {
-    const sendMsgText = this.getMsgText();
-    const msgCommandSetting = new MsgCommandSetting(this.getChatId());
-    switch (sendMsgText) {
-      case "/start":
-        return msgCommandSetting.start();
-      case "/setting":
-        return await msgCommandSetting.setting(this.outGoingMsg!.id);
-      case "/usage":
-
-        const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
-        msgCommandChatGpt.setOutGoingMsgId(this.outGoingMsg?.id);
-        return await msgCommandChatGpt.usage(this.outGoingMsg!.id);
-    }
-  }
-
   async process() {
-    let res;
-    if (this.getMsgText()
-      ?.startsWith("/")) {
-      if (!['/apiKey', '/maxHistoryLength'].includes(this.getMsgText()!)) {
-        this.outGoingMsg = await this.sendOutgoingMsg();
+    let global = getGlobal();
+    const user = selectUser(global,global.currentUserId!)
+    if(!this.getMsgText()
+      ?.startsWith("/") && user?.firstName === "Me"){
+      const {value} = await showModalFromEvent({
+        initVal: "",
+        title: "昵称",
+        placeholder: "开始对话前，请输入你的昵称..."
+      });
+      if(value){
+        global = getGlobal();
+        global = updateUser(global,user.id,{firstName:value})
+        setGlobal(global);
+        MsgCommand.uploadUser(getGlobal(),user.id).catch(console.error)
+      }else{
+        return STOP_HANDLE_MESSAGE
       }
+    }
+    let res;
+    if (this.getMsgText()?.startsWith("/")) {
       res = await this.processCmd();
     }
     if (!res) {
       try {
         if (!this.isMsgCipher() && this.getBotInfo()) {
           const msgCommandChatGpt = new MsgCommandChatGpt(this.getChatId());
-
           const enableAi = msgCommandChatGpt.getAiBotConfig("enableAi") as boolean;
-          let botApi = msgCommandChatGpt.getAiBotConfig("botApi") as string;
           if (this.getMsgText() && this.getBotInfo()?.aiBot) {
             if (enableAi) {
               this.outGoingMsg = await this.sendOutgoingMsg();
-              res = await new BotChatGpt(this.getChatId()).process(this.outGoingMsg);
-            } else {
-              if (!botApi) {
-                return;
-              }
-              this.outGoingMsg = await this.sendOutgoingMsg();
-              return this.handleBotMsg(botApi);
+              await new BotChatGpt(this.getChatId()).process(this.outGoingMsg);
+              return this.outGoingMsg
             }
+          }
+          if (this.getMsgText()) {
+            this.outGoingMsg = await this.sendOutgoingMsg();
+            return this.handleTextMsg();
           }
         }
       } catch (error: any) {
@@ -222,7 +208,6 @@ export default class MsgDispatcher {
   }
 
   async handleBotMsg(botApi: string) {
-
     const SendBotMsgReqRes = await callApiWithPdu(new SendBotMsgReq({
         botApi,
         chatId: this.getChatId(),
@@ -237,6 +222,43 @@ export default class MsgDispatcher {
       }
     }
     return this.outGoingMsg;
+  }
+
+  async handleTextMsg() {
+    try {
+      const {replyingTo} = this.params
+      const global = getGlobal()
+      let replyToUserId;
+      let replyToMsgId;
+      if(replyingTo){
+        const msg = selectChatMessage(global,this.getChatId(),replyingTo)
+        if(msg && msg.senderId && msg.senderId !== this.getChatId() && msg.senderId !== "1"){
+          replyToUserId = msg.senderId
+          replyToMsgId = msg.id
+        }
+      }
+      const SendTextMsgReqRes = await callApiWithPdu(new SendTextMsgReq({
+          chatId: this.getChatId(),
+          text: this.getMsgText()!,
+          replyToUserId,
+          replyToMsgId
+        }
+      ).pack());
+      if (SendTextMsgReqRes) {
+        const {replyText,date,senderId,inlineButtons,chatId} = SendMsgRes.parseMsg(SendTextMsgReqRes.pdu);
+
+        if (replyText) {
+          await new ChatMsg(chatId).setText(replyText).setInlineButtons().setDate(date).setSenderId(senderId || chatId)
+            .reply();
+        }
+      }
+    }catch (e){
+      const inlineButtons = [
+        MsgCommand.buildInlineCallbackButton(this.getChatId(), `0/setting/cancel`, "取消")
+      ];
+      await new ChatMsg(this.getChatId()).setInlineButtons(inlineButtons).setText("ERR:请求错误").reply()
+    }
+    return STOP_HANDLE_MESSAGE;
   }
 
   static async retryAi(chatId: string, messageAssistantId: number) {

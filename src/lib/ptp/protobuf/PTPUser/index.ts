@@ -1,7 +1,13 @@
+export { default as CreateUserReq } from './CreateUserReq';
+export { default as CreateUserRes } from './CreateUserRes';
 export { default as DownloadUserReq } from './DownloadUserReq';
 export { default as DownloadUserRes } from './DownloadUserRes';
+export { default as FetchBotSettingReq } from './FetchBotSettingReq';
+export { default as FetchBotSettingRes } from './FetchBotSettingRes';
 export { default as GenUserIdReq } from './GenUserIdReq';
 export { default as GenUserIdRes } from './GenUserIdRes';
+export { default as SaveBotSettingReq } from './SaveBotSettingReq';
+export { default as SaveBotSettingRes } from './SaveBotSettingRes';
 export { default as ShareBotReq } from './ShareBotReq';
 export { default as ShareBotRes } from './ShareBotRes';
 export { default as ShareBotStopReq } from './ShareBotStopReq';

@@ -8,9 +8,8 @@ import {updateUser} from "../../global/reducers";
 import {
   ALL_CHAT_GPT_MODELS,
   ChatModelConfig,
-  DEFAULT_BOT_COMMANDS,
-  DEFAULT_CHATGPT_AI_COMMANDS,
-  SERVER_BOT_USER_ID_START,
+  DEFAULT_LANG_MNEMONIC,
+  SERVER_BOT_USER_ID_START, SERVER_USER_ID_START,
   STOP_HANDLE_MESSAGE,
   WaterMark
 } from "../setting";
@@ -22,14 +21,28 @@ import {
   ERR,
   PbAiBot_Type,
   PbChatGpBotConfig_Type,
-  PbChatGptModelConfig_Type
+  PbChatGptModelConfig_Type,
+  QrCodeType
 } from "../../lib/ptp/protobuf/PTPCommon/types";
-import {UpdateCmdReq, UpdateCmdRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {requestUsage} from "../../lib/ptp/functions/requests";
-import {CLOUD_MESSAGE_API, DEBUG} from "../../config";
+import {DEBUG} from "../../config";
 import ChatMsg from "./ChatMsg";
 import {generateImageFromDiv} from "../share/utils/canvas";
-import {ShareBotReq, ShareBotStopReq, ShareBotStopRes} from "../../lib/ptp/protobuf/PTPUser";
+import {
+  FetchBotSettingReq,
+  FetchBotSettingRes,
+  SaveBotSettingReq,
+  ShareBotReq,
+  ShareBotStopReq,
+  ShareBotStopRes
+} from "../../lib/ptp/protobuf/PTPUser";
+import {getPasswordFromEvent} from "../share/utils/password";
+import Account from "../share/Account";
+import {hashSha256} from "../share/utils/helpers";
+import Mnemonic, {MnemonicLangEnum} from "../../lib/ptp/wallet/Mnemonic";
+import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
+import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
+import {aesDecrypt} from "../../util/passcode";
 
 export default class MsgCommandChatGpt {
   private chatId: string;
@@ -61,45 +74,43 @@ export default class MsgCommandChatGpt {
     const isMyBot = MsgCommandChatGpt.isMyBot(this.chatId);
     const isEnableAi = this.getAiBotConfig('enableAi');
     const disableClearHistory = this.getAiBotConfig('disableClearHistory');
+    const address = Account.getCurrentAccount()
+      ?.getSessionAddress();
     const res = [
-      isMyBot ? [
-        ...MsgCommand.buildInlineCallbackButton(
-          chatId,
-          `${outGoingMsgId}/setting/ai/enable/${isEnableAi ? 0 : 1}`,
-          isEnableAi ? "关闭 Ai" : "启用 Ai"
-        ),
-      ] : [],
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId, "setting/doSwitchAccount", `切换账户 ( ${address?.substring(0, 4)}***${address?.substring(address?.length - 4)} )`, 'callback'),
+      ],
       [
         ...MsgCommand.buildInlineCallbackButton(chatId, outGoingMsgId + '/setting/ai/toggleClearHistory', disableClearHistory ? "允许清除历史记录" : "关闭清除历史记录"),
         ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/clearHistory', "清除历史记录")),
       ],
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/image', "导出 Image"),
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/markdown', "导出 Markdown"),
-      ],
+      // isEnableAi ?
+      // [
+      //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/image', "导出 Image"),
+      //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/markdown', "导出 Markdown"),
+      // ]:[],
     ];
-    if (CLOUD_MESSAGE_API) {
-      if (isMyBot) {
-        const t = MsgCommand.buildInlineOpenProfileBtn(chatId, "修改机器人");
-        // @ts-ignore
-        res.push([...t]);
-      }
-      res.push(
-        [
-          ...MsgCommand.buildInlineCallbackButton(chatId, '/setting/copyBot', "复制机器人"),
-        ],
-      );
-      if (isMyBot) {
-        res.push([
-          ...MsgCommand.buildInlineCallbackButton(this.chatId, "setting/shareBot", "分享机器人")
-        ]);
-      }
-      res.push(
-        [
-          ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/customApi', "自定义机器人Api"),
-        ],
-      );
+
+    if (isMyBot) {
+      const t = MsgCommand.buildInlineOpenProfileBtn(chatId, "修改机器人");
+      // @ts-ignore
+      res.push([...t]);
+      //
+      // res.push([
+      //   ...MsgCommand.buildInlineCallbackButton(this.chatId, "setting/shareBot", "分享机器人")
+      // ]);
     }
+
+    res.push(
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId, '/setting/copyBot', "复制机器人"),
+      ],
+    );
+    res.push(
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance', "高级"),
+      ],
+    );
 
     res.push([
       {
@@ -177,6 +188,7 @@ export default class MsgCommandChatGpt {
   }
 
   async setting(outGoingMsgId: number) {
+    new MsgCommand(this.chatId).reloadCommands(ChatMsg.getCmdList(this.chatId,this.getAiBotConfig("enableAi") as boolean));
     const text = `设置面板`;
     return this.chatMsg.setText(text)
       .setInlineButtons(this.getInlineButtons(outGoingMsgId))
@@ -192,8 +204,10 @@ export default class MsgCommandChatGpt {
         messages: global.messages.byChatId[chatId]
       });
     }
+
     const botInfo = this.getBotInfo();
-    const desc = botInfo?.description;
+
+    new MsgCommand(this.chatId).reloadCommands(ChatMsg.getCmdList(this.chatId,this.getAiBotConfig('enableAi') as boolean));
 
     const welcome = this.getChatGptConfig("welcome") as string;
     const template = this.getChatGptConfig("template") as string;
@@ -202,6 +216,7 @@ export default class MsgCommandChatGpt {
     if (init_system_content) {
       await new ChatMsg(this.chatId).setText(init_system_content)
         .setSenderId("1")
+        .setIsOutgoing(true)
         .reply();
     }
     if (welcome) {
@@ -210,24 +225,23 @@ export default class MsgCommandChatGpt {
     }
     if (template) {
       await new ChatMsg(this.chatId).setText("\n```\n" + template + "```")
+        .setSenderId("1")
+        .setIsOutgoing(true)
         .setInlineButtons([
           MsgCommand.buildInlineCallbackButton(this.chatId, "ai/send/template", "编辑发送")
         ])
         .reply();
     }
-    if (!welcome && !template) {
-      await this.chatMsg.setText(`
-${desc}
 
-`)
-        .reply();
+    if (!welcome && !template) {
+      await this.help();
     }
     return STOP_HANDLE_MESSAGE;
   }
 
   async help() {
-    const commands = this.getCommands();
-    const help = commands.map(cmd => {
+    const commands = this.getBotInfo()?.commands;
+    const help = commands!.map((cmd: { command: any; description: any; }) => {
       return `⚪ /${cmd.command} ${cmd.description}`;
     })
       .join("\n");
@@ -312,6 +326,9 @@ ${desc}
 
   getAiBotConfig(key: 'enableAi' | 'botApi' | 'commandsFromApi' | 'chatGptConfig' | 'disableClearHistory') {
     const botInfo = this.getBotInfo();
+    if(key === 'enableAi' && botInfo && botInfo.botId < SERVER_USER_ID_START){
+      return true
+    }
     if (
       botInfo &&
       botInfo.aiBot
@@ -451,10 +468,7 @@ ${desc}
     try {
       await sleep(500);
       // @ts-ignore
-      const {
-        text,
-        inlineButtons
-      } = await requestUsage(api_key);
+      const {text,inlineButtons} = await requestUsage(api_key);
       await this.chatMsg.update(msg.id, {
         content: {
           text: {
@@ -479,7 +493,10 @@ ${desc}
     }
     return STOP_HANDLE_MESSAGE;
   }
-
+  async prompts(){
+    await new MsgCommand(this.chatId).handleCallbackButton("server/api/prompts",this.outGoingMsgId)
+    return STOP_HANDLE_MESSAGE;
+  }
   async apiKey() {
     const api_key = localStorage.getItem("cg-key") || "";
     const {value} = await showModalFromEvent({
@@ -585,14 +602,20 @@ ${desc}
     ];
   }
 
-  getCustomApiInlineButtons(messageId: number) {
-    const botApi = this.getAiBotConfig('botApi');
+  getAdvanceInlineButtons(messageId: number) {
     const chatId = this.chatId;
     return [
+      // [
+      //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/setApi', botApi ? "修改Api" : "设置Api"),
+      //   ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, this.outGoingMsgId + '/setting/ai/disableApi', "禁用Api") : []),
+      //   ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/updateCmd', "更新命令") : []),
+      // ],
       [
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/setApi', botApi ? "修改Api" : "设置Api"),
-        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, this.outGoingMsgId + '/setting/ai/disableApi', "禁用Api") : []),
-        ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/updateCmd', "更新命令") : []),
+        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/dd', "关联钉钉机器人"),
+        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/tg', "关联Telegram机器人"),
+      ],
+      [
+        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/sign', "签名授权"),
       ],
       [
         ...MsgCommand.buildInlineBackButton(chatId, messageId, 'setting/ai/back', "< 返回"),
@@ -721,52 +744,21 @@ ${desc}
     });
   }
 
-  async customApi(messageId: number) {
+  async advance(messageId: number) {
     await this.chatMsg.update(messageId, {
       content: {
         text: {
-          text: "通过自定义api，可以使用单独的机器人Api"
+          text: "高级"
         }
       },
-      inlineButtons: this.getCustomApiInlineButtons(messageId)
+      inlineButtons: this.getAdvanceInlineButtons(messageId)
     });
   }
-
-  async getCmdListFromRemoteApi() {
-    const {chatId} = this;
-    const botApi = this.getAiBotConfig('botApi') as string;
-    const res = await callApiWithPdu(new UpdateCmdReq({
-      botApi,
-      chatId,
-    }).pack());
-    if (res) {
-      const {commands} = UpdateCmdRes.parseMsg(res.pdu);
-      // @ts-ignore
-      const cmds = [...DEFAULT_BOT_COMMANDS, ...commands];
-      new MsgCommand(this.chatId).reloadCommands(cmds);
-      return cmds;
-    } else {
-      return DEFAULT_BOT_COMMANDS;
-    }
-  }
-
-  async updateCmd() {
-    try {
-      const cmdList = await this.getCmdListFromRemoteApi();
-      await this.chatMsg.setJson(cmdList, "commands:")
-        .reply();
-      MsgDispatcher.showNotification("更新成功");
-    } catch (e) {
-      MsgDispatcher.showNotification("更新失败");
-    }
-  }
-
   async disableApi(messageId: number) {
-
     this.changeAiBotConfig({
       botApi: undefined
     });
-    const inlineButtons = this.getCustomApiInlineButtons(messageId);
+    const inlineButtons = this.getAdvanceInlineButtons(messageId);
     const message = selectChatMessage(getGlobal(), this.chatId, messageId);
     this.chatMsg.update(messageId, {
       content: {
@@ -791,7 +783,7 @@ ${desc}
     this.changeAiBotConfig({
       botApi: value
     });
-    const inlineButtons = this.getCustomApiInlineButtons(messageId);
+    const inlineButtons = this.getAdvanceInlineButtons(messageId);
     const message = selectChatMessage(getGlobal(), this.chatId, messageId);
     this.chatMsg.update(messageId, {
       content: {
@@ -902,6 +894,21 @@ ${desc}
     });
   }
 
+  async ai(){
+    await this.chatMsg.setInlineButtons([
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/maxHistoryLength", "每次提问携带历史消息数"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/systemPrompt", "系统 Prompt"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/apiKey", "自定义apiKey"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/aiModel", "设置AI模型"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/templateSubmit", "提问模版"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/template", "提问示例"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/reset", "重置ai记忆,提问只携带 初始化Prompt"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"),
+    ])
+      .setText("Ai 设置")
+      .reply();
+    return STOP_HANDLE_MESSAGE;
+  }
   async answerCallbackButton(global: GlobalState, messageId: number, data: string) {
     const chatId = this.chatId;
     if (data.startsWith(`${chatId}/setting/ai/back`)) {
@@ -983,25 +990,69 @@ ${desc}
     }
 
     switch (data) {
+      case `${chatId}/ai/setting/systemPrompt`:
+        return await this.systemPrompt()
+      case `${chatId}/ai/setting/maxHistoryLength`:
+        return await this.maxHistoryLength()
+      case `${chatId}/ai/setting/aiModel`:
+        return await this.aiModel(0)
+      case `${chatId}/ai/setting/templateSubmit`:
+        return await this.templateSubmit()
+      case `${chatId}/ai/setting/welcome`:
+        return await this.welcome()
+      case `${chatId}/ai/setting/apiKey`:
+        return await this.apiKey()
+      case `${chatId}/ai/setting/template`:
+        return await this.template()
+      case `${chatId}/ai/setting/reset`:
+        return await this.reset()
+      case `${chatId}/setting/advance/link/dd`:
+      case `${chatId}/setting/advance/link/tg`:
+        await this.advanceLink(chatId,data)
+        return
+      case `${chatId}/setting/advance/sign`:
+        const {password} = await getPasswordFromEvent(
+          undefined,true,
+          "mnemonicPasswordVerify",
+          false,
+          {
+            title:"账户助记词密码"
+          }
+        )
+        const verifyRes = await Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password!)
+        if(!verifyRes){
+          MsgDispatcher.showNotification("密码不正确")
+          return
+        }else{
+          const resSign = await Account.getCurrentAccount()?.signMessage(`${chatId}`,hashSha256(password!))
+          const sign = `s_${resSign!.sign.toString("hex")}__${chatId}`
+          await showModalFromEvent({
+            title:"签名授权",
+            type: 'multipleInput',
+            initVal:sign,
+            buttonTxt:"关闭",
+          });
+        }
+        return
       case `${chatId}/ai/send/template`:
         const message = selectChatMessage(global, this.chatId, messageId);
         const text = message?.content.text?.text!.trim();
         // @ts-ignore
-        document.querySelector('#editable-message-text')
-          .focus();
+        document.querySelector('#editable-message-text').focus();
         document.execCommand('insertText', false, text);
         return;
+
+      case `${chatId}/setting/doSwitchAccount`:
+        await this.settingDoSwitchAccount(chatId,messageId)
+        break;
       case `${chatId}/setting/ai/disableApi/confirm`:
         await this.disableApi(messageId);
         return;
       case `${chatId}/setting/ai/setApi`:
         await this.setApi(messageId);
         return;
-      case `${chatId}/setting/ai/updateCmd`:
-        await this.updateCmd();
-        return;
-      case `${chatId}/setting/ai/customApi`:
-        await this.customApi(messageId);
+      case `${chatId}/setting/advance`:
+        await this.advance(messageId);
         return;
       case `${chatId}/setting/export/markdown`:
       case `${chatId}/setting/export/image`:
@@ -1117,22 +1168,196 @@ ${desc}
     }
   }
 
-  getCommands() {
-    const commandsFromApi = this.getAiBotConfig('commandsFromApi');
-    const botApi = this.getAiBotConfig('botApi');
-    const isEnable = this.getAiBotConfig("enableAi");
-    let commands = [...DEFAULT_BOT_COMMANDS];
-
-    if (botApi) {
-      if (commandsFromApi) {
-        // @ts-ignore
-        commands = [...commands, ...commandsFromApi!];
+  async advanceLink(chatId: string, data: string) {
+    const key = data.replace(`${chatId}/setting/advance`,chatId)
+    const res = await callApiWithPdu(new FetchBotSettingReq({
+      key
+    }).pack())
+    if(res && res.pdu){
+      let {value} = FetchBotSettingRes.parseMsg(res.pdu)
+      let inputRes;
+      let inputValue;
+      switch (key){
+        case chatId+"/link/tg":
+          inputRes = await showModalFromEvent({
+            title:"绑定Telegram机器人",
+            type: 'singleInput',
+            initVal:value || "",
+            placeholder:"请输入Telegram机器人的token和聊天ID:如：token@chatId",
+            buttonTxt:"下一步",
+          });
+          inputValue = inputRes.value || ""
+          break
+        case chatId+"/link/dd":
+          inputRes = await showModalFromEvent({
+            title:"绑定钉钉机器人",
+            type: 'singleInput',
+            placeholder:"请输入钉钉机器人 access_token",
+            initVal:value || "",
+            buttonTxt:"下一步",
+          });
+          inputValue = inputRes.value || ""
+          break
       }
-    } else {
-      if (isEnable) {
-        commands = [...commands, ...DEFAULT_CHATGPT_AI_COMMANDS];
+      if(inputValue !== value){
+        const res1 = await callApiWithPdu(new SaveBotSettingReq({
+          key,
+          value:inputValue || ""
+        }).pack())
+        if(res1){
+
+        }
       }
     }
-    return commands;
   }
+
+  async settingDoSwitchAccount(chatId: string, messageId: number,) {
+    const entropy = await Account.getCurrentAccount()
+      ?.getEntropy();
+    const mnemonic1 = Mnemonic.fromEntropy(entropy!, DEFAULT_LANG_MNEMONIC as MnemonicLangEnum)
+      .getWords();
+    const {
+      password,
+      mnemonic
+    } = await getPasswordFromEvent(
+      undefined,
+      true, "mnemonicPassword", false, {
+        title: "切换账户",
+        mnemonic: mnemonic1
+      });
+    if (password) {
+      if (mnemonic === mnemonic1) {
+        await this.doSwitchAccount(getGlobal(), password, messageId);
+      } else {
+        await this.changeMnemonic(mnemonic!, password);
+      }
+    }
+  }
+
+  async handleMnemonic(mnemonic: string) {
+    const qrcodeData = mnemonic.replace('wai://', '');
+    const qrcodeDataBuf = Buffer.from(qrcodeData, 'hex');
+    const decodeRes = PbQrCode.parseMsg(new Pdu(qrcodeDataBuf));
+    if (decodeRes) {
+      const {
+        type,
+        data
+      } = decodeRes;
+      if (type !== QrCodeType.QrCodeType_MNEMONIC) {
+        throw new Error("解析二维码失败");
+      }
+      const {password} = await getPasswordFromEvent(undefined, true);
+      const res = await aesDecrypt(data, Buffer.from(hashSha256(password!), "hex"));
+      if (res) {
+        await this.changeMnemonic(res, password);
+        return;
+      }
+    }
+  }
+
+  async changeMnemonic(words: string, password?: string) {
+    const mnemonic = new Mnemonic(words);
+    if (mnemonic.checkMnemonic()) {
+      if (!password) {
+        const res = await getPasswordFromEvent(undefined, true);
+        if (res.password) {
+          password = res.password;
+        } else {
+          return;
+        }
+      }
+      if (password) {
+        const entropy = mnemonic.toEntropy();
+        let accountId = Account.getAccountIdByEntropy(entropy);
+        if (!accountId) {
+          accountId = Account.genAccountId();
+        }
+        const account = Account.getInstance(accountId);
+        Account.setCurrentAccountId(accountId);
+        await account?.setEntropy(entropy);
+        const pwd = hashSha256(password);
+        const ts = +(new Date());
+        const {
+          address,
+          sign
+        } = await account!.signMessage(ts.toString(), pwd);
+        const session = Account.formatSession({
+          address,
+          sign,
+          ts,
+          accountId
+        });
+        account!.saveSession(session);
+        setTimeout(() => window.location.reload(), 200);
+      }
+    } else {
+      await this.chatMsg.setText("mnemonic 不合法")
+        .reply();
+    }
+  }
+
+  async switchAccount(messageId: number, data: string) {
+    const {chatId} = this;
+    const accountAddress = data.replace(`${chatId}/setting/switchAccount/account/`, '');
+    const keys = Account.getKeys();
+    const sessions = Account.getSessions();
+    const global = getGlobal();
+    if (sessions && Object.keys(sessions).length > 0) {
+      for (let i = 0; i < Object.keys(sessions).length; i++) {
+        const session = sessions[Object.keys(sessions)[i]];
+        const res = Account.parseSession(session);
+        if (res?.address === accountAddress) {
+          const accountId = res.accountId;
+          const account = Account.getInstance(accountId);
+          if (keys[accountId]) {
+            const entropy = keys[accountId];
+            account?.setEntropy(entropy, true);
+            const {password} = await getPasswordFromEvent(undefined, true);
+            if (password) {
+              const resVerify = await account?.verifySession(session, password);
+              if (resVerify) {
+                Account.setCurrentAccountId(accountId);
+                return await this.doSwitchAccount(global, password, messageId);
+              } else {
+                return MsgDispatcher.showNotification("密码不正确!");
+              }
+            }
+            break;
+          }
+        }
+      }
+    } else {
+      const {password} = await getPasswordFromEvent(undefined, true);
+      if (password) {
+        return await this.doSwitchAccount(global, password, messageId);
+      }
+    }
+  }
+
+  async doSwitchAccount(global: GlobalState, password: string, messageId?: number) {
+    const {chatId} = this;
+    const account = Account.getCurrentAccount();
+    const pwd = hashSha256(password);
+    const ts = +(new Date());
+    const {
+      address,
+      sign
+    } = await account!.signMessage(ts.toString(), pwd);
+    const session = Account.formatSession({
+      address,
+      sign,
+      ts,
+      accountId: account?.getAccountId()!
+    });
+    account!.saveSession(session);
+    await account!.getEntropy();
+    account!.getAccountId();
+    if (chatId) {
+      await this.chatMsg.update(messageId!, {
+        inlineButtons: []
+      });
+    }
+    setTimeout(() => window.location.reload(), 200);
+  }
+
 }

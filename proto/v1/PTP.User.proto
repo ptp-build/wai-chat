@@ -5,10 +5,19 @@ option java_package = "chat.wai.protobuf";
 
 option optimize_for = LITE_RUNTIME;
 
-message GenUserIdReq{}
+message CreateUserReq{
+  required string username = 1;
+}
+
+message CreateUserRes{
+
+}
+message GenUserIdReq{
+  optional string username = 1;
+}
 
 message GenUserIdRes{
-  required uint32 userId = 1;
+  optional uint32 userId = 1;
   required Common.ERR err = 100;
 }
 
@@ -39,7 +48,6 @@ message ShareBotRes{
   optional Common.ERR err = 100;
 }
 
-
 message ShareBotStopReq{
   required string userId = 1;
 }
@@ -48,3 +56,20 @@ message ShareBotStopRes{
   optional Common.ERR err = 100;
 }
 
+message FetchBotSettingReq{
+  required string key = 1;
+}
+
+message FetchBotSettingRes{
+  required string key = 1;
+  required string value = 2;
+}
+
+message SaveBotSettingReq{
+  required string key = 1;
+  required string value = 2;
+}
+
+message SaveBotSettingRes{
+  optional Common.ERR err = 100;
+}

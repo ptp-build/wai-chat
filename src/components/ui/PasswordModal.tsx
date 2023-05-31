@@ -15,7 +15,7 @@ type OwnProps = {};
 
 let onConfirm: Function | null = null
 
-export type PasswordHelperType = "" | "showMnemonic" | "messageEncryptPassword"  | "mnemonicPassword"
+export type PasswordHelperType = "" | "showMnemonic" | "messageEncryptPassword"  | "mnemonicPassword"  | "mnemonicPasswordVerify"
 
 const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
 
@@ -164,7 +164,6 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
             <ul>
               <li>{lang("密码不会存储服务器，请牢记密码")}</li>
               <li>{lang("助记词代表账户，可用于跨设备登录，请妥善保管保存助记词")}</li>
-
             </ul>
           </div>
         }

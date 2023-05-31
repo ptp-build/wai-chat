@@ -94,7 +94,7 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
             }
           </div>
           <Button type="button" onClick={handleSubmit} ripple={true} isLoading={false} disabled={false}>
-            下一步
+            {payload.buttonTxt || "下一步"}
           </Button>
         </div>
       }

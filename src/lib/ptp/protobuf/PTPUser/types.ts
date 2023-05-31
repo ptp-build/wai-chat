@@ -1,6 +1,10 @@
 // DO NOT EDIT
 import type * as PTPCommon from '../PTPCommon/types';
 
+export interface CreateUserReq_Type {
+  username: string;
+}
+export interface CreateUserRes_Type {}
 export interface DownloadUserReq_Type {
   userId: string;
   updatedAt?: number;
@@ -9,10 +13,26 @@ export interface DownloadUserRes_Type {
   userBuf?: Buffer;
   err?: PTPCommon.ERR;
 }
-export interface GenUserIdReq_Type {}
+export interface FetchBotSettingReq_Type {
+  key: string;
+}
+export interface FetchBotSettingRes_Type {
+  key: string;
+  value: string;
+}
+export interface GenUserIdReq_Type {
+  username?: string;
+}
 export interface GenUserIdRes_Type {
-  userId: number;
+  userId?: number;
   err: PTPCommon.ERR;
+}
+export interface SaveBotSettingReq_Type {
+  key: string;
+  value: string;
+}
+export interface SaveBotSettingRes_Type {
+  err?: PTPCommon.ERR;
 }
 export interface ShareBotReq_Type {
   catTitle: string;

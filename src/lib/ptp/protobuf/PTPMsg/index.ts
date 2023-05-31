@@ -8,6 +8,8 @@ export { default as RemoveMessagesReq } from './RemoveMessagesReq';
 export { default as RemoveMessagesRes } from './RemoveMessagesRes';
 export { default as SendBotMsgReq } from './SendBotMsgReq';
 export { default as SendBotMsgRes } from './SendBotMsgRes';
+export { default as SendMsgRes } from './SendMsgRes';
+export { default as SendTextMsgReq } from './SendTextMsgReq';
 export { default as UpdateCmdReq } from './UpdateCmdReq';
 export { default as UpdateCmdRes } from './UpdateCmdRes';
 export { default as UploadMsgReq } from './UploadMsgReq';

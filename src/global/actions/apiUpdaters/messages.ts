@@ -81,7 +81,7 @@ const handleMessageEntities = (global:GlobalState,chatId:string,message:ApiMessa
       message = handleBotCmdText(message,user.fullInfo.botInfo,userNames) as ApiMessage
     }
   }
-  message.isOutgoing = false
+  // message.isOutgoing = false
   return message
 }
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {

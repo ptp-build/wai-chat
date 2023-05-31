@@ -21,14 +21,15 @@ import {
   OnApiUpdate
 } from "../../api/types";
 import {currentTs} from "../share/utils/utils";
-import {DEFAULT_BOT_COMMANDS, DEFAULT_CHATGPT_AI_COMMANDS} from "../setting";
+import {DEFAULT_BOT_AI_COMMANDS, DEFAULT_BOT_NO_AI_COMMANDS} from "../setting";
 
 export default class ChatMsg {
   static _apiUpdate: OnApiUpdate;
   static genMessageId: (isLocal?: boolean) => number;
-  static isWorker: boolean = false;
   private chatId: string;
   private id?: number;
+  private replyToMessageId?: number;
+
   private inlineButtons?: ApiKeyboardButtons;
   private senderId?: string;
   private isOutgoing?: boolean;
@@ -49,6 +50,8 @@ export default class ChatMsg {
     location?: ApiLocation;
     game?: ApiGame;
   };
+  private isLocalMsgId: boolean = false;
+  private date?: number;
 
   constructor(chatId: string) {
     this.chatId = chatId;
@@ -68,8 +71,10 @@ export default class ChatMsg {
     });
   }
 
-  setInlineButtons(inlineButtons: ApiKeyboardButtons) {
-    this.inlineButtons = inlineButtons;
+  setInlineButtons(inlineButtons?: ApiKeyboardButtons) {
+    if(inlineButtons){
+      this.inlineButtons = inlineButtons;
+    }
     return this;
   }
 
@@ -107,7 +112,10 @@ export default class ChatMsg {
     };
     return this;
   }
-
+  setDate(date:number){
+    this.date = date;
+    return this
+  }
   setSenderId(senderId: string) {
     this.senderId = senderId;
     return this;
@@ -117,7 +125,23 @@ export default class ChatMsg {
     this.id = ChatMsg.genMessageId(isLocal);
     return this.id;
   }
+  setReplyToMessageId(replyToMessageId?:number){
+    if(replyToMessageId){
+      this.replyToMessageId = replyToMessageId;
+    }
+    return this;
+  }
+  setIsLocalMsgId(isLocalMsgId: boolean) {
+    this.isLocalMsgId = isLocalMsgId;
+    return this
+  }
 
+  setIsOutgoing(isOutgoing?: boolean) {
+    if(isOutgoing !== undefined){
+      this.isOutgoing = isOutgoing;
+    }
+    return this
+  }
   async reply() {
     let {
       id,
@@ -125,23 +149,30 @@ export default class ChatMsg {
       senderId,
       isOutgoing,
       content,
-      inlineButtons
+      date,
+      inlineButtons,
+      replyToMessageId
     } = this;
+
     if (!senderId) {
       senderId = chatId;
     }
-    if (!isOutgoing) {
+    if (isOutgoing === undefined) {
       isOutgoing = false;
     }
     if (!id) {
-      id = await this.genMsgId();
+      id = await this.genMsgId(this.isLocalMsgId);
+    }
+    if (!date) {
+      date = currentTs();
     }
     let message: ApiMessage = {
       chatId,
       id,
       senderId,
+      replyToMessageId,
       isOutgoing,
-      date: currentTs(),
+      date,
       inlineButtons,
       content: content!,
     };
@@ -192,34 +223,21 @@ export default class ChatMsg {
     welcome,
     outputText,
     template,
+    enableAi,
     photos,
   }: {
     userId: string, firstName: string, bio: string,
-    init_system_content?: string,
     avatarHash?: string,
+    init_system_content?: string,
     welcome?: string,
     template?: string,
     outputText?: string,
+    enableAi?: boolean,
     photos?: ApiPhoto[]
   }) {
 
     if (!avatarHash) {
       avatarHash = "";
-    }
-
-    if (!init_system_content) {
-      init_system_content = "";
-    }
-    if (!welcome) {
-      welcome = "";
-    }
-
-    if (!template) {
-      template = "";
-    }
-
-    if (!outputText) {
-      outputText = "";
     }
     return {
       id: userId,
@@ -246,39 +264,69 @@ export default class ChatMsg {
         "isBlocked": false,
         "noVoiceMessages": false,
         bio,
-        botInfo: {
-          aiBot: {
-            enableAi: true,
-            chatGptConfig: {
-              init_system_content,
-              api_key: "",
-              max_history_length: 0,
-              template,
-              welcome,
-              outputText,
-              modelConfig: {
-                model: "gpt-3.5-turbo",
-                temperature: 0.5,
-                max_tokens: 1000,
-                presence_penalty: 0,
-              }
-            }
-          },
-          botId: userId,
-          "description": bio,
-          "menuButton": {
-            "type": "commands"
-          },
-          commands: [...DEFAULT_BOT_COMMANDS, ...DEFAULT_CHATGPT_AI_COMMANDS].map(cmd => {
-            // @ts-ignore
-            cmd.botId = userId;
-            return cmd;
-          })
-        }
+        botInfo: ChatMsg.buildUserBotInfo(userId,bio,{
+          init_system_content,welcome,template,outputText,enableAi
+        })
       }
     };
   }
+  static buildUserBotInfo(userId:string,bio:string,info:{
+    init_system_content?: string,
+    welcome?: string,
+    template?: string,
+    outputText?: string,
+    enableAi?: boolean,
+  }){
+    let {init_system_content,welcome,template,outputText,enableAi} = info
+    if (!init_system_content) {
+      init_system_content = "";
+    }
+    if (!welcome) {
+      welcome = "";
+    }
 
+    if (!template) {
+      template = "";
+    }
+
+    if (!outputText) {
+      outputText = "";
+    }
+    return {
+      aiBot: {
+        enableAi: Boolean(enableAi),
+        chatGptConfig: {
+          init_system_content,
+          api_key: "",
+          max_history_length: 0,
+          template,
+          welcome,
+          outputText,
+          modelConfig: {
+            model: "gpt-3.5-turbo",
+            temperature: 0.5,
+            max_tokens: 1000,
+            presence_penalty: 0,
+          }
+        }
+      },
+      botId: userId,
+      "description": bio,
+      "menuButton": {
+        "type": "commands"
+      },
+      commands:ChatMsg.getCmdList(userId,enableAi)
+    }
+  }
+
+  static getCmdList(userId:string,enableAi?:boolean){
+    const rows =  enableAi ? DEFAULT_BOT_AI_COMMANDS : DEFAULT_BOT_NO_AI_COMMANDS;
+    return rows.map((cmd) => {
+      // @ts-ignore
+      cmd.botId = userId;
+      return cmd;
+    })
+  }
   static buildDefaultChat(user: Partial<ApiUser>) {
     return {
       "id": user.id,

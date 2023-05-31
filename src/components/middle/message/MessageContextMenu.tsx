@@ -334,14 +334,14 @@ const MessageContextMenu: FC<OwnProps> = ({
         {canSelectLanguage && (
          <MenuItem icon="web" onClick={onSelectLanguage}>{lang('翻译')}</MenuItem>
         )}
-        <MenuItem icon="download" icon_rotate_180 onClick={handleSaveMsgToCloud}>{lang('保存到云端')}</MenuItem>
+        {/* <MenuItem icon="download" icon_rotate_180 onClick={handleSaveMsgToCloud}>{lang('保存到云端')}</MenuItem> */}
         <MenuItem icon="allow-speak" onClick={onSpeak}>{lang('朗读')}</MenuItem>
 
         {/* {canSendNow && <MenuItem icon="send-outline" onClick={onSend}>{lang('MessageScheduleSend')}</MenuItem>} */}
         {/* {canReschedule && ( */}
         {/*   <MenuItem icon="schedule" onClick={onReschedule}>{lang('MessageScheduleEditTime')}</MenuItem> */}
         {/* )} */}
-        {/* {canReply && <MenuItem icon="reply" onClick={onReply}>{lang('Reply')}</MenuItem>}*/}
+        {canReply && <MenuItem icon="reply" onClick={onReply}>{lang('Reply')}</MenuItem>}
         {/* {!noReplies && Boolean(repliesThreadInfo?.messagesCount) && (*/}
         {/*   <MenuItem icon="replies" onClick={onOpenThread}>*/}
         {/*     {lang('Conversation.ContextViewReplies', repliesThreadInfo!.messagesCount, 'i')}*/}

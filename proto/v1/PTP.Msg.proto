@@ -5,6 +5,24 @@ option java_package = "chat.wai.protobuf";
 
 option optimize_for = LITE_RUNTIME;
 
+message SendTextMsgReq{
+  required string chatId = 1;
+  required string text = 2;
+  optional uint32 msgId = 3;
+  optional string replyToUserId = 4;
+  optional uint64 replyToMsgId = 5;
+}
+
+message SendMsgRes{
+  optional string replyText = 1;
+  required string chatId = 2;
+  optional uint32 msgId = 3;
+  required string senderId = 4;
+  required uint32 date = 6;
+  optional string inlineButtons = 7;
+  optional uint64 replyToMsgId = 8;
+}
+
 message RemoveMessagesReq{
   repeated uint32 messageIds = 1;
   required string chatId = 2;
@@ -46,7 +64,6 @@ message DownloadMsgRes{
 }
 
 message UpdateCmdReq{
-  optional string botApi = 1;
   required string chatId = 2;
 }
 

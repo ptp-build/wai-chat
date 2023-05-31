@@ -48,8 +48,23 @@ export interface SendBotMsgRes_Type {
   streamStatus?: PTPCommon.ChatGptStreamStatus;
   message?: PTPCommon.PbMsg_Type;
 }
+export interface SendMsgRes_Type {
+  replyText?: string;
+  chatId: string;
+  msgId?: number;
+  senderId: string;
+  date: number;
+  inlineButtons?: string;
+  replyToMsgId?: number;
+}
+export interface SendTextMsgReq_Type {
+  chatId: string;
+  text: string;
+  msgId?: number;
+  replyToUserId?: string;
+  replyToMsgId?: number;
+}
 export interface UpdateCmdReq_Type {
-  botApi?: string;
   chatId: string;
 }
 export interface UpdateCmdRes_Type {

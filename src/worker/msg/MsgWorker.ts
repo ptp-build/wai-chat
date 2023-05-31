@@ -1,6 +1,6 @@
 import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUser} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID} from "../../config";
-import {GenMsgIdReq, GenMsgIdRes, SendBotMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, SendMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {sleep} from "../../lib/gramjs/Helpers";
@@ -95,10 +95,32 @@ export default class MsgWorker {
   }
 
   static async handleStreamMsg(chatId: string, msgId: number, reply: string, streamStatus: ChatGptStreamStatus) {
-
     await Msg.run(chatId, msgId, reply, streamStatus);
   }
 
+  static async handleSendMsgRes(pdu: Pdu) {
+    const {
+      replyText,
+      senderId,
+      date,
+      chatId
+    } = SendMsgRes.parseMsg(pdu);
+
+    if(senderId !== chatId && senderId){
+      ChatMsg.apiUpdate({
+        "@type": "updateGlobalUpdate",
+        data: {
+          action: "updateUser",
+          payload: {
+            userId:senderId
+          },
+        }
+      });
+    }
+    if(replyText){
+      await new ChatMsg(chatId!).setText(replyText).setDate(date).setSenderId(senderId||chatId).reply()
+    }
+  }
   static async handleSendBotMsgRes(pdu: Pdu) {
     const {
       reply,
@@ -191,6 +213,9 @@ export default class MsgWorker {
       case ActionCommands.CID_TopCatsRes:
         await MsgWorker.handleTopCatsRes(pdu);
         break;
+      case ActionCommands.CID_SendMsgRes:
+        await MsgWorker.handleSendMsgRes(pdu);
+        break
       case ActionCommands.CID_SendBotMsgRes:
         await MsgWorker.handleSendBotMsgRes(pdu);
         break;

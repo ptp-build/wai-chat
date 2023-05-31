@@ -2,7 +2,15 @@ import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
 import type {ApiUser, ApiUserStatus} from '../../../api/types';
 
-import {addUsers, addUserStatuses, deleteContact, replaceUserStatuses, updateUser,} from '../../reducers';
+import {
+  addChats,
+  addUsers,
+  addUserStatuses,
+  deleteContact,
+  replaceUserStatuses,
+  updateChatListIds,
+  updateUser,
+} from '../../reducers';
 import {throttle} from '../../../util/schedulers';
 import {selectIsCurrentUserPremium, selectUser} from '../../selectors';
 import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../types';
@@ -13,6 +21,9 @@ import {DEBUG} from "../../../config";
 import {currentTs1000} from "../../../worker/share/utils/utils";
 import MsgCommand from "../../../worker/msg/MsgCommand";
 import {UserIdFirstBot} from "../../../worker/setting";
+import {DownloadUserReq, DownloadUserRes} from "../../../lib/ptp/protobuf/PTPUser";
+import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
+import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -59,6 +70,36 @@ function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_
 
 }
 
+function handleUpdateUser(global:GlobalState,userId:string){
+  const user1 = selectUser(global,userId)
+  if(!user1){
+    callApiWithPdu(new DownloadUserReq({
+      userId,
+      updatedAt:0
+    }).pack()).then((res)=>{
+      if(res && res.pdu){
+        const {userBuf} = DownloadUserRes.parseMsg(res.pdu)
+        if(userBuf){
+          const user = PbUser.parseMsg(new Pdu(Buffer.from(userBuf!)));
+          if(user.id !== userId){
+            user.id = userId
+          }
+          const users: Record<string, ApiUser> = {};
+          const usersStatus: Record<string, ApiUserStatus> = {};
+          users[userId] = user as ApiUser;
+          usersStatus[userId] = {
+            type: "userStatusEmpty"
+          };
+          let global = getGlobal();
+          global = addUsers(global, users);
+          global = addUserStatuses(global, usersStatus);
+          setGlobal(global)
+        }
+
+      }
+    });
+  }
+}
 function handleUpdateBots(global:GlobalState,user:ApiUser){
   const user1 = selectUser(global,user.id)
   if(!user1){
@@ -103,6 +144,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case "updateGlobalUpdate":
       const {data} = update
       switch (data.action){
+        case "updateUser":
+          return handleUpdateUser(global,data.payload.userId);
         case "updateBots":
           return handleUpdateBots(global,data.payload.user);
         case "onLogged":

@@ -5,7 +5,6 @@ import {getActions, getGlobal, setGlobal} from "../../global";
 import {ApiBotCommand, ApiChat, ApiKeyboardButton, ApiMessage, ApiUser, ApiUserStatus} from "../../api/types";
 import {showBodyLoading} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
-import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import {callApiWithPdu, sleep} from "./utils";
@@ -15,7 +14,7 @@ import ChatMsg from "./ChatMsg";
 import {createBot} from "../../global/actions/api/chats";
 import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
-import {stopOpenChat} from "../../global/actions/api/bots";
+import {Decoder} from "@nuintun/qrcode";
 
 export default class MsgCommand {
   private chatId: string;
@@ -88,7 +87,7 @@ export default class MsgCommand {
     return true;
   }
 
-  reloadCommands(cmds: ApiBotCommand[]) {
+  reloadCommands(cmds: any[]) {
     let global = getGlobal();
     let user = selectUser(global, this.chatId);
     const botInfo = user?.fullInfo?.botInfo;
@@ -135,24 +134,6 @@ export default class MsgCommand {
       const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes.pdu!);
       if (downloadUserRes.userBuf) {
         const user = PbUser.parseMsg(new Pdu(Buffer.from(downloadUserRes.userBuf)));
-        if (
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
-          && userLocal.fullInfo.botInfo.aiBot.chatGptConfig && userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key
-        ) {
-          user.fullInfo!.botInfo!.aiBot!.chatGptConfig!.api_key = userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key;
-        }
-        if (
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
-          && userLocal.fullInfo.botInfo.aiBot.commandsFromApi
-        ) {
-          user.fullInfo!.botInfo!.aiBot!.commandsFromApi = userLocal.fullInfo.botInfo.aiBot.commandsFromApi;
-        }
-
-        if (
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.commands
-        ) {
-          user.fullInfo!.botInfo!.commands = userLocal.fullInfo.botInfo.commands;
-        }
         console.log("[downloadUserRes]", user);
         const chatIds: string[] = [];
         const users: Record<string, ApiUser> = {};
@@ -181,37 +162,12 @@ export default class MsgCommand {
         }
       }
     }
-
-    const gpt = new MsgCommandChatGpt(userId);
-    if (gpt.getAiBotConfig("botApi")) {
-      await gpt.getCmdListFromRemoteApi();
-    }
     await MsgCommand.downloadSavedMsg(userId);
   }
 
   static async uploadUser(global: GlobalState, chatId: string) {
     const user = selectUser(global, chatId);
-
-    if (
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
-      && user.fullInfo.botInfo.aiBot.chatGptConfig && user.fullInfo.botInfo.aiBot.chatGptConfig.api_key
-    ) {
-      user.fullInfo.botInfo.aiBot.chatGptConfig.api_key = "";
-    }
-    if (
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
-      && user.fullInfo.botInfo.aiBot.commandsFromApi
-    ) {
-      user.fullInfo.botInfo.aiBot.commandsFromApi = [];
-    }
-
-    if (
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.commands
-    ) {
-      user.fullInfo.botInfo.commands = [];
-    }
-    const userBuf = Buffer.from(new PbUser(user).pack()
-      .getPbData());
+    const userBuf = Buffer.from(new PbUser(user).pack().getPbData());
 
     return await callApiWithPdu(new UploadUserReq({
       userBuf,
@@ -267,11 +223,11 @@ export default class MsgCommand {
     try {
       showBodyLoading(true);
       const {chatId} = this;
-      let user = selectUser(global, chatId);
-      user = {
-        ...user,
+      let user1 = selectUser(global, chatId);
+      const user = {
+        ...user1,
         id: "",
-        firstName: user?.firstName + "(复制)",
+        firstName: user1?.firstName + "(复制)",
       } as ApiUser;
       MsgDispatcher.showNotification("复制成功");
       ChatMsg.apiUpdate({
@@ -279,6 +235,7 @@ export default class MsgCommand {
         ids: [messageId],
         chatId,
       });
+
       await createBot(global, getActions(), user);
     } catch (e) {
       console.error(e);
@@ -289,31 +246,26 @@ export default class MsgCommand {
   }
 
   async requestUploadImage(global: GlobalState, messageId: number, files: FileList | null) {
-    await new MsgCommandSetting(this.chatId).requestUploadImage(global, messageId, files);
+    if (files && files.length > 0) {
+      const file = files[0];
+      const qrcode = new Decoder();
+      const blob = new Blob([file], {type: file.type});
+      const blobUrl = URL.createObjectURL(blob);
+      try {
+        const result = await qrcode.scan(blobUrl);
+        if (result && result.data.startsWith('wai://')) {
+          // await this.handleMnemonic(result.data);
+        }
+      } catch (e) {
+      } finally {
+        getActions()
+          .showNotification({message: "解析二维码失败"});
+      }
+    }
   }
 
   async answerCallbackButton(global: GlobalState, messageId: number, data: string) {
     const {chatId} = this;
-    // if(data === "sign://401"){
-    //   const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
-    //   if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
-    //     MsgDispatcher.showNotification("密码不正确")
-    //     return
-    //   }else{
-    //     await this.chatMsg.setInlineButtons([]).setText("请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员").reply()
-    //   }
-    // }
-    // if(data === chatId + "/setting/signGen"){
-    //   const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
-    //   if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
-    //     MsgDispatcher.showNotification("密码不正确")
-    //     return
-    //   }else{
-    //     const ts = currentTs1000();
-    //     const resSign = await Account.getCurrentAccount()?.signMessage(`${ts}_${chatId}`,hashSha256(password))
-    //     await this.chatMsg.setInlineButtons([]).setText( "签名:```\n"+`sk_${resSign!.sign.toString("hex")}_${ts}_${chatId}`+"```").reply()
-    //   }
-    // }
     if (data.endsWith("/setting/cancel")) {
       const msgId1 = data.split("/")[data.split("/").length - 3];
       const cancelMessageIds = [messageId];
@@ -326,7 +278,6 @@ export default class MsgCommand {
         chatId,
       });
     }
-    await new MsgCommandSetting(chatId).answerCallbackButton(global, messageId, data);
     await new MsgCommandChatGpt(chatId).answerCallbackButton(global, messageId, data);
 
     if (data.endsWith("clearHistory/confirm")) {
@@ -371,7 +322,7 @@ export default class MsgCommand {
       await this.handleBuildInPay(chatId, data);
     }
     if (data.startsWith("server/api/")) {
-      await this.handleCallbackButton(chatId, data);
+      await this.handleCallbackButton(data);
     }
     console.log(chatId, data);
   }
@@ -381,13 +332,13 @@ export default class MsgCommand {
     alert(t);
   }
 
-  async handleCallbackButton(chatId: string, data: string) {
-
+  async handleCallbackButton(data: string,outgoingMsgId:number = 0) {
+    const {chatId} = this
     const msg = await this.chatMsg.setText("...")
       .reply();
     await sleep(500);
     let inlineButtonsList = [
-      MsgCommand.buildInlineCallbackButton(this.chatId, `0/setting/cancel`, "取消")
+      MsgCommand.buildInlineCallbackButton(chatId, `${outgoingMsgId}/setting/cancel`, "取消")
     ];
     try {
       const res = await callApiWithPdu(new CallbackButtonReq({

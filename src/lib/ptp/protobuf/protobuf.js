@@ -832,8 +832,14 @@ var $conv_message = $createConverter([
                 SendBotMsgRes: {
                     '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}
                 },
+                SendMsgRes: {
+                    '$': {"1":["replyText","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["senderId","string",""],"6":["date","uint32",0],"7":["inlineButtons","string",""],"8":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}
+                },
+                SendTextMsgReq: {
+                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msgId","uint32",0],"4":["replyToUserId","string",""],"5":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}
+                },
                 UpdateCmdReq: {
-                    '$': {"1":["botApi","string",""],"2":["chatId","string",""]}
+                    '$': {"2":["chatId","string",""]}
                 },
                 UpdateCmdRes: {
                     '$': {"1":["commands","<default.PTP.Common.PbCommands",null],"2":["chatId","string",""],"3":["startTips","string",""]}
@@ -868,17 +874,35 @@ var $conv_message = $createConverter([
                 }
             },
             User: {
+                CreateUserReq: {
+                    '$': {"1":["username","string",""]}
+                },
+                CreateUserRes: {
+                    '$': {}
+                },
                 DownloadUserReq: {
                     '$': {"2":["userId","string",""],"3":["updatedAt","uint32",0]}
                 },
                 DownloadUserRes: {
                     '$': {"2":["userBuf","bytes",[]],"100":["err","uint32",0]}
                 },
+                FetchBotSettingReq: {
+                    '$': {"1":["key","string",""]}
+                },
+                FetchBotSettingRes: {
+                    '$': {"1":["key","string",""],"2":["value","string",""]}
+                },
                 GenUserIdReq: {
-                    '$': {}
+                    '$': {"1":["username","string",""]}
                 },
                 GenUserIdRes: {
                     '$': {"1":["userId","uint32",0],"100":["err","uint32",0]}
+                },
+                SaveBotSettingReq: {
+                    '$': {"1":["key","string",""],"2":["value","string",""]}
+                },
+                SaveBotSettingRes: {
+                    '$': {"100":["err","uint32",0]}
                 },
                 ShareBotReq: {
                     '$': {"1":["catTitle","string",""],"2":["catBot","default.PTP.Common.PbCatBot",null]}

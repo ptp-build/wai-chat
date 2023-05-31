@@ -40,7 +40,7 @@ export const ChatModelConfig:PbChatGptModelConfig_Type = {
   presence_penalty: 0,
 }
 
-export const DEFAULT_FIRST_BOT_COMMANDS = [
+export const DEFAULT_BOT_NO_AI_COMMANDS = [
   {
     "command": "start",
     "description": "开始对话"
@@ -48,71 +48,30 @@ export const DEFAULT_FIRST_BOT_COMMANDS = [
   {
     "command": "setting",
     "description": "设置面板"
-  },
-]
-
-
-export const DEFAULT_BOT_COMMANDS = [
-  {
-    "command": "start",
-    "description": "开始对话"
-  },
-  {
-    "command": "setting",
-    "description": "设置面板"
-  },
-  {
-    "command": "welcome",
-    "description": "欢迎语"
   },
   {
     "command": "help",
     "description": "帮助"
   },
+
 ]
-export const DEFAULT_CHATGPT_AI_COMMANDS = [
-  {
-    "command": "reset",
-    "description": "重置ai记忆,提问只携带 初始化Prompt"
-  },
-  {
-    "command": "template",
-    "description": "提问示例"
-  },
-  {
-    "command": "templateSubmit",
-    "description": "提问模版"
-  },
-  {
-    "command": "aiModel",
-    "description": "设置AI模型"
-  },
-  {
-    "command": "apiKey",
-    "description": "自定义apiKey"
-  },
-  {
-    "command": "systemPrompt",
-    "description": "系统 Prompt"
-  },
-  {
-    "command": "maxHistoryLength",
-    "description": "每次提问携带历史消息数"
-  },
+
+export const DEFAULT_BOT_AI_COMMANDS = [
+  ...DEFAULT_BOT_NO_AI_COMMANDS,
+  // {
+  //   "command": "prompts",
+  //   "description": "Prompts 大全"
+  // },
   {
     "command": "usage",
     "description": "账户余额"
   },
+  {
+    "command": "ai",
+    "description": "AI设置"
+  },
 ]
 
-export const DEFAULT_START_TIPS = `您好，我是基于chatGpt的Ai小助手
-
-您可以向我提问，我很乐意为您解答问题！
-
-您也可以通过发送以下命令来控制我：
-
-⚪ /setting - 设置面板
-`
 
 export const CurrentUserInfo = {
   "id": "1",
@@ -153,7 +112,7 @@ export let LoadAllChats = {
         "bio": DEFAULT_WAI_USER_BIO,
         "botInfo": {
           aiBot:{
-            enableAi:true,
+            enableAi:false,
             chatGptConfig:{
               modelConfig:ChatModelConfig,
               api_key:"",
@@ -162,11 +121,11 @@ export let LoadAllChats = {
             },
           },
           "botId": UserIdFirstBot,
-          "description": DEFAULT_CREATE_USER_BIO,
+          "description": DEFAULT_WAI_USER_BIO,
           "menuButton": {
             "type": "commands"
           },
-          "commands": DEFAULT_FIRST_BOT_COMMANDS
+          "commands": DEFAULT_BOT_AI_COMMANDS
         }
       },
       "accessHash": "",

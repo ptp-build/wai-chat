@@ -15,6 +15,8 @@ import Button from '../../ui/Button';
 import ListItem from '../../ui/ListItem';
 import PrivateChatInfo from '../../common/PrivateChatInfo';
 import TextArea from "../../ui/TextArea";
+import Checkbox from "../../ui/Checkbox";
+import MsgDispatcher from "../../../worker/msg/MsgDispatcher";
 
 export type OwnProps = {
   isChannel?: boolean;
@@ -52,13 +54,14 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
   });
 
   const [title, setTitle] = useState('');
+  const [enableAi, setEnableAi] = useState(true);
   const [about, setAbout] = useState('');
+  const [username, setUsername] = useState('');
   const [photo, setPhoto] = useState<File | undefined>();
   const [error, setError] = useState<string | undefined>();
 
   const chatTitleEmptyError = 'Chat title can\'t be empty';
   const channelTitleEmptyError = 'Channel title can\'t be empty';
-  const chatTooManyUsersError = 'Sorry, creating supergroups is not yet supported';
 
   const isLoading = creationProgress === ChatCreationProgress.InProgress;
 
@@ -73,40 +76,35 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
     }
   }, []);
 
+
+  const handleEnableAi = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEnableAi(!enableAi);
+  }, [enableAi]);
+
+
+  const handleUsername = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
+  }, [username]);
+
   const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setAbout(e.currentTarget.value);
   }, []);
 
-  const handleCreateGroup = useCallback(() => {
-    createChat();
-    // if (!title.length) {
-    //   setError(chatTitleEmptyError);
-    //   return;
-    // }
-    //
-    // if (maxGroupSize && memberIds.length >= maxGroupSize) {
-    //   setError(chatTooManyUsersError);
-    //   return;
-    // }
-    //
-    // createGroupChat({
-    //   title,
-    //   photo,
-    //   memberIds,
-    // });
-  }, [title, memberIds, maxGroupSize, createGroupChat, photo]);
-
   const handleCreateChannel = useCallback(() => {
 
-    if (!title.length) {
-      setError("名称不能为空");
-      return;
+    if (username.length > 0) {
+      if(!username.endsWith("_bot")){
+        MsgDispatcher.showNotification("用户名需要以 '_bot' 结尾, 如: wai_pay_support_bot 或者不填写");
+        return;
+      }
     }
     createChat({
       title,
-      about
+      about,
+      username,
+      enableAi
     });
-  }, [title,createChannel, about, photo, memberIds, channelTitleEmptyError]);
+  }, [title,username,enableAi,createChannel, about, photo, memberIds, channelTitleEmptyError]);
 
   useEffect(() => {
     if (creationProgress === ChatCreationProgress.Complete) {
@@ -140,6 +138,7 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
         {/*  onChange={setPhoto}*/}
         {/*  title={lang('AddPhoto')}*/}
         {/*/>*/}
+
         <InputText
           value={title}
           onChange={handleTitleChange}
@@ -148,9 +147,21 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
         />
 
         <TextArea
+          value={username}
+          onChange={handleUsername}
+          label={"用户名,如: wai_pay_support_bot 或者不填写"}
+        />
+
+        <TextArea
           value={about}
           onChange={handleDescriptionChange}
           label={"机器人描述(可选)"}
+        />
+
+        <Checkbox
+          label={"ChatGpt"}
+          checked={enableAi}
+          onCheck={handleEnableAi}
         />
 
         {renderedError && (
