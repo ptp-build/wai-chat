@@ -321,9 +321,8 @@ ${help}
         init_system_content = "未设置";
       }
     }
-    return this.chatMsg.setText(this.formatEditableText(init_system_content, `用于指定机器人角色,每次提问都会带入.
-如：
-我希望ni
+    const role = " ```\n我希望你能担任一名翻译官 ``` "
+    return this.chatMsg.setText(this.formatEditableText(init_system_content, `用于指定机器人角色,每次提问都会带入. 如：${role}
      ${tips}`))
       .setInlineButtons(MsgCommandChatGpt.isMyBot(this.chatId) ? [
         MsgCommand.buildInlineCallbackButton(this.chatId, `init_system_content`, "点击修改"),
@@ -824,7 +823,19 @@ ${help}
       [...MsgCommand.buildInlineCallbackButton(chatId, `${outGoingMsgId}/` + "setting/cancel", "取消")],
     ];
   }
-
+  async aiBotPublic(){
+    await new MsgCommand(this.chatId).handleCallbackButton("server/api/bot/public");
+    return true;
+    //
+    // const inlineButtons: ApiKeyboardButtons = [
+    //   [...MsgCommand.buildInlineCallbackButton(this.chatId, outGoingMsgId + "/model/property/temperature", "开启")],
+    //   [...MsgCommand.buildInlineCallbackButton(this.chatId, outGoingMsgId + "/model/property/temperature", "关闭")],
+    //   [...MsgCommand.buildInlineCallbackButton(this.chatId, `${outGoingMsgId}/` + "setting/cancel", "取消")],
+    // ];
+    // return this.chatMsg.setText(`公开机器人，分享好友，赚钱Token使用的 5%`)
+    //   .setInlineButtons(inlineButtons)
+    //   .reply();
+  }
   async aiModel(outGoingMsgId: number) {
     const modelConfig = this.getChatGptConfig("modelConfig") as PbChatGptModelConfig_Type;
     const inlineButtons: ApiKeyboardButtons = this.getAiModelInlineButtons(outGoingMsgId) as ApiKeyboardButtons;
@@ -905,16 +916,25 @@ ${help}
   }
 
   async ai(){
-    await this.chatMsg.setInlineButtons([
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/aiModel", "配置AI模型"),
+    const buttons = [
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/systemPrompt", "系统 Prompt"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/maxHistoryLength", "每次提问携带历史消息数"),
+      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/reset", "重置ai记忆"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/template", "提问示例"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/reset", "重置ai记忆,提问只携带 初始化Prompt"),
       MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/templateSubmit", "提问模版"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/apiKey", "自定义apiKey"),
-      MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"),
-    ])
+      [
+        ...MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/aiModel", "配置AI模型"),
+        ...MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/apiKey", "自定义apiKey"),
+      ],
+    ];
+
+    if(MsgCommandChatGpt.isMyBot(this.chatId)){
+      buttons.push(MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/bot/public", "设为公开机器人(赚佣金)"))
+    }
+
+    buttons.push(MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"))
+
+    await this.chatMsg.setInlineButtons(buttons)
       .setText("Ai 设置")
       .reply();
     return STOP_HANDLE_MESSAGE;
@@ -1006,6 +1026,8 @@ ${help}
         return await this.maxHistoryLength()
       case `${chatId}/ai/setting/aiModel`:
         return await this.aiModel(0)
+      case `${chatId}/ai/setting/bot/public`:
+        return await this.aiBotPublic()
       case `${chatId}/ai/setting/templateSubmit`:
         return await this.templateSubmit()
       case `${chatId}/ai/setting/welcome`:
