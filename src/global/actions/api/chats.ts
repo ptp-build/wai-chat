@@ -2193,6 +2193,7 @@ const initChats = async (firstLoad?:boolean)=>{
 
   }
   setGlobal(global)
+  await MsgCommand.downloadUser(global.currentUserId,true);
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
   setTimeout(async ()=>{
     if(firstLoad){

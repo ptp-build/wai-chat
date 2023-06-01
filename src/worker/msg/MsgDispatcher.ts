@@ -14,7 +14,7 @@ import {callApiWithPdu} from "./utils";
 import {SendBotMsgReq, SendBotMsgRes, SendMsgRes, SendTextMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {STOP_HANDLE_MESSAGE} from "../setting";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import {selectChatMessage, selectUser} from "../../global/selectors";
+import {selectChatMessage, selectLastMessageId, selectUser} from "../../global/selectors";
 import BotChatGpt from "./bot/BotChatGpt";
 import ChatMsg from "./ChatMsg";
 import MsgCommand from "./MsgCommand";
@@ -64,7 +64,7 @@ export default class MsgDispatcher {
     return botInfo ? botInfo : undefined;
   }
 
-  async sendOutgoingMsg(isLocalMsgId?:boolean) {
+  async sendOutgoingMsg(isLocalMsgId?:boolean,sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed') {
     const chatMsg = new ChatMsg(this.getChatId());
     const {replyingTo} = this.params
     let isOutgoing = true;
@@ -72,8 +72,11 @@ export default class MsgDispatcher {
     if(enableAi){
       isOutgoing = false;
     }
-    return chatMsg.setText(this.getMsgText()!).setIsLocalMsgId(!!isLocalMsgId).setReplyToMessageId(replyingTo)
+    return chatMsg
+      .setText(this.getMsgText()!)
+      .setReplyToMessageId(replyingTo)
       .setSenderId(getGlobal().currentUserId!)
+      .setSendingState(sendingState)
       .setIsOutgoing(isOutgoing)
       .reply();
   }
@@ -120,14 +123,14 @@ export default class MsgDispatcher {
       case "/help":
         return await msgCommandChatGpt.help();
       case "/usage":
-        this.outGoingMsg = await this.sendOutgoingMsg();
+        this.outGoingMsg = await this.sendOutgoingMsg(true);
         return await msgCommandChatGpt.usage(this.outGoingMsg!.id);
       case "/ai":
         return await msgCommandChatGpt.ai();
       case "/prompts":
         return await msgCommandChatGpt.prompts();
       case "/setting":
-        this.outGoingMsg = await this.sendOutgoingMsg();
+        this.outGoingMsg = await this.sendOutgoingMsg(true);
         return msgCommandChatGpt.setting(this.outGoingMsg!.id);
       default:
         return await this.processBotApiCmd();
@@ -140,24 +143,25 @@ export default class MsgDispatcher {
     if (botApi) {
       botApi = botApi as string;
     }
-    if (botApi) {
-      const res = await callApiWithPdu(new SendBotMsgReq({
-        botApi,
-        chatId: this.getChatId(),
-        text: sendMsgText
-      }).pack());
-      if (res) {
-        const {reply} = SendBotMsgRes.parseMsg(res.pdu);
-        if (reply) {
-          await new ChatMsg(this.getChatId()).setText(reply)
-            .reply();
-        }
-      }
-    }
+    // if (botApi) {
+    //   const res = await callApiWithPdu(new SendBotMsgReq({
+    //     botApi,
+    //     chatId: this.getChatId(),
+    //     text: sendMsgText
+    //   }).pack());
+    //   if (res) {
+    //     const {reply} = SendBotMsgRes.parseMsg(res.pdu);
+    //     if (reply) {
+    //       await new ChatMsg(this.getChatId()).setText(reply)
+    //         .reply();
+    //     }
+    //   }
+    // }
     return STOP_HANDLE_MESSAGE;
   }
   async process() {
     let global = getGlobal();
+
     const user = selectUser(global,global.currentUserId!)
     if(!this.getMsgText()
       ?.startsWith("/") && user?.firstName === "Me"){
@@ -174,6 +178,10 @@ export default class MsgDispatcher {
       }else{
         return STOP_HANDLE_MESSAGE
       }
+    }
+    const lastMessageId = selectLastMessageId(global,this.getChatId())
+    if(lastMessageId){
+      console.log("lastMessage",selectChatMessage(global,this.getChatId(),lastMessageId))
     }
     let res;
     if (this.getMsgText()?.startsWith("/")) {
@@ -192,7 +200,7 @@ export default class MsgDispatcher {
             }
           }
           if (this.getMsgText()) {
-            this.outGoingMsg = await this.sendOutgoingMsg();
+            this.outGoingMsg = await this.sendOutgoingMsg(false,"messageSendingStatePending");
             return this.handleTextMsg();
           }
         }
@@ -242,25 +250,29 @@ export default class MsgDispatcher {
         }
       }
       const SendTextMsgReqRes = await callApiWithPdu(new SendTextMsgReq({
-          chatId: this.getChatId(),
-          text: this.getMsgText()!,
-          replyToUserId,
-          replyToMsgId
-        }
-      ).pack());
+        chatId: this.getChatId(),
+        text: this.getMsgText()!,
+        msgId:this.outGoingMsg!.id,
+        msgDate:this.outGoingMsg!.date,
+        replyToUserId,
+        replyToMsgId
+      }).pack());
       if (SendTextMsgReqRes) {
         const {replyText,date,senderId,inlineButtons,chatId} = SendMsgRes.parseMsg(SendTextMsgReqRes.pdu);
-
+        await new ChatMsg(this.getChatId()).update(this.outGoingMsg!.id,{
+          sendingState:undefined
+        })
         if (replyText) {
-          await new ChatMsg(chatId).setText(replyText).setInlineButtons().setDate(date).setSenderId(senderId || chatId)
+          await new ChatMsg(chatId).setText(replyText)
+            .setInlineButtons()
+            .setDate(date).setSenderId(senderId || chatId)
             .reply();
         }
       }
     }catch (e){
-      const inlineButtons = [
-        MsgCommand.buildInlineCallbackButton(this.getChatId(), `0/setting/cancel`, "取消")
-      ];
-      await new ChatMsg(this.getChatId()).setInlineButtons(inlineButtons).setText("ERR:请求错误").reply()
+      await new ChatMsg(this.getChatId()).update(this.outGoingMsg!.id,{
+        sendingState:"messageSendingStateFailed"
+      })
     }
     return STOP_HANDLE_MESSAGE;
   }

@@ -108,10 +108,14 @@ export default class BotChatGpt {
         // @ts-ignore
         botApi = CHATGPT_PROXY_API;
       }
+
       const res = await callApiWithPdu(new SendBotMsgReq({
         botApi,
         chatId: this.botId,
         msgId: thinkingMsg.id,
+        msgDate: thinkingMsg.date,
+        msgAskId: this.outGoingMsg.id,
+        msgAskDate: this.outGoingMsg.date,
         text: undefined,
         chatGpt: JSON.stringify({
           apiKey: this.msgCommandChatGpt.getChatGptConfig("api_key")!,

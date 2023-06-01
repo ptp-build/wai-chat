@@ -50,6 +50,14 @@ export interface MessageStoreRow_Type {
   buf?: Buffer;
 }
 
+export interface MsgRow_Type {
+  text: string;
+  msgId: number;
+  chatId: string;
+  senderId: string;
+  msgDate: number;
+}
+
 export interface PbAction_Type {
   text: string;
   type: string;

@@ -70,35 +70,37 @@ function updateUserStoreData(global:GlobalState,userStoreDataRes?:UserStoreData_
 
 }
 
-function handleUpdateUser(global:GlobalState,userId:string){
-  const user1 = selectUser(global,userId)
-  if(!user1){
-    callApiWithPdu(new DownloadUserReq({
-      userId,
-      updatedAt:0
-    }).pack()).then((res)=>{
-      if(res && res.pdu){
-        const {userBuf} = DownloadUserRes.parseMsg(res.pdu)
-        if(userBuf){
-          const user = PbUser.parseMsg(new Pdu(Buffer.from(userBuf!)));
-          if(user.id !== userId){
-            user.id = userId
+export function handleUpdateUser(global:GlobalState,userId:string){
+  return new Promise(resolve => {
+    const user1 = selectUser(global,userId)
+    if(!user1){
+      callApiWithPdu(new DownloadUserReq({
+        userId,
+        updatedAt:0
+      }).pack()).then((res)=>{
+        if(res && res.pdu){
+          const {userBuf} = DownloadUserRes.parseMsg(res.pdu)
+          if(userBuf){
+            const user = PbUser.parseMsg(new Pdu(Buffer.from(userBuf!)));
+            if(user.id !== userId){
+              user.id = userId
+            }
+            const users: Record<string, ApiUser> = {};
+            const usersStatus: Record<string, ApiUserStatus> = {};
+            users[userId] = user as ApiUser;
+            usersStatus[userId] = {
+              type: "userStatusEmpty"
+            };
+            let global = getGlobal();
+            global = addUsers(global, users);
+            global = addUserStatuses(global, usersStatus);
+            setGlobal(global)
           }
-          const users: Record<string, ApiUser> = {};
-          const usersStatus: Record<string, ApiUserStatus> = {};
-          users[userId] = user as ApiUser;
-          usersStatus[userId] = {
-            type: "userStatusEmpty"
-          };
-          let global = getGlobal();
-          global = addUsers(global, users);
-          global = addUserStatuses(global, usersStatus);
-          setGlobal(global)
         }
-
-      }
-    });
-  }
+        resolve()
+      });
+    }
+  })
 }
 function handleUpdateBots(global:GlobalState,user:ApiUser){
   const user1 = selectUser(global,user.id)

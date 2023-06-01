@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from '../../../lib/teact/teact';
-import {getActions, withGlobal} from '../../../global';
+import {getActions, getGlobal, withGlobal} from '../../../global';
 
 import type {
   ActiveEmojiInteraction, ActiveReaction, ChatTranslatedMessages, MessageListType,
@@ -87,7 +87,7 @@ import {
   getMessageSingleCustomEmoji,
   hasMessageText,
   isChatGroup,
-  getMessageLocation,
+  getMessageLocation, isCurrentUserSendMessage,
 } from '../../../global/helpers';
 import buildClassName from '../../../util/buildClassName';
 import {
@@ -399,6 +399,7 @@ const Message: FC<OwnProps & StateProps> = ({
 
   const isLocal = isMessageLocal(message);
   const isOwn = isOwnMessage(message);
+  const isCurrentUserSend = isCurrentUserSendMessage(message);
   const isScheduled = messageListType === 'scheduled' || message.isScheduled;
   const hasReply = isReplyMessage(message) && !shouldHideReply;
   const hasThread = Boolean(repliesThreadInfo) && messageListType === 'thread';
@@ -530,7 +531,7 @@ const Message: FC<OwnProps & StateProps> = ({
     isLastInDocumentGroup && 'last-in-document-group',
     isLastInList && 'last-in-list',
     isOwn && 'own',
-    (message.senderId === "1") && 'selfSend',
+    isCurrentUserSend && 'selfSend',
     Boolean(message.views) && 'has-views',
     message.isEdited && 'was-edited',
     hasReply && 'has-reply',
@@ -625,7 +626,7 @@ const Message: FC<OwnProps & StateProps> = ({
   const shouldFocusOnResize = isLastInGroup;
 
   const handleEditClick = useCallback(() => {
-    if(message.senderId === "1" && message.content.text && message.content.text.text && !message.content.text.text.startsWith("/")){
+    if((message.senderId === "1" || message.senderId === getGlobal().currentUserId )&& message.content.text && message.content.text.text && !message.content.text.text.startsWith("/")){
       if (handleDoubleClick) {
         handleDoubleClick();
       }
@@ -1068,9 +1069,6 @@ const Message: FC<OwnProps & StateProps> = ({
   }
 
   function renderSenderName() {
-    // if(sender?.id === "1"){
-    //   return
-    // }
     const media = photo || video || location;
     const shouldRender = !(isCustomShape && !viaBotId) && (
       (withSenderName && (!media || hasTopicChip)) || asForwarded || viaBotId || forceSenderName

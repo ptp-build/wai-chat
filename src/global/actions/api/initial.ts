@@ -97,9 +97,10 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       )
       if(password){
         if(mnemonic1 !== mnemonic){
-          account?.setEntropy(Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).toEntropy(),false)
+          await new MsgCommandChatGpt("").changeMnemonic(mnemonic!,password)
+        }else{
+          await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
         }
-        await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
         window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
         return
       }

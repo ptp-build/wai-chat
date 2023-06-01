@@ -51,7 +51,7 @@ export const handleStopChatStreamReq = async (pdu: Pdu) => {
 };
 const replyResult: Record<string, boolean> = {};
 
-async function handleChatGpt(url: string, chatGpt: string, chatId?: string, msgId?: number) {
+async function handleChatGpt(url: string, chatGpt: string, chatId?: string, msgId?: number,msgDate?:number,msgAskId?:number,msgAskDate?:number) {
   let i = 0;
   let totalContent = "";
   replyResult[`${chatId}_${msgId}`] = false;
@@ -59,9 +59,11 @@ async function handleChatGpt(url: string, chatGpt: string, chatId?: string, msgI
     url,
     {
       body: {
-        ...JSON.parse(chatGpt)
-        ,
+        ...JSON.parse(chatGpt),
         msgId,
+        msgDate,
+        msgAskId,
+        msgAskDate,
         chatId,
         stream: true
       },
@@ -219,9 +221,13 @@ export const handleSendBotMsgReq = async (pdu: Pdu) => {
     botApi,
     chatId,
     msgId,
+    msgDate,
+    msgAskId,
+    msgAskDate,
     chatGpt,
     text
   } = SendBotMsgReq.parseMsg(pdu);
+
   try {
     if (botApi && botApi.startsWith("http")) {
       if (!botApi) {
@@ -229,7 +235,7 @@ export const handleSendBotMsgReq = async (pdu: Pdu) => {
       }
       if (chatGpt) {
         let url = botApi + "/v1/chat/completions";
-        await handleChatGpt(url, chatGpt, chatId, msgId);
+        await handleChatGpt(url, chatGpt, chatId, msgId,msgDate,msgAskId,msgAskDate);
         return new SendBotMsgRes({
           reply: "..."
         }).pack()

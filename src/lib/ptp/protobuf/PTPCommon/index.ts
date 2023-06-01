@@ -1,6 +1,7 @@
 export { default as ClientInfo } from './ClientInfo';
 export { default as FileInfo } from './FileInfo';
 export { default as MessageStoreRow } from './MessageStoreRow';
+export { default as MsgRow } from './MsgRow';
 export { default as PbAction } from './PbAction';
 export { default as PbAiBot } from './PbAiBot';
 export { default as PbAudio } from './PbAudio';

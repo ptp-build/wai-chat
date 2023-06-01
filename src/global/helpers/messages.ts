@@ -160,6 +160,10 @@ export function isOwnMessage(message: ApiMessage) {
   return message.isOutgoing;
 }
 
+export function isCurrentUserSendMessage(message: ApiMessage) {
+  return (message.senderId === "1" || message.senderId === getGlobal().currentUserId);
+}
+
 export function isReplyMessage(message: ApiMessage) {
   return Boolean(message.replyToMessageId);
 }

@@ -13,12 +13,11 @@ export interface CallbackButtonRes_Type {
 }
 export interface DownloadMsgReq_Type {
   chatId: string;
-  time?: number;
+  msgIds?: number[];
 }
 export interface DownloadMsgRes_Type {
-  messages?: Buffer[];
-  userMessageStoreData?: PTPCommon.UserMessageStoreData_Type;
-  err?: PTPCommon.ERR;
+  chatId: string;
+  msgList?: PTPCommon.MsgRow_Type[];
 }
 export interface GenMsgIdReq_Type {
   isLocal: boolean;
@@ -26,6 +25,14 @@ export interface GenMsgIdReq_Type {
 export interface GenMsgIdRes_Type {
   messageId: number;
   err?: PTPCommon.ERR;
+}
+export interface MsgListReq_Type {
+  chatId: string;
+  msgIds?: number[];
+}
+export interface MsgListRes_Type {
+  chatId: string;
+  msgList?: PTPCommon.MsgRow_Type[];
 }
 export interface RemoveMessagesReq_Type {
   messageIds?: number[];
@@ -40,6 +47,9 @@ export interface SendBotMsgReq_Type {
   text?: string;
   chatGpt?: string;
   msgId?: number;
+  msgDate?: number;
+  msgAskId?: number;
+  msgAskDate?: number;
 }
 export interface SendBotMsgRes_Type {
   reply?: string;
@@ -60,9 +70,10 @@ export interface SendMsgRes_Type {
 export interface SendTextMsgReq_Type {
   chatId: string;
   text: string;
-  msgId?: number;
+  msgId: number;
   replyToUserId?: string;
   replyToMsgId?: number;
+  msgDate: number;
 }
 export interface UpdateCmdReq_Type {
   chatId: string;

@@ -4,6 +4,8 @@ export { default as DownloadMsgReq } from './DownloadMsgReq';
 export { default as DownloadMsgRes } from './DownloadMsgRes';
 export { default as GenMsgIdReq } from './GenMsgIdReq';
 export { default as GenMsgIdRes } from './GenMsgIdRes';
+export { default as MsgListReq } from './MsgListReq';
+export { default as MsgListRes } from './MsgListRes';
 export { default as RemoveMessagesReq } from './RemoveMessagesReq';
 export { default as RemoveMessagesRes } from './RemoveMessagesRes';
 export { default as SendBotMsgReq } from './SendBotMsgReq';

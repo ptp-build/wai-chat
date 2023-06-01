@@ -34,6 +34,7 @@ export default class ChatMsg {
   private senderId?: string;
   private isOutgoing?: boolean;
   private botInfo?: ApiBotInfo;
+  private sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed';
   private content?: {
     text?: ApiFormattedText;
     photo?: ApiPhoto;
@@ -121,10 +122,16 @@ export default class ChatMsg {
     return this;
   }
 
+  setId(id: number) {
+    this.id = id;
+    return this;
+  }
+
   async genMsgId(isLocal?: boolean) {
     this.id = ChatMsg.genMessageId(isLocal);
     return this.id;
   }
+
   setReplyToMessageId(replyToMessageId?:number){
     if(replyToMessageId){
       this.replyToMessageId = replyToMessageId;
@@ -142,6 +149,12 @@ export default class ChatMsg {
     }
     return this
   }
+
+  setSendingState(sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed') {
+    this.sendingState = sendingState;
+    return this
+  }
+
   async reply() {
     let {
       id,
@@ -151,6 +164,7 @@ export default class ChatMsg {
       content,
       date,
       inlineButtons,
+      sendingState,
       replyToMessageId
     } = this;
 
@@ -170,6 +184,7 @@ export default class ChatMsg {
       chatId,
       id,
       senderId,
+      sendingState,
       replyToMessageId,
       isOutgoing,
       date,

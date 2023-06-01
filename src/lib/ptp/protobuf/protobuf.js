@@ -684,6 +684,9 @@ var $conv_message = $createConverter([
                 MessageStoreRow: {
                     '$': {"1":["messageId","uint32",0],"2":["buf","bytes",[]]}
                 },
+                MsgRow: {
+                    '$': {"1":["text","string",""],"2":["msgId","uint32",0],"3":["chatId","string",""],"4":["senderId","string",""],"5":["msgDate","uint32",0]}
+                },
                 PbAction: {
                     '$': {"1":["text","string",""],"2":["type","string",""]}
                 },
@@ -809,16 +812,22 @@ var $conv_message = $createConverter([
                     '$': {"1":["text","string",""],"2":["inlineButtons","string",""],"3":["chatId","string",""],"100":["err","uint32",0]}
                 },
                 DownloadMsgReq: {
-                    '$': {"1":["chatId","string",""],"2":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
+                    '$': {"1":["chatId","string",""],"2":["msgIds","[uint32",null]}
                 },
                 DownloadMsgRes: {
-                    '$': {"1":["messages","<bytes",null],"2":["userMessageStoreData","default.PTP.Common.UserMessageStoreData",null],"100":["err","uint32",0]}
+                    '$': {"1":["chatId","string",""],"2":["msgList","<default.PTP.Common.MsgRow",null]}
                 },
                 GenMsgIdReq: {
                     '$': {"1":["isLocal","bool",false]}
                 },
                 GenMsgIdRes: {
                     '$': {"1":["messageId","uint64",{"low":0,"high":0,"unsigned":true}],"100":["err","uint32",0]}
+                },
+                MsgListReq: {
+                    '$': {"1":["chatId","string",""],"2":["msgIds","[uint32",null]}
+                },
+                MsgListRes: {
+                    '$': {"1":["chatId","string",""],"2":["msgList","<default.PTP.Common.MsgRow",null]}
                 },
                 RemoveMessagesReq: {
                     '$': {"1":["messageIds","[uint32",null],"2":["chatId","string",""]}
@@ -827,7 +836,7 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 SendBotMsgReq: {
-                    '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0]}
+                    '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0],"6":["msgDate","uint32",0],"7":["msgAskId","uint32",0],"8":["msgAskDate","uint32",0]}
                 },
                 SendBotMsgRes: {
                     '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}
@@ -836,7 +845,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["replyText","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["senderId","string",""],"6":["date","uint32",0],"7":["inlineButtons","string",""],"8":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 SendTextMsgReq: {
-                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msgId","uint32",0],"4":["replyToUserId","string",""],"5":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}
+                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msgId","uint32",0],"4":["replyToUserId","string",""],"5":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}],"6":["msgDate","uint32",0]}
                 },
                 UpdateCmdReq: {
                     '$': {"2":["chatId","string",""]}

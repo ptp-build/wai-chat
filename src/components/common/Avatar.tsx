@@ -2,7 +2,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import React, {
   memo, useCallback, useEffect, useRef,
 } from '../../lib/teact/teact';
-import { getActions } from '../../global';
+import {getActions, getGlobal} from '../../global';
 
 import type { FC, TeactNode } from '../../lib/teact/teact';
 import type {
@@ -209,7 +209,7 @@ const Avatar: FC<OwnProps> = ({
 
   const hasMedia = Boolean(isSavedMessages || imgBlobUrl);
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement, MouseEvent>) => {
-    if(userId === "1"){
+    if(userId === "1" || userId === getGlobal().currentUserId){
       return
     }
     if (onClick) {

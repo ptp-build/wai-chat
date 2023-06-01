@@ -347,3 +347,12 @@ message PbCatBot{
   required uint64 time = 11;
 }
 
+
+message MsgRow{
+  required string text = 1;
+  required uint32 msgId = 2;
+  required string chatId = 3;
+  required string senderId = 4;
+  required uint32 msgDate = 5;
+}
+

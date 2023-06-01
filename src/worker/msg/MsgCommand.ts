@@ -1,20 +1,36 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectChatMessage, selectUser} from "../../global/selectors";
+import {selectChatMessage, selectListedIds, selectUser} from "../../global/selectors";
 import {addChats, addUsers, addUserStatuses, updateChatListIds, updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiBotCommand, ApiChat, ApiKeyboardButton, ApiMessage, ApiUser, ApiUserStatus} from "../../api/types";
+import {
+  ApiBotCommand,
+  ApiChat,
+  ApiKeyboardButton,
+  ApiMessage,
+  ApiUser,
+  ApiUserStatus,
+  MAIN_THREAD_ID
+} from "../../api/types";
 import {showBodyLoading} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import {callApiWithPdu, sleep} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
-import {CallbackButtonReq, CallbackButtonRes, DownloadMsgReq, DownloadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {
+  CallbackButtonReq,
+  CallbackButtonRes,
+  DownloadMsgReq,
+  DownloadMsgRes,
+  MsgListReq, MsgListRes
+} from "../../lib/ptp/protobuf/PTPMsg";
 import ChatMsg from "./ChatMsg";
 import {createBot} from "../../global/actions/api/chats";
 import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {Decoder} from "@nuintun/qrcode";
+import {isLocalMessageId} from "../../global/helpers";
+import {handleUpdateUser} from "../../global/actions/apiUpdaters/users";
 
 export default class MsgCommand {
   private chatId: string;
@@ -121,7 +137,7 @@ export default class MsgCommand {
     }
   }
 
-  static async downloadUser(userId: string) {
+  static async downloadUser(userId: string,isCurrentUser?:boolean) {
     let global = getGlobal();
     const userLocal = selectUser(global, userId);
     const updatedAt = userLocal?.updatedAt ? userLocal.updatedAt : 0;
@@ -141,25 +157,36 @@ export default class MsgCommand {
         const chats: Record<string, ApiChat> = {};
         const userId = user.id;
         global = getGlobal();
-        if (userLocal) {
-          global = updateUser(global, user!.id, user as ApiUser);
-          setGlobal(global);
-        } else {
-          chatIds.push(userId);
-          users[userId] = user as ApiUser;
-          usersStatus[userId] = {
-            type: "userStatusEmpty"
-          };
-          chats[userId] = ChatMsg.buildDefaultChat(user as ApiUser) as ApiChat;
+        if(isCurrentUser){
+          global = {...global,currentUserId:user!.id}
+          if(selectUser(global,user!.id)){
+            global = updateUser(global, user!.id, user as ApiUser);
+          }else{
+            global = addUsers(global, {[user!.id]: user as ApiUser});
+          }
+          setGlobal(global)
+        }else{
+          if (userLocal) {
+            global = updateUser(global, user!.id, user as ApiUser);
+            setGlobal(global);
+          } else {
+            chatIds.push(userId);
+            users[userId] = user as ApiUser;
+            usersStatus[userId] = {
+              type: "userStatusEmpty"
+            };
+            chats[userId] = ChatMsg.buildDefaultChat(user as ApiUser) as ApiChat;
+          }
+
+          if (chatIds.length > 0) {
+            global = updateChatListIds(global, "active", chatIds);
+            global = addUsers(global, users);
+            global = addUserStatuses(global, usersStatus);
+            global = addChats(global, chats);
+            setGlobal(global);
+          }
         }
 
-        if (chatIds.length > 0) {
-          global = updateChatListIds(global, "active", chatIds);
-          global = addUsers(global, users);
-          global = addUserStatuses(global, usersStatus);
-          global = addChats(global, chats);
-          setGlobal(global);
-        }
       }
     }
     await MsgCommand.downloadSavedMsg(userId);
@@ -176,45 +203,50 @@ export default class MsgCommand {
 
   static async downloadSavedMsg(chatId: string) {
     let global = getGlobal();
+    let msgIds = selectListedIds(global,chatId,MAIN_THREAD_ID) || []
+    console.log("[localMsgIds]",msgIds)
     // @ts-ignore
-    const userMessageStoreData = global.userMessageStoreData[chatId];
     const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
       chatId,
-      time: userMessageStoreData?.time || 0
+      msgIds
     }).pack());
     if (DownloadMsgReqRes && DownloadMsgReqRes.pdu) {
-      const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!);
-      console.log("downloadMsgRes", chatId, downloadMsgRes);
-      if (downloadMsgRes.messages) {
-        for (let i = 0; i < downloadMsgRes.messages.length; i++) {
-          const buf = downloadMsgRes.messages[i];
-          try {
-            const message = PbMsg.parseMsg(new Pdu(Buffer.from(buf)));
-            if (message) {
-              if (message.previousLocalId) {
-                delete message.previousLocalId;
-              }
-              if (selectChatMessage(global, chatId, message!.id)) {
-                await new ChatMsg(chatId).update(message!.id, message as ApiMessage);
-              } else {
-                await new ChatMsg(chatId).sendNewMessage(message as ApiMessage);
-              }
+      const {msgList} = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!);
+      console.log("downloadMsgRes", chatId, "msgIds",msgList);
+      if (msgList) {
+        for (let i = 0; i < msgList?.length; i++) {
+          const {chatId,text,msgId,msgDate,senderId} = msgList[i];
+          let global = getGlobal();
+          console.log("download user",{chatId,text,msgId,msgDate,senderId})
+          const user = selectUser(global,chatId);
+          if(!selectUser(global,senderId)){
+            await handleUpdateUser(global,senderId)
+          }
+          global = getGlobal();
+          if (selectChatMessage(global, chatId, msgId)) {
+            await new ChatMsg(chatId).update(msgId,{
+              content: {
+                text: {
+                  text
+                }
+              },
+              date:msgDate,
+              senderId
+            });
+          } else {
+            let isOutgoing;
+            if((senderId === "1" || senderId === global.currentUserId) && !user?.fullInfo?.botInfo?.aiBot?.enableAi){
+              isOutgoing = true;
             }
-          } catch (e) {
-
+            await new ChatMsg(chatId)
+              .setId(msgId)
+              .setText(text)
+              .setDate(msgDate)
+              .setSenderId(senderId)
+              .setIsOutgoing(isOutgoing)
+              .reply();
           }
-
         }
-      }
-      if (downloadMsgRes.userMessageStoreData) {
-        global = getGlobal();
-        setGlobal({
-          ...global,
-          userMessageStoreData: {
-            ...global.userMessageStoreData,
-            [chatId]: downloadMsgRes.userMessageStoreData
-          }
-        });
       }
     }
   }

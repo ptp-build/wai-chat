@@ -9,7 +9,7 @@ import {
   ALL_CHAT_GPT_MODELS,
   ChatModelConfig,
   DEFAULT_LANG_MNEMONIC,
-  SERVER_BOT_USER_ID_START, SERVER_USER_ID_START,
+  SERVER_USER_ID_START,
   STOP_HANDLE_MESSAGE,
   WaterMark
 } from "../setting";
@@ -52,6 +52,7 @@ export default class MsgCommandChatGpt {
   constructor(chatId: string) {
     this.chatId = chatId;
     this.chatMsg = new ChatMsg(chatId);
+    this.chatMsg
   }
 
   setOutGoingMsgId(outGoingMsgId?: number) {
@@ -62,10 +63,6 @@ export default class MsgCommandChatGpt {
     const global = getGlobal();
     const {userStoreData} = global;
     const {myBots} = userStoreData || {};
-    const i = parseInt(chatId);
-    if (i < parseInt(SERVER_BOT_USER_ID_START)) {
-      return true;
-    }
     return myBots && myBots.includes(chatId);
   }
 
@@ -246,6 +243,7 @@ export default class MsgCommandChatGpt {
       return `⚪ /${cmd.command} ${cmd.description}`;
     })
       .join("\n");
+
     return await this.chatMsg.setText(`\n通过以下指令来控制我:
 
 ${help}
@@ -904,7 +902,7 @@ ${help}
     this.changeChatGptModelConfig({
       model
     });
-    const inlineButtons: ApiKeyboardButtons = this.getAiModelInlineButtons(Number(outGoingMsgId));
+    const inlineButtons: ApiKeyboardButtons = this.getAiModelInlineButtons(Number(outGoingMsgId)) as ApiKeyboardButtons;
     await new ChatMsg(this.chatId).update(messageId, {
       inlineButtons,
       content: {
@@ -1244,9 +1242,9 @@ ${help}
   }
 
   async settingDoSwitchAccount(chatId: string, messageId: number,) {
-    const entropy = await Account.getCurrentAccount()
-      ?.getEntropy();
-    const mnemonic1 = Mnemonic.fromEntropy(entropy!, DEFAULT_LANG_MNEMONIC as MnemonicLangEnum)
+    const account = Account.getCurrentAccount()!
+    const entropy = await account.getEntropy();
+    const mnemonic1 = Mnemonic.fromEntropy(entropy, DEFAULT_LANG_MNEMONIC as MnemonicLangEnum)
       .getWords();
     const {
       password,
