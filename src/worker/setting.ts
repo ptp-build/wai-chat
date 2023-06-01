@@ -202,4 +202,5 @@ export const BYPASS_API = [
 ]
 
 export const STOP_HANDLE_MESSAGE = true
-export const TopCats = require("./assets/topCats-cn.json")
+// export const TopCats = require("./assets/topCats-cn.json")
+export const TopCats = {}

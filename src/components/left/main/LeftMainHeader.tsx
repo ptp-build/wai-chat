@@ -308,7 +308,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
 
   const searchInputPlaceholder = content === LeftColumnContent.Contacts
     ? lang('SearchFriends')
-    : lang(topSearchPlaceHolder || '编程 写作 旅游...');
+    : lang('搜索...');
 
   const versionString = IS_BETA ? `${APP_VERSION} Beta (${APP_REVISION})` : (DEBUG ? APP_REVISION : APP_VERSION);
 

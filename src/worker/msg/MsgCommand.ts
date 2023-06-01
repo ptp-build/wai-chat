@@ -31,6 +31,7 @@ import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {Decoder} from "@nuintun/qrcode";
 import {isLocalMessageId} from "../../global/helpers";
 import {handleUpdateUser} from "../../global/actions/apiUpdaters/users";
+import {UserIdFirstBot} from "../setting";
 
 export default class MsgCommand {
   private chatId: string;
@@ -236,7 +237,9 @@ export default class MsgCommand {
           } else {
             let isOutgoing;
             if((senderId === "1" || senderId === global.currentUserId) && !user?.fullInfo?.botInfo?.aiBot?.enableAi){
-              isOutgoing = true;
+              if(user?.id !== UserIdFirstBot){
+                isOutgoing = true;
+              }
             }
             await new ChatMsg(chatId)
               .setId(msgId)

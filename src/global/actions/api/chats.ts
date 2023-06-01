@@ -2221,13 +2221,10 @@ export async function loadChats<T extends GlobalState>(
     if(!global.users.byId[UserIdFirstBot]) {
       global = {
         ...global,
-        topCats:{
-          cats:TopCats.cats
-        }
       }
       setGlobal(global)
       global = getGlobal();
-      const {bots} = TopCats
+      // const {bots} = TopCats
       firstLoad = true;
       result = LoadAllChats;
       for (let i = 0; i < result.users.length; i++) {
@@ -2241,10 +2238,10 @@ export async function loadChats<T extends GlobalState>(
           }
         }
       }
-      for (let i = 0; i < bots.length; i++) {
-        const bot = bots[i]
-        result.users.push(ChatMsg.buildDefaultBotUser(bot))
-      }
+      // for (let i = 0; i < bots.length; i++) {
+      //   const bot = bots[i]
+      //   result.users.push(ChatMsg.buildDefaultBotUser(bot))
+      // }
       for (let i = 0; i < result.chats.length; i++) {
         const chat = result.chats[i];
         if (global.messages.byChatId[chat.id]) {

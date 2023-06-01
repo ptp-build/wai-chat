@@ -103,11 +103,14 @@ export default class MsgCommandChatGpt {
         ...MsgCommand.buildInlineCallbackButton(chatId, '/setting/copyBot', "复制机器人"),
       ],
     );
-    res.push(
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance', "高级"),
-      ],
-    );
+    if(isMyBot){
+
+      res.push(
+        [
+          ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance', "高级"),
+        ],
+      );
+    }
 
     res.push([
       {
@@ -611,23 +614,29 @@ ${help}
 
   getAdvanceInlineButtons(messageId: number) {
     const chatId = this.chatId;
-    return [
+    const enableAi = this.getAiBotConfig("enableAi")
+    const buttons =  [
       // [
       //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/setApi', botApi ? "修改Api" : "设置Api"),
       //   ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, this.outGoingMsgId + '/setting/ai/disableApi', "禁用Api") : []),
       //   ...(botApi ? MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/updateCmd', "更新命令") : []),
       // ],
-      [
+    ];
+
+    if(!enableAi && MsgCommandChatGpt.isMyBot(this.chatId)){
+      buttons.push([
         ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/dd', "关联钉钉机器人"),
         ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/tg', "关联Telegram机器人"),
-      ],
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/sign', "签名授权"),
-      ],
-      [
-        ...MsgCommand.buildInlineBackButton(chatId, messageId, 'setting/ai/back', "< 返回"),
-      ]
-    ];
+      ])
+    }
+
+    buttons.push([
+      ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/sign', "签名授权"),
+    ])
+    buttons.push([
+      ...MsgCommand.buildInlineBackButton(chatId, messageId, 'setting/ai/back', "< 返回"),
+    ])
+    return buttons
   }
 
   async copyBot(messageId: number) {
@@ -927,7 +936,7 @@ ${help}
     ];
 
     if(MsgCommandChatGpt.isMyBot(this.chatId)){
-      buttons.push(MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/bot/public", "设为公开机器人(赚佣金)"))
+      buttons.push(MsgCommand.buildInlineCallbackButton(this.chatId, "ai/setting/bot/public", "设置公开机器人(赚佣金)"))
     }
 
     buttons.push(MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, "取消"))
