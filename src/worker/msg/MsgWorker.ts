@@ -1,6 +1,6 @@
 import {ApiAttachment, ApiBotInfo, ApiChat, ApiMessage, ApiUser} from "../../api/types";
 import {CLOUD_WS_URL, LOCAL_MESSAGE_MIN_ID} from "../../config";
-import {GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, SendMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
+import {GenMsgIdReq, GenMsgIdRes, SendBotMsgRes, SendMsgRes, SendTextMsgReq} from "../../lib/ptp/protobuf/PTPMsg";
 import {getNextLocalMessageId} from "../../api/gramjs/apiBuilders/messages";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {sleep} from "../../lib/gramjs/Helpers";
@@ -11,7 +11,9 @@ import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
-import {ChatGptStreamStatus} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {ChatGptStreamStatus, PbMsg_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {sendWithCallback} from "../../api/gramjs/methods";
+import {PbMsg} from "../../lib/ptp/protobuf/PTPCommon";
 
 let messageIds: number[] = [];
 
@@ -373,12 +375,13 @@ export default class MsgWorker {
   }
 
   async processOutGoing() {
+
     const {msgSend} = this;
     const msgId = await MsgWorker.genMessageId();
     let message = {
       ...msgSend,
       id: msgId,
-      isOutGoing: false,
+      isOutgoing:!this.botInfo?.aiBot?.enableAi,
       sendingState: undefined,
     };
 
@@ -389,6 +392,9 @@ export default class MsgWorker {
       message,
     });
     this.msgSend = message;
+    await sendWithCallback(new SendTextMsgReq({
+      msg:Buffer.from(new PbMsg(message as PbMsg_Type).pack().getPbData())
+    }).pack().getPbData())
   }
 
   async process() {

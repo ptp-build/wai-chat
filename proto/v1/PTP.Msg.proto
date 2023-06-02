@@ -6,12 +6,7 @@ option java_package = "chat.wai.protobuf";
 option optimize_for = LITE_RUNTIME;
 
 message SendTextMsgReq{
-  required string chatId = 1;
-  required string text = 2;
-  required uint32 msgId = 3;
-  optional string replyToUserId = 4;
-  optional uint64 replyToMsgId = 5;
-  required uint32 msgDate = 6;
+  required bytes msg = 7;
 }
 
 message SendMsgRes{
@@ -70,7 +65,7 @@ message DownloadMsgReq{
 
 message DownloadMsgRes{
   required string chatId = 1;
-  repeated Common.MsgRow msgList = 2;
+  repeated Common.PbMsg msgList = 2;
 }
 
 message UpdateCmdReq{

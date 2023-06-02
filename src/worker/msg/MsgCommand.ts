@@ -216,24 +216,17 @@ export default class MsgCommand {
       console.log("downloadMsgRes", chatId, "msgIds",msgList);
       if (msgList) {
         for (let i = 0; i < msgList?.length; i++) {
-          const {chatId,text,msgId,msgDate,senderId} = msgList[i];
+          const msg = msgList[i];
           let global = getGlobal();
-          console.log("download user",{chatId,text,msgId,msgDate,senderId})
+          console.log("download user",msg)
           const user = selectUser(global,chatId);
-          if(!selectUser(global,senderId)){
+          const {senderId} = msg
+          if(senderId && !selectUser(global,senderId)){
             await handleUpdateUser(global,senderId)
           }
           global = getGlobal();
-          if (selectChatMessage(global, chatId, msgId)) {
-            await new ChatMsg(chatId).update(msgId,{
-              content: {
-                text: {
-                  text
-                }
-              },
-              date:msgDate,
-              senderId
-            });
+          if (selectChatMessage(global, chatId, msg.id)) {
+            await new ChatMsg(chatId).update(msg.id,msg as ApiMessage);
           } else {
             let isOutgoing;
             if((senderId === "1" || senderId === global.currentUserId) && !user?.fullInfo?.botInfo?.aiBot?.enableAi){
@@ -241,13 +234,7 @@ export default class MsgCommand {
                 isOutgoing = true;
               }
             }
-            await new ChatMsg(chatId)
-              .setId(msgId)
-              .setText(text)
-              .setDate(msgDate)
-              .setSenderId(senderId)
-              .setIsOutgoing(isOutgoing)
-              .reply();
+            await new ChatMsg(chatId).sendNewMessage(msg as ApiMessage);
           }
         }
       }

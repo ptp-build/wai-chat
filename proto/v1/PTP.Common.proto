@@ -256,6 +256,8 @@ message PbMsg {
   optional uint32 views = 9;
   optional PbRepliesThreadInfo repliesThreadInfo = 10;
   optional PbReactions reactions = 11;
+  optional uint32 replyToMessageId = 12;
+  optional string replyToUserId = 13;
 }
 
 message PbChatFolder {

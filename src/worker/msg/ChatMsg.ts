@@ -22,6 +22,8 @@ import {
 } from "../../api/types";
 import {currentTs} from "../share/utils/utils";
 import {DEFAULT_BOT_AI_COMMANDS, DEFAULT_BOT_NO_AI_COMMANDS} from "../setting";
+import {selectChatMessage} from "../../global/selectors";
+import {getGlobal} from "../../global";
 
 export default class ChatMsg {
   static _apiUpdate: OnApiUpdate;
@@ -29,6 +31,7 @@ export default class ChatMsg {
   private chatId: string;
   private id?: number;
   private replyToMessageId?: number;
+  private replyToUserId?: string;
 
   private inlineButtons?: ApiKeyboardButtons;
   private senderId?: string;
@@ -132,6 +135,12 @@ export default class ChatMsg {
     return this.id;
   }
 
+  setReplyToUserId(replyToUserId?:string){
+    if(replyToUserId){
+      this.replyToUserId = replyToUserId;
+    }
+    return this;
+  }
   setReplyToMessageId(replyToMessageId?:number){
     if(replyToMessageId){
       this.replyToMessageId = replyToMessageId;
@@ -165,7 +174,8 @@ export default class ChatMsg {
       date,
       inlineButtons,
       sendingState,
-      replyToMessageId
+      replyToMessageId,
+      replyToUserId
     } = this;
 
     if (!senderId) {
@@ -186,6 +196,7 @@ export default class ChatMsg {
       senderId,
       sendingState,
       replyToMessageId,
+      replyToUserId,
       isOutgoing,
       date,
       inlineButtons,

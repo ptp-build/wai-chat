@@ -20,6 +20,9 @@ import ChatMsg from "./ChatMsg";
 import MsgCommand from "./MsgCommand";
 import {showModalFromEvent} from "../share/utils/modal";
 import {updateUser} from "../../global/reducers";
+import {sendWithCallback} from "../../api/gramjs/methods";
+import {PbMsg} from "../../lib/ptp/protobuf/PTPCommon";
+import {PbMsg_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 
 export type ParamsType = {
   chat: ApiChat;
@@ -55,6 +58,10 @@ export default class MsgDispatcher {
     return this.params.text;
   }
 
+  getAttachment() {
+    return this.params.attachment;
+  }
+
   getChatId() {
     return this.params.chat.id;
   }
@@ -72,9 +79,17 @@ export default class MsgDispatcher {
     if(enableAi){
       isOutgoing = false;
     }
+    let replyToUserId;
+    if(replyingTo){
+      const message = selectChatMessage(getGlobal(),this.getChatId(),replyingTo)
+      if(message && message.senderId){
+        replyToUserId = message.senderId
+      }
+    }
     return chatMsg
       .setText(this.getMsgText()!)
       .setReplyToMessageId(replyingTo)
+      .setReplyToUserId(replyToUserId)
       .setSenderId(getGlobal().currentUserId!)
       .setSendingState(sendingState)
       .setIsOutgoing(isOutgoing)
@@ -199,7 +214,7 @@ export default class MsgDispatcher {
               return this.outGoingMsg
             }
           }
-          if (this.getMsgText()) {
+          if (this.getMsgText() && !this.getAttachment()) {
             this.outGoingMsg = await this.sendOutgoingMsg(false,"messageSendingStatePending");
             return this.handleTextMsg();
           }
@@ -238,24 +253,8 @@ export default class MsgDispatcher {
 
   async handleTextMsg() {
     try {
-      const {replyingTo} = this.params
-      const global = getGlobal()
-      let replyToUserId;
-      let replyToMsgId;
-      if(replyingTo){
-        const msg = selectChatMessage(global,this.getChatId(),replyingTo)
-        if(msg && msg.senderId && msg.senderId !== this.getChatId() && msg.senderId !== "1"){
-          replyToUserId = msg.senderId
-          replyToMsgId = msg.id
-        }
-      }
       const SendTextMsgReqRes = await callApiWithPdu(new SendTextMsgReq({
-        chatId: this.getChatId(),
-        text: this.getMsgText()!,
-        msgId:this.outGoingMsg!.id,
-        msgDate:this.outGoingMsg!.date,
-        replyToUserId,
-        replyToMsgId
+        msg:Buffer.from(new PbMsg(this.outGoingMsg as PbMsg_Type).pack().getPbData())
       }).pack());
       if (SendTextMsgReqRes) {
         const {replyText,date,senderId,inlineButtons,chatId} = SendMsgRes.parseMsg(SendTextMsgReqRes.pdu);

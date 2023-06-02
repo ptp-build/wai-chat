@@ -736,7 +736,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["type","string",""],"2":["offset","uint32",0],"3":["length","uint32",0],"4":["documentId","string",""],"5":["userId","string",""],"6":["url","string",""],"7":["language","string",""],"8":["cipher","string",""],"9":["hint","string",""]}
                 },
                 PbMsg: {
-                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0],"9":["views","uint32",0],"10":["repliesThreadInfo","default.PTP.Common.PbRepliesThreadInfo",null],"11":["reactions","default.PTP.Common.PbReactions",null]}
+                    '$': {"1":["id","uint32",0],"2":["chatId","string",""],"3":["content","default.PTP.Common.PbContent",null],"4":["date","uint32",0],"5":["isOutgoing","bool",false],"6":["senderId","string",""],"7":["isForwardingAllowed","bool",false],"8":["previousLocalId","double",0],"9":["views","uint32",0],"10":["repliesThreadInfo","default.PTP.Common.PbRepliesThreadInfo",null],"11":["reactions","default.PTP.Common.PbReactions",null],"12":["replyToMessageId","uint32",0],"13":["replyToUserId","string",""]}
                 },
                 PbPhoto: {
                     '$': {"1":["id","string",""],"2":["thumbnail","default.PTP.Common.PbThumbnail",null],"3":["sizes","<default.PTP.Common.PbSizes",null],"4":["isSpoiler","bool",false]}
@@ -815,7 +815,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["msgIds","[uint32",null]}
                 },
                 DownloadMsgRes: {
-                    '$': {"1":["chatId","string",""],"2":["msgList","<default.PTP.Common.MsgRow",null]}
+                    '$': {"1":["chatId","string",""],"2":["msgList","<default.PTP.Common.PbMsg",null]}
                 },
                 GenMsgIdReq: {
                     '$': {"1":["isLocal","bool",false]}
@@ -845,7 +845,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["replyText","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["senderId","string",""],"6":["date","uint32",0],"7":["inlineButtons","string",""],"8":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
                 SendTextMsgReq: {
-                    '$': {"1":["chatId","string",""],"2":["text","string",""],"3":["msgId","uint32",0],"4":["replyToUserId","string",""],"5":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}],"6":["msgDate","uint32",0]}
+                    '$': {"7":["msg","bytes",[]]}
                 },
                 UpdateCmdReq: {
                     '$': {"2":["chatId","string",""]}

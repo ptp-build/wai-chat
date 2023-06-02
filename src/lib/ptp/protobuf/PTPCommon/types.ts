@@ -224,6 +224,8 @@ export interface PbMsg_Type {
   views?: number;
   repliesThreadInfo?: PbRepliesThreadInfo_Type;
   reactions?: PbReactions_Type;
+  replyToMessageId?: number;
+  replyToUserId?: string;
 }
 
 export interface PbPhoto_Type {

@@ -17,7 +17,7 @@ export interface DownloadMsgReq_Type {
 }
 export interface DownloadMsgRes_Type {
   chatId: string;
-  msgList?: PTPCommon.MsgRow_Type[];
+  msgList?: PTPCommon.PbMsg_Type[];
 }
 export interface GenMsgIdReq_Type {
   isLocal: boolean;
@@ -68,12 +68,7 @@ export interface SendMsgRes_Type {
   replyToMsgId?: number;
 }
 export interface SendTextMsgReq_Type {
-  chatId: string;
-  text: string;
-  msgId: number;
-  replyToUserId?: string;
-  replyToMsgId?: number;
-  msgDate: number;
+  msg: Buffer;
 }
 export interface UpdateCmdReq_Type {
   chatId: string;
