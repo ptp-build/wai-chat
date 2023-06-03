@@ -55,7 +55,7 @@ import {
   selectIsChatPinned,
   selectLastServiceNotification,
   selectSupportChat,
-  selectTabState,
+  selectTabState, selectTheme,
   selectThread,
   selectThreadInfo,
   selectThreadOriginChat,
@@ -113,7 +113,7 @@ import MsgCommand from "../../../worker/msg/MsgCommand";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import Account from "../../../worker/share/Account";
-import {getWebPlatform} from "./initial";
+import {getInitTheme, getWebPlatform} from "./initial";
 import MobileBridge from "../../../worker/msg/MobileBridge";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
@@ -2203,22 +2203,35 @@ const initChats = async (firstLoad?:boolean)=>{
 
   }
   setGlobal(global)
+  global = getGlobal()
+  if(getInitTheme() && platform !== 'web'){
+    const theme = getInitTheme();
+    const theme1 = selectTheme(global)
+    if(theme !== theme1){
+      getActions().setSettingOption({theme});
+    }
+  }
+
   await MsgCommand.downloadUser(global.currentUserId!,true);
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
+
+  if(platform !== 'web'){
+    MobileBridge.postEvent("APP_INIT")
+  }
 
   if(platform === 'web' && document.documentElement.clientWidth > 900){
     setTimeout(async ()=>{
       if(firstLoad){
         getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
-        setTimeout(async ()=>{
-          getActions().sendBotCommand({chatId:startChatId,command:"/start"})
-        },200)
       }
     },500)
   }
-  if(platform !== 'web'){
-    MobileBridge.postEvent("APP_INIT")
-  }
+
+  setTimeout(async ()=>{
+    if(firstLoad){
+      getActions().sendBotCommand({chatId:startChatId,command:"/start"})
+    }
+  },700)
   if(firstLoad){
     if(password){
       setTimeout(async ()=>{

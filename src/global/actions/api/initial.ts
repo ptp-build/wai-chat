@@ -11,13 +11,7 @@ import {
   MEDIA_CACHE_NAME_AVATARS,
   MEDIA_PROGRESSIVE_CACHE_NAME,
 } from '../../../config';
-import {
-  getPlatform,
-  IS_MOV_SUPPORTED,
-  IS_WEBM_SUPPORTED,
-  MAX_BUFFER_SIZE,
-  PLATFORM_ENV,
-} from '../../../util/environment';
+import {IS_MOV_SUPPORTED, IS_WEBM_SUPPORTED, MAX_BUFFER_SIZE, PLATFORM_ENV,} from '../../../util/environment';
 import {unsubscribe} from '../../../util/notifications';
 import * as cacheApi from '../../../util/cacheApi';
 import {updateAppBadge} from '../../../util/appBadge';
@@ -37,13 +31,11 @@ import {buildCollectionByKey} from '../../../util/iteratees';
 import Account from "../../../worker/share/Account";
 import LocalStorage from "../../../worker/share/db/LocalStorage";
 import {callApiWithPdu} from "../../../worker/msg/utils";
-import {getPasswordFromEvent} from "../../../worker/share/utils/password";
 import ChatMsg from "../../../worker/msg/ChatMsg";
 import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
-import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
-import {DEFAULT_LANG_MNEMONIC} from "../../../worker/setting";
 import {currentTs} from "../../../worker/share/utils/utils";
 import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import {ThemeKey} from "../../../types";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -51,8 +43,10 @@ addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
     ...payload,
   };
 });
-export const getSession = async ()=>{
 
+export const getInitTheme = (): ThemeKey =>{
+  //@ts-ignore
+  return window.__THEME;
 }
 
 export const getWebPlatform = ():"web"|"ios"|"android"|"desktop"=>{
