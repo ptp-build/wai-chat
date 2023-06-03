@@ -9,7 +9,6 @@ import type {ActionReturnType, GlobalState, TabArgs,} from '../../types';
 import {
   ALL_FOLDER_ID,
   ARCHIVED_FOLDER_ID,
-  CLOUD_MESSAGE_API,
   DEBUG,
   MEDIA_CACHE_NAME_WAI,
   RE_TG_LINK,
@@ -87,12 +86,10 @@ import {
   ChatModelConfig,
   CurrentUserInfo,
   DEFAULT_AVATARS,
-  DEFAULT_CREATE_USER_BIO,
   DEFAULT_PROMPT,
   DEFAULT_WAI_USER_BIO,
   LoadAllChats,
-  SERVER_BOT_USER_ID_START,
-  TopCats,
+  PASSWORD_MSG_HELPER,
   UserIdFirstBot
 } from "../../../worker/setting";
 import * as cacheApi from '../../../util/cacheApi';
@@ -113,9 +110,11 @@ import {
 import {currentTs, currentTs1000} from "../../../worker/share/utils/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import MsgCommand from "../../../worker/msg/MsgCommand";
-import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
+import Account from "../../../worker/share/Account";
+import {getWebPlatform} from "./initial";
+import MobileBridge from "../../../worker/msg/MobileBridge";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -2117,6 +2116,21 @@ addActionHandler('toggleTopicPinned', (global, actions, payload): ActionReturnTy
 
 
 const initChats = async (firstLoad?:boolean)=>{
+  let account = Account.getCurrentAccount();
+  if(!account){
+    return;
+  }
+  const session = account!.getSession()
+  if(!session){
+    return;
+  }
+  const password = window.sessionStorage.getItem("password")
+  if(password){
+    window.sessionStorage.removeItem("password")
+  }
+
+  const platform = getWebPlatform()
+
   let global = getGlobal()
   let startChatId = UserIdFirstBot
   const {hash} = window.location
@@ -2189,16 +2203,35 @@ const initChats = async (firstLoad?:boolean)=>{
 
   }
   setGlobal(global)
-  await MsgCommand.downloadUser(global.currentUserId,true);
+  await MsgCommand.downloadUser(global.currentUserId!,true);
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
-  setTimeout(async ()=>{
-    if(firstLoad){
-      getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
+
+  if(platform === 'web' && document.documentElement.clientWidth > 900){
+    setTimeout(async ()=>{
+      if(firstLoad){
+        getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
+        setTimeout(async ()=>{
+          getActions().sendBotCommand({chatId:startChatId,command:"/start"})
+        },200)
+      }
+    },500)
+  }
+  if(platform !== 'web'){
+    MobileBridge.postEvent("APP_INIT")
+  }
+  if(firstLoad){
+    if(password){
       setTimeout(async ()=>{
-        getActions().sendBotCommand({chatId:startChatId,command:"/start"})
-      },500)
+        await new ChatMsg(startChatId).setText(`您的账户密码：${password} \n ${PASSWORD_MSG_HELPER}`,[
+          {
+            type:"MessageEntitySpoiler",
+            offset:7,
+            length:6
+          }
+        ]).reply()
+      },1000)
     }
-  },500)
+  }
 }
 
 export async function loadChats<T extends GlobalState>(

@@ -11,7 +11,13 @@ import {
   MEDIA_CACHE_NAME_AVATARS,
   MEDIA_PROGRESSIVE_CACHE_NAME,
 } from '../../../config';
-import {IS_MOV_SUPPORTED, IS_WEBM_SUPPORTED, MAX_BUFFER_SIZE, PLATFORM_ENV,} from '../../../util/environment';
+import {
+  getPlatform,
+  IS_MOV_SUPPORTED,
+  IS_WEBM_SUPPORTED,
+  MAX_BUFFER_SIZE,
+  PLATFORM_ENV,
+} from '../../../util/environment';
 import {unsubscribe} from '../../../util/notifications';
 import * as cacheApi from '../../../util/cacheApi';
 import {updateAppBadge} from '../../../util/appBadge';
@@ -45,6 +51,26 @@ addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
     ...payload,
   };
 });
+export const getSession = async ()=>{
+
+}
+
+export const getWebPlatform = ():"web"|"ios"|"android"|"desktop"=>{
+  //@ts-ignore
+  return window.__PLATFORM || "web"
+}
+
+export const isWebPlatform = async ()=>{
+  return getWebPlatform() === 'web'
+}
+
+function randomDigitNumber(length:string) {
+  let num = '';
+  for(let i = 0; i < length; i++){
+    num += Math.floor(Math.random() * 10);
+  }
+  return num;
+}
 
 addActionHandler('initApi', async (global, actions): Promise<void> => {
   if (!IS_TEST) {
@@ -64,6 +90,13 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       return messageId
   });
 
+  if(!session){
+    const password = randomDigitNumber(6)
+    window.sessionStorage.setItem("password",password)
+    await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
+    window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
+    return
+  }
   void initApi(actions.apiUpdate, {
     userAgent: navigator.userAgent,
     platform: PLATFORM_ENV,
@@ -77,35 +110,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     mockScenario: initialLocationHash?.mockScenario,
     accountId,entropy,session
   });
-  setTimeout(async ()=>{
-    let sessionCreatedAt = window.sessionStorage.getItem("sessionCreatedAt")
-    if(sessionCreatedAt && parseInt(sessionCreatedAt) + 3600 * 24 < currentTs()){
-      sessionCreatedAt = ""
-    }
-    if(!session || !sessionCreatedAt){
-      const mnemonic1 = Mnemonic.fromEntropy(entropy,DEFAULT_LANG_MNEMONIC).getWords()
-      const {password,mnemonic} = await getPasswordFromEvent(
-        undefined,
-        true,
-        'mnemonicPassword',
-        true,
-        {
-          title:"请输入助记词密码",
-          mnemonic:mnemonic1,
-          backGroundBlack:true
-        }
-      )
-      if(password){
-        if(mnemonic1 !== mnemonic){
-          await new MsgCommandChatGpt("").changeMnemonic(mnemonic!,password)
-        }else{
-          await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
-        }
-        window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
-        return
-      }
-    }
-  },1000)
+
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {

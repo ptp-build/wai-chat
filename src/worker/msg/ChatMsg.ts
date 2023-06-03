@@ -90,20 +90,20 @@ export default class ChatMsg {
     return this.setText((tips || "") + "```json\n" + JSON.stringify(data, null, 2) + "```");
   }
 
-  setText(text: string) {
+  setText(text: string,entities:any[]) {
     let {content} = this;
     if (!content) {
       content = {
         text: {
-          text: ""
-        }
+          text: "",
+        },
       };
     }
     if (!content.text) {
       content = {
         ...content,
         text: {
-          text: ""
+          text: "",
         }
       };
     }
@@ -112,6 +112,7 @@ export default class ChatMsg {
       text: {
         ...content.text,
         text,
+        entities
       }
     };
     return this;

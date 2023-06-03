@@ -15,12 +15,22 @@ export const DEFAULT_AVATARS:Record<string, string> = {
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
-export const DEFAULT_WAI_USER_BIO = '基于 chatGpt的Ai助手'
+export const DEFAULT_WAI_USER_BIO = '我是一名基于 Ai 的助手'
 export const DEFAULT_PROMPT = ''
 export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
 
 export const WaterMark = 'https://wai.chat'
+
+export const PASSWORD_MSG_HELPER = `
+- 账户密码 可结合 助记词 用来跨设备登录
+- 账户密码 可用来加密所需的消息
+- 账户密码 和 助记词 不会存服务端，请牢记 账户密码 和妥善安全保存助记词！！
+
+如何查看助记词：
+- 发送 /setting
+- 点击 切换账户
+`
 
 export const ALL_CHAT_GPT_MODELS = [
   {
