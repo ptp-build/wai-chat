@@ -9,7 +9,7 @@
     "build:mocked": "cross-env APP_ENV=test APP_MOCKED_CLIENT=1 webpack --mode development",
     "build:staging": "APP_ENV=staging APP_VERSION=$(npm run version:inc --silent) webpack --mode development && ./deploy/copy_to_dist.sh",
     "build:production": "cp .env.prod .env && APP_VERSION=$(npm run version:inc --silent) webpack && ./deploy/copy_to_dist.sh && npm run clean:prod && npm run copy:android",
-    "deploy:production": "git add -A && git commit -a -m '[Build]' --no-verify && git push",
+    "deploy:production": "npm run build:production && git add -A && git commit -a -m '[Build]' --no-verify && git push",
     "postversion": "npm run version:update",
     "version:print": "echo \"$(node -p -e \"require('./package.json').version.match(/^\\d+\\.\\d+/)[0]\").$(cat .patch-version || echo 0)\"",
     "version:update": "npm run version:print --silent > ./public/version.txt",
