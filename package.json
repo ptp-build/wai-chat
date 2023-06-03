@@ -28,7 +28,7 @@
     "statoscope:validate-diff": "statoscope validate --input input.json --reference reference.json",
     "postinstall": "(cd dev/eslint-multitab && npm i)",
     "clean:prod": "rm -rf dist/statoscope-report.html dist/build-stats.json public/build-stats.json public/statoscope-report.html dist/img-apple-64 dist/img-apple-160 dist/*.js.map",
-    "copy:android": "ANDROID_ASSET_PATH=~/projects/client/telegram-android/TMessagesProj/src/main/assets/wai && rm -rf $ANDROID_ASSET_PATH && cp -a dist $ANDROID_ASSET_PATH",
+    "copy:android": "ANDROID_ASSET_PATH=~/projects/client/telegram-android/TMessagesProj/src/main/assets/wai/m && rm -rf $ANDROID_ASSET_PATH && cp -a dist $ANDROID_ASSET_PATH",
     "dev:pages-api": "APP_ENV=development wrangler pages dev public --port=1237 --live-reload --binding IS_DEV=true --compatibility-date=2023-04-12",
     "dev:worker-api": "wrangler dev src/worker/index.ts --port 1235 --local --persist-to=./wrangler-local-state",
     "deploy:worker": "wrangler publish src/worker/index.ts -c wrangler.prod.toml",

@@ -6,7 +6,7 @@ export default class MobileBridge {
     console.log("MobileBridge postEvent",eventName,eventData,getWebPlatform())
     if(getWebPlatform() === "android"){
       // @ts-ignore
-      window.WaiBridge.postEvent(eventName,payload ? JSON.stringify(eventData) : "{}")
+      window.WaiBridge.postEvent(eventName,eventData ? JSON.stringify(eventData) : "{}")
     }
     if(getWebPlatform() === "ios"){
 
