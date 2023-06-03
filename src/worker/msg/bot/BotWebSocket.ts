@@ -182,6 +182,7 @@ export default class BotWebSocket {
       let pdu = new Pdu(Buffer.from(e.data));
       const seq_num = pdu.getSeqNum();
       if (pdu.getCommandId() === 5001) {
+        console.log("[heartbeat]")
         return;
       }
       if (DEBUG) {
