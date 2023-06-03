@@ -2216,7 +2216,7 @@ const initChats = async (firstLoad?:boolean)=>{
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
 
   if(platform !== 'web'){
-    MobileBridge.postEvent("APP_INIT")
+    MobileBridge.postEvent("WAI_APP_INIT")
   }
 
   if(platform === 'web' && document.documentElement.clientWidth > 900){

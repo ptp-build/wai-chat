@@ -54,6 +54,7 @@ import StatusButton from './StatusButton';
 
 import './LeftMainHeader.scss';
 import * as cacheApi from '../../../util/cacheApi';
+import MobileBridge from "../../../worker/msg/MobileBridge";
 
 type OwnProps = {
   shouldHideSearch?: boolean;
@@ -228,7 +229,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   const handleDarkModeToggle = useCallback((e: React.SyntheticEvent<HTMLElement>) => {
     e.stopPropagation();
     const newTheme = theme === 'light' ? 'dark' : 'light';
-
+    MobileBridge.postEvent("SET_THEME",{theme:newTheme})
     setSettingOption({ theme: newTheme });
     setSettingOption({ shouldUseSystemTheme: false });
     switchTheme(newTheme, animationLevel === ANIMATION_LEVEL_MAX);
