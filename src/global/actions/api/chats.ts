@@ -113,8 +113,7 @@ import MsgCommand from "../../../worker/msg/MsgCommand";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import Account from "../../../worker/share/Account";
-import {getInitTheme, getWebPlatform} from "./initial";
-import MobileBridge from "../../../worker/msg/MobileBridge";
+import MobileBridge, {getInitTheme, getWebPlatform} from "../../../worker/msg/MobileBridge";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;

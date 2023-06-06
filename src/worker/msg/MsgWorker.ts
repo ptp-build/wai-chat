@@ -22,7 +22,7 @@ class Msg {
 
   static async run(chatId: string, msgId: number, reply: string, streamStatus: ChatGptStreamStatus) {
     if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_START) {
-      Msg.text = "";
+      Msg.text = "...";
     }
     if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_GOING) {
       Msg.text += reply;
@@ -131,10 +131,9 @@ export default class MsgWorker {
       message,
       chatId
     } = SendBotMsgRes.parseMsg(pdu);
-    console.log("[SendBotMsgRes]", reply, message);
+    console.log("[SendBotMsgRes]", reply,message);
     if (reply) {
       if (msgId) {
-
         if (streamStatus !== undefined && chatId) {
           await MsgWorker.handleStreamMsg(chatId, msgId, reply, streamStatus);
         } else {

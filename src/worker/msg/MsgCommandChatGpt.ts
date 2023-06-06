@@ -69,7 +69,6 @@ export default class MsgCommandChatGpt {
   getInlineButtons(outGoingMsgId: number): ApiKeyboardButtons {
     const chatId = this.chatId;
     const isMyBot = MsgCommandChatGpt.isMyBot(this.chatId);
-    const isEnableAi = this.getAiBotConfig('enableAi');
     const disableClearHistory = this.getAiBotConfig('disableClearHistory');
     const address = Account.getCurrentAccount()
       ?.getSessionAddress();

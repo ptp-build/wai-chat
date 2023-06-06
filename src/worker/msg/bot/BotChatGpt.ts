@@ -6,7 +6,8 @@ import {callApiWithPdu} from "../utils";
 import {SendBotMsgReq, SendBotMsgRes} from "../../../lib/ptp/protobuf/PTPMsg";
 import MsgCommandChatGpt from "../MsgCommandChatGpt";
 import ChatMsg from "../ChatMsg";
-import {CHATGPT_PROXY_API} from "../../../config";
+import {CHATGPT_PROXY_API, MSG_SERVER} from "../../../config";
+import MsgDispatcher from "../MsgDispatcher";
 
 export type AiHistoryType = {
   role: "user" | "system" | "assistant",
@@ -94,7 +95,8 @@ export default class BotChatGpt {
 
   async process(outGoingMsg: ApiMessage, assistantMsg?: ApiMessage) {
     this.outGoingMsg = outGoingMsg;
-    let botApi = this.msgCommandChatGpt.getAiBotConfig("botApi") as string;
+    const apiKey = this.msgCommandChatGpt.getChatGptConfig("api_key") as string;
+    let botApi = apiKey ? undefined : MSG_SERVER
     let thinkingMsg;
     if (assistantMsg) {
       await this.chatMsg.updateText(assistantMsg.id, "...");

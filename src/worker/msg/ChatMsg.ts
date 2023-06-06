@@ -90,7 +90,7 @@ export default class ChatMsg {
     return this.setText((tips || "") + "```json\n" + JSON.stringify(data, null, 2) + "```");
   }
 
-  setText(text: string,entities:any[]) {
+  setText(text: string,entities?:any[]) {
     let {content} = this;
     if (!content) {
       content = {

@@ -7,7 +7,7 @@ import {getUploadPartSize} from '../Utils';
 import errors from '../errors';
 import {Foreman} from '../../../util/foreman';
 import {DownloadRes, UploadReq} from "../../ptp/protobuf/PTPFile";
-import {CLOUD_MESSAGE_API, DEBUG, MEDIA_CACHE_NAME_WAI} from "../../../config";
+import {CLOUD_MESSAGE_API, DEBUG, MEDIA_CACHE_NAME_WAI, MEDIA_UPLOAD_API} from "../../../config";
 import localDb from "../../../api/gramjs/localDb";
 import Account from "../../../worker/share/Account";
 import * as cacheApi from '../../../util/cacheApi';
@@ -118,7 +118,7 @@ export async function uploadFileCache(
             // eslint-disable-next-line no-constant-condition
             while (true) {
                 try {
-                    if(CLOUD_MESSAGE_API && Account.getCurrentAccount()?.getSession()){
+                    if(MEDIA_UPLOAD_API && Account.getCurrentAccount()?.getSession()){
                         if(DEBUG){
                             console.log("uploadProfilePhoto",fileIdStr,jMemo,partCount)
                         }
@@ -132,7 +132,7 @@ export async function uploadFileCache(
                         }
                         const uploadReq = new UploadReq({file:fileInfo})
                         const body = Buffer.from(uploadReq.pack().getPbData());
-                        await fetch(`${CLOUD_MESSAGE_API}/proto`,{
+                        await fetch(`${MEDIA_UPLOAD_API}/proto`,{
                             method: 'POST',
                             body,
                             headers:{

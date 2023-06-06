@@ -50,6 +50,9 @@ export interface SendBotMsgReq_Type {
   msgDate?: number;
   msgAskId?: number;
   msgAskDate?: number;
+  senderId?: string;
+  toUid?: string;
+  streamStatus?: PTPCommon.ChatGptStreamStatus;
 }
 export interface SendBotMsgRes_Type {
   reply?: string;

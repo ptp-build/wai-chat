@@ -255,6 +255,12 @@ export default class BotWebSocket {
     return clients[msgConnId];
   }
 
+
+  static getCurrentInstance(): BotWebSocket {
+    return BotWebSocket.getInstance(Account.getCurrentAccountId())
+  }
+
+
   waitForMsgCallback(
     seq_num: number,
     timeout: number = 5000,

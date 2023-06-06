@@ -270,18 +270,18 @@ export const handleSendBotMsgReq = async (pdu: Pdu) => {
         }
       }
     } else {
-      const connId = botApi ? parseInt(chatId!) : Account.getCurrentAccountId();
-      if (!botApi) {
-        botApi = CHATGPT_PROXY_API;
-      }
-      const botWs = BotWebSocket.getInstance(connId);
+
+      const botWs = BotWebSocket.getCurrentInstance();
       if (!botWs.isLogged()) {
-        await MsgWorker.createWsBot(connId, botApi);
+        await MsgWorker.createWsBot(Account.getCurrentAccountId(), botApi);
       }
       const res = await botWs.sendPduWithCallback(new SendBotMsgReq({
         text,
         chatId,
         msgId,
+        msgDate,
+        msgAskId,
+        msgAskDate,
         chatGpt
       }).pack());
       return res.getPbData();

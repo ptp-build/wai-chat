@@ -44,20 +44,6 @@ addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   };
 });
 
-export const getInitTheme = (): ThemeKey =>{
-  //@ts-ignore
-  return window.__THEME;
-}
-
-export const getWebPlatform = ():"web"|"ios"|"android"|"desktop"=>{
-  //@ts-ignore
-  return window.__PLATFORM || "web"
-}
-
-export const isWebPlatform = async ()=>{
-  return getWebPlatform() === 'web'
-}
-
 function randomDigitNumber(length:string) {
   let num = '';
   for(let i = 0; i < length; i++){

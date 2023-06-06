@@ -17,19 +17,12 @@ import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
 import {callApiWithPdu, sleep} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
-import {
-  CallbackButtonReq,
-  CallbackButtonRes,
-  DownloadMsgReq,
-  DownloadMsgRes,
-  MsgListReq, MsgListRes
-} from "../../lib/ptp/protobuf/PTPMsg";
+import {CallbackButtonReq, CallbackButtonRes, DownloadMsgReq, DownloadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import ChatMsg from "./ChatMsg";
 import {createBot} from "../../global/actions/api/chats";
-import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
+import {PbUser} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {Decoder} from "@nuintun/qrcode";
-import {isLocalMessageId} from "../../global/helpers";
 import {handleUpdateUser} from "../../global/actions/apiUpdaters/users";
 import {UserIdFirstBot} from "../setting";
 

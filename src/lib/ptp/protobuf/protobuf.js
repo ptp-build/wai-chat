@@ -836,7 +836,7 @@ var $conv_message = $createConverter([
                     '$': {"100":["err","uint32",0]}
                 },
                 SendBotMsgReq: {
-                    '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0],"6":["msgDate","uint32",0],"7":["msgAskId","uint32",0],"8":["msgAskDate","uint32",0]}
+                    '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0],"6":["msgDate","uint32",0],"7":["msgAskId","uint32",0],"8":["msgAskDate","uint32",0],"9":["senderId","string",""],"10":["toUid","string",""],"11":["streamStatus","uint32",0]}
                 },
                 SendBotMsgRes: {
                     '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}

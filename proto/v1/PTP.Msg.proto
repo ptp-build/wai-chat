@@ -5,6 +5,29 @@ option java_package = "chat.wai.protobuf";
 
 option optimize_for = LITE_RUNTIME;
 
+message SendBotMsgReq{
+  optional string chatId = 1;
+  optional string botApi = 2;
+  optional string text = 3;
+  optional string chatGpt = 4;
+  optional uint32 msgId = 5;
+  optional uint32 msgDate = 6;
+  optional uint32 msgAskId = 7;
+  optional uint32 msgAskDate = 8;
+  optional string senderId = 9;
+  optional string toUid = 10;
+  optional Common.ChatGptStreamStatus streamStatus = 11;
+}
+
+message SendBotMsgRes{
+  optional string reply = 1;
+  optional string chatId = 2;
+  optional uint32 msgId = 3;
+  optional Common.ChatGptStreamStatus streamStatus = 4;
+  optional Common.PbMsg message = 5;
+}
+
+
 message SendTextMsgReq{
   required bytes msg = 7;
 }
@@ -76,25 +99,6 @@ message UpdateCmdRes{
   repeated Common.PbCommands commands = 1;
   optional string chatId = 2;
   optional string startTips = 3;
-}
-
-message SendBotMsgReq{
-  optional string chatId = 1;
-  optional string botApi = 2;
-  optional string text = 3;
-  optional string chatGpt = 4;
-  optional uint32 msgId = 5;
-  optional uint32 msgDate = 6;
-  optional uint32 msgAskId = 7;
-  optional uint32 msgAskDate = 8;
-}
-
-message SendBotMsgRes{
-  optional string reply = 1;
-  optional string chatId = 2;
-  optional uint32 msgId = 3;
-  optional Common.ChatGptStreamStatus streamStatus = 4;
-  optional Common.PbMsg message = 5;
 }
 
 message CallbackButtonReq{

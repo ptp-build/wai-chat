@@ -14,6 +14,8 @@ export const CLOUD_MESSAGE_ENABLE = false
 export const CLOUD_MESSAGE_API = process.env.CLOUD_MESSAGE_API;
 export const CHATGPT_PROXY_API = process.env.CHATGPT_PROXY_API;
 export const MSG_SERVER = process.env.MSG_SERVER;
+export const MEDIA_UPLOAD_API = process.env.MEDIA_UPLOAD_API;
+export const MEDIA_DOWNLOAD_API = process.env.MEDIA_DOWNLOAD_API;
 
 export const TEST_USERNAME = process.env.TEST_USERNAME;
 export const TEST_PWD = process.env.TEST_PWD;
