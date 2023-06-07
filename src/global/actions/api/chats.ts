@@ -2203,20 +2203,8 @@ const initChats = async (firstLoad?:boolean)=>{
   }
   setGlobal(global)
   global = getGlobal()
-  if(getInitTheme() && platform !== 'web'){
-    const theme = getInitTheme();
-    const theme1 = selectTheme(global)
-    if(theme !== theme1){
-      getActions().setSettingOption({theme});
-    }
-  }
-
   await MsgCommand.downloadUser(global.currentUserId!,true);
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
-
-  if(platform !== 'web'){
-    MobileBridge.postEvent("WAI_APP_INIT")
-  }
 
   if(platform === 'web' && document.documentElement.clientWidth > 900){
     setTimeout(async ()=>{

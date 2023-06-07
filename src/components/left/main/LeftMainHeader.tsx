@@ -54,7 +54,7 @@ import StatusButton from './StatusButton';
 
 import './LeftMainHeader.scss';
 import * as cacheApi from '../../../util/cacheApi';
-import MobileBridge from "../../../worker/msg/MobileBridge";
+import MobileBridge, {getInitTheme, getWebPlatform} from "../../../worker/msg/MobileBridge";
 
 type OwnProps = {
   shouldHideSearch?: boolean;
@@ -304,7 +304,15 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     || content === LeftColumnContent.GlobalSearch
     || content === LeftColumnContent.Contacts
   );
-
+  useEffect(()=>{
+    if(getInitTheme() && getWebPlatform() !== 'web'){
+      const theme1 = getInitTheme();
+      if(theme !== theme1){
+        getActions().setSettingOption({theme:theme1});
+      }
+    }
+    MobileBridge.postEvent("WAI_APP_INIT")
+  },[theme])
   useEffect(() => (isSearchFocused ? captureEscKeyListener(() => onReset()) : undefined), [isSearchFocused, onReset]);
 
   const searchInputPlaceholder = content === LeftColumnContent.Contacts
