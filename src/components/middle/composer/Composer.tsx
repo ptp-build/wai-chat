@@ -785,11 +785,6 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
 
     let currentAttachments = attachments;
-    // if(speechRecognizing){
-    //   recognition.stop();
-    //   setSpeechRecognizing(false);
-    //   return
-    // }
     if (activeVoiceRecording) {
       const record = await stopRecordingVoice();
       if (record) {
@@ -1154,13 +1149,6 @@ const Composer: FC<OwnProps & StateProps> = ({
             showAllowedMessageTypesNotification({ chatId });
           }
         } else {
-          // recognition.start().then((res:string)=>{
-          //   setHtml(res);
-          // }).catch((e)=>{
-          //   console.error(e)
-          //   // setSpeechRecognizing(false);
-          // });
-          // setSpeechRecognizing(true);
           startRecordingVoice();
         }
         break;
@@ -1517,8 +1505,6 @@ const Composer: FC<OwnProps & StateProps> = ({
           color="danger"
           className="cancel"
           onClick={ ()=>{
-            // recognition.stop();
-            // setSpeechRecognizing(false)
             stopRecordingVoice()
           } }
           ariaLabel="Cancel voice recording"

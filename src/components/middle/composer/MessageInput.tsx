@@ -10,7 +10,7 @@ import type { Signal } from '../../../util/signals';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
 import {
-  IS_ANDROID, IS_EMOJI_SUPPORTED, IS_IOS, IS_TOUCH_ENV,
+  IS_ANDROID, IS_EMOJI_SUPPORTED, IS_IOS, IS_TOUCH_ENV, IS_VOICE_RECORDING_SUPPORTED,
 } from '../../../util/environment';
 import { selectIsInSelectMode, selectReplyingToId } from '../../../global/selectors';
 import { debounce } from '../../../util/schedulers';
@@ -309,7 +309,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
 
     if (e.button === 0) {
-      if(!timer){
+      if(!timer && IS_VOICE_RECORDING_SUPPORTED){
         recordStartTime = new Date().getTime();
         timer = setInterval(()=>{
           if(recordStartTime > 0){
@@ -378,8 +378,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     document.addEventListener('keydown', handleCloseContextMenu);
   }
   function handleMouseUp(e: React.KeyboardEvent<HTMLDivElement>) {
-    const pressTime = new Date().getTime() - recordStartTime;
-    if(timer){
+    if(timer && IS_VOICE_RECORDING_SUPPORTED){
       if(recognition){
         recognition.stop();
       }

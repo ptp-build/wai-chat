@@ -1,20 +1,16 @@
-import type { ChangeEvent } from 'react';
-import React, {
-  useState, useCallback, memo, useEffect, useMemo,
-} from '../../../lib/teact/teact';
-import { getActions, withGlobal } from '../../../global';
+import type {ChangeEvent} from 'react';
+import type {FC} from '../../../lib/teact/teact';
+import React, {memo, useCallback, useEffect, useMemo, useState,} from '../../../lib/teact/teact';
+import {getActions, withGlobal} from '../../../global';
+import type {ApiUsername} from '../../../api/types';
+import {ApiMediaFormat} from '../../../api/types';
+import {ProfileEditProgress} from '../../../types';
 
-import type { FC } from '../../../lib/teact/teact';
-import type { ApiUsername } from '../../../api/types';
-import { ApiMediaFormat } from '../../../api/types';
-import { ProfileEditProgress } from '../../../types';
-
-import { PURCHASE_USERNAME, TME_LINK_PREFIX, USERNAME_PURCHASE_ERROR } from '../../../config';
-import { throttle } from '../../../util/schedulers';
-import { selectTabState, selectUser } from '../../../global/selectors';
-import { getChatAvatarHash } from '../../../global/helpers';
-import { selectCurrentLimit } from '../../../global/selectors/limits';
-import renderText from '../../common/helpers/renderText';
+import {PURCHASE_USERNAME, TME_LINK_PREFIX} from '../../../config';
+import {throttle} from '../../../util/schedulers';
+import {selectTabState, selectUser} from '../../../global/selectors';
+import {getChatAvatarHash} from '../../../global/helpers';
+import {selectCurrentLimit} from '../../../global/selectors/limits';
 import useMedia from '../../../hooks/useMedia';
 import useLang from '../../../hooks/useLang';
 import useHistoryBack from '../../../hooks/useHistoryBack';
@@ -24,8 +20,6 @@ import AvatarEditable from '../../ui/AvatarEditable';
 import FloatingActionButton from '../../ui/FloatingActionButton';
 import Spinner from '../../ui/Spinner';
 import InputText from '../../ui/InputText';
-import UsernameInput from '../../common/UsernameInput';
-import TextArea from '../../ui/TextArea';
 import ManageUsernames from '../../common/ManageUsernames';
 import SafeLink from '../../common/SafeLink';
 
