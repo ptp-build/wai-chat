@@ -38,7 +38,7 @@ import {
   REPLIES_USER_ID,
   SEND_MESSAGE_ACTION_INTERVAL,
 } from '../../../config';
-import {IS_IOS, IS_VOICE_RECORDING_SUPPORTED} from '../../../util/environment';
+import {IS_ANDROID, IS_IOS, IS_VOICE_RECORDING_SUPPORTED} from '../../../util/environment';
 import {MEMO_EMPTY_ARRAY} from '../../../util/memo';
 import {
   selectCanScheduleUntilOnline,
@@ -1364,7 +1364,7 @@ const Composer: FC<OwnProps & StateProps> = ({
               />
             </Button>
           )}
-          {(!isComposerBlocked || canSendGifs || canSendStickers) && (
+          {((!isComposerBlocked || canSendGifs || canSendStickers) && !IS_ANDROID ) && (
             <SymbolMenuButton
               chatId={chatId}
               threadId={threadId}
@@ -1473,6 +1473,7 @@ const Composer: FC<OwnProps & StateProps> = ({
               onClose={closeBotCommandMenu}
             />
           )}
+
           <CustomEmojiTooltip
             chatId={chatId}
             isOpen={isCustomEmojiTooltipOpen}
