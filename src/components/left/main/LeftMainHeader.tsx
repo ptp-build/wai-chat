@@ -21,7 +21,7 @@ import {
   LANG_CACHE_NAME,
   PRODUCTION_HOSTNAME,
 } from '../../../config';
-import {IS_PWA} from '../../../util/environment';
+import {IS_ANDROID, IS_IOS, IS_PWA} from '../../../util/environment';
 import buildClassName from '../../../util/buildClassName';
 import {formatDateToString} from '../../../util/dateFormat';
 import switchTheme from '../../../util/switchTheme';
@@ -59,6 +59,7 @@ import MobileBridge, {getInitTheme, getWebPlatform} from "../../../worker/msg/Mo
 type OwnProps = {
   shouldHideSearch?: boolean;
   content: LeftColumnContent;
+  onNewChannel: () => void;
   contactsFilter: string;
   isClosingSearch?: boolean;
   shouldSkipTransition?: boolean;
@@ -96,6 +97,7 @@ const WEBK_VERSION_URL = 'https://web.telegram.org/k/';
 
 const LeftMainHeader: FC<OwnProps & StateProps> = ({
   shouldHideSearch,
+  onNewChannel,
   content,
   topSearchPlaceHolder,
   contactsFilter,
@@ -143,7 +145,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   } = getActions();
 
   const lang = useLang();
-  const { isMobile } = useAppLayout();
+  const { isMobile,isDesktop } = useAppLayout();
   const hasMenu = content === LeftColumnContent.ChatList;
   const clearedDateSearchParam = { date: undefined };
   const clearedChatSearchParam = { id: undefined };
@@ -538,6 +540,21 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
             <i className="icon-lock" />
           </Button>
         )}
+        {
+          (!isSearchFocused && !(IS_IOS || IS_ANDROID || !isDesktop)) &&
+          <Button
+            round
+            className={"top-add-bot"}
+            ripple={!isMobile}
+            size="smaller"
+            onClick={onNewChannel}
+            color="translucent"
+            ariaLabel="新建机器人"
+          >
+            <i className="icon-add" />
+          </Button>
+        }
+
         <ShowTransition
           isOpen={connectionStatusPosition === 'overlay'}
           isCustom

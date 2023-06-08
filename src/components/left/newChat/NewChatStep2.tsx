@@ -147,9 +147,10 @@ const NewChatStep2: FC<OwnProps & StateProps > = ({
         />
 
         <TextArea
+          helper={"如: wai_pay_support_bot 或者 不填写"}
           value={username}
           onChange={handleUsername}
-          label={"用户名,如: wai_pay_support_bot 或者不填写"}
+          label={"用户名"}
         />
 
         <TextArea

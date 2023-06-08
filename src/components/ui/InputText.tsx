@@ -24,6 +24,7 @@ type OwnProps = {
   placeholder?: string;
   autoComplete?: string;
   maxLength?: number;
+  helper: string;
   tabIndex?: number;
   teactExperimentControlled?: boolean;
   inputMode?: 'text' | 'none' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search';
@@ -63,6 +64,7 @@ const InputText: FC<OwnProps> = ({
   onKeyDown,
   onBlur,
   onPaste,
+  helper,
 }) => {
   const lang = useLang();
   const labelText = error || success || label;
@@ -108,6 +110,10 @@ const InputText: FC<OwnProps> = ({
       {labelText && (
         <label htmlFor={id}>{labelText}</label>
       )}
+      {
+        helper &&
+        <div className="helper">{helper}</div>
+      }
     </div>
   );
 };

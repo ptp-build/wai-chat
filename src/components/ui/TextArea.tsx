@@ -16,6 +16,7 @@ type OwnProps = {
   error?: string;
   success?: string;
   disabled?: boolean;
+  helper?: string;
   readOnly?: boolean;
   placeholder?: string;
   autoComplete?: string;
@@ -43,6 +44,7 @@ const TextArea: FC<OwnProps> = ({
   disabled,
   readOnly,
   placeholder,
+  helper,
   autoComplete,
   inputMode,
   maxLength,
@@ -123,6 +125,10 @@ const TextArea: FC<OwnProps> = ({
       {maxLengthIndicator && (
         <div className="max-length-indicator">{maxLengthIndicator}</div>
       )}
+      {
+        helper &&
+          <div className="helper">{helper}</div>
+      }
     </div>
   );
 };

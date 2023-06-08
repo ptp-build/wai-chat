@@ -171,6 +171,7 @@ const LeftMain: FC<OwnProps> = ({
       onMouseLeave={!IS_TOUCH_ENV ? handleMouseLeave : undefined}
     >
       <LeftMainHeader
+        onNewChannel={handleSelectNewChannel}
         shouldHideSearch={isForumPanelVisible}
         content={content}
         contactsFilter={contactsFilter}
