@@ -276,6 +276,12 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     },500)
   }, [openUrl]);
 
+
+  const handleOpenChatgpt = useCallback(async () => {
+    MobileBridge.postEvent("OPEN_BROWSER",{outerBrowser:false,url:"https://chat.openai.com",title:"ChatGpt"})
+
+  }, [openUrl]);
+
   const handleSignOutClick = useCallback(() => {
     openChat({ id: undefined }, { forceOnHeavyAnimation: true });
     window.history.replaceState({}, '', window.location.href.split("#")[0]);
@@ -414,12 +420,21 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
       >
         {lang('ReportBug')}
       </MenuItem>
-      <MenuItem
-        icon="stop"
-        onClick={handleClearCache}
-      >
-        清除缓存
-      </MenuItem>
+      {
+        IS_ANDROID &&
+        <MenuItem
+          icon="stop"
+          onClick={handleOpenChatgpt}
+        >
+          ChatGpt
+        </MenuItem>
+      }
+      {/* <MenuItem */}
+      {/*   icon="stop" */}
+      {/*   onClick={handleClearCache} */}
+      {/* > */}
+      {/*   清除缓存 */}
+      {/* </MenuItem> */}
       {/* {IS_BETA && ( */}
       {/*   <MenuItem */}
       {/*     icon="permissions" */}

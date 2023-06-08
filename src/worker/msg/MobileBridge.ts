@@ -14,7 +14,7 @@ export const isWebPlatform = async ()=>{
 }
 
 
-export type MobileBridgeEventType = "WAI_APP_INIT" | "SET_THEME"
+export type MobileBridgeEventType = "WAI_APP_INIT" | "SET_THEME" | "OPEN_BROWSER"
 export default class MobileBridge {
   static postEvent(eventName:MobileBridgeEventType,eventData?:any){
     setTimeout(()=>{
