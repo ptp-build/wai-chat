@@ -1,0 +1,69 @@
+
+.share-image-wrap{
+  min-height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .share-image{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    img{
+      max-width: 80%;
+    }
+  }
+}
+.share-image-actions{
+  margin-top:8px;
+  button,a{
+    margin-top:8px;
+  }
+}
+
+.password-modal.bg-black{
+  .modal-backdrop{
+    background-color: rgba(0, 0, 0, 1);
+  }
+}
+
+.password-modal.bg-black{
+  .modal-backdrop{
+    background-color: rgba(0, 0, 0, 1);
+  }
+}
+
+.sidebar-collapse{
+  display: block;
+  width: 30px;
+  height: 30px;
+  background-image: url(../assets/siderbar-toggle.svg);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size:contain;
+}
+#LeftColumn.min-left-column{
+  .EmptyFolder-module__root{
+    display: none;
+  }
+  .LeftMainHeader{
+    display: none;
+  }
+  .ChatFolders{
+    .TabList{
+      display: none;
+    }
+  }
+}
+.top-add-bot{
+  margin-right: -5px;
+  margin-left: 5px;
+}
+
+.input-group{
+  .helper{
+    margin-top: 12px;
+    margin-left: 8px;
+    color: var(--color-text-secondary);
+  }
+}

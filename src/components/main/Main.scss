@@ -30,7 +30,8 @@
 #LeftColumn {
   width: 33vw;
 
-  --left-column-min-width: 16rem;
+  --left-column-min-width: 88px;
+  //--left-column-min-width: 16rem;
   --left-column-max-width: 26.5rem;
 
   min-width: var(--left-column-min-width);
