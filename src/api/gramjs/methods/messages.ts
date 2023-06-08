@@ -300,6 +300,7 @@ export function sendMessage(
     scheduledAt,
     sendAs,
   );
+  const {enableAi} = botInfo?.aiBot || {};
 
   onUpdate({
     '@type': localMessage.isScheduled ? 'newScheduledMessage' : 'newMessage',
@@ -307,6 +308,7 @@ export function sendMessage(
     chatId: chat.id,
     message: {
       ...localMessage,
+      isOutgoing:!enableAi,
       sendingState: 'messageSendingStatePending',
     },
   });

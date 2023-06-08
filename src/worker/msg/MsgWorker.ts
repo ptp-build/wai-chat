@@ -374,13 +374,13 @@ export default class MsgWorker {
   }
 
   async processOutGoing() {
-
     const {msgSend} = this;
+    const {enableAi} = this.botInfo?.aiBot || {};
     const msgId = await MsgWorker.genMessageId();
     let message = {
       ...msgSend,
       id: msgId,
-      isOutgoing:!this.botInfo?.aiBot?.enableAi,
+      isOutgoing:!enableAi,
       sendingState: undefined,
     };
 

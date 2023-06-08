@@ -420,7 +420,6 @@ const LeftColumn: FC<StateProps> = ({
   } = useResize(resizeRef, (n) => setLeftColumnWidth({
     leftColumnWidth: n,
   }), resetLeftColumnWidth, leftColumnWidth, '--left-column-width');
-  console.log({leftColumnWidth})
   const handleSettingsScreenSelect = useCallback((screen: SettingsScreens) => {
     setContent_(LeftColumnContent.Settings);
     setSettingsScreen(screen);
