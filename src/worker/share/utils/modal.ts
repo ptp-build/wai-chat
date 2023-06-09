@@ -6,6 +6,7 @@ export type ShowModalFromEventPayload = {
   max?:number
   min?:number
   step?:number
+  showQrcode?:boolean
   inputType?:string
   buttonTxt?:string
 }

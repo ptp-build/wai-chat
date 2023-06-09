@@ -26,6 +26,7 @@ enum ChatGptStreamStatus{
 }
 enum QrCodeType{
   QrCodeType_MNEMONIC = 1;
+  QrCodeType_SIGN = 2;
 }
 
 enum AUTH_TYPE{

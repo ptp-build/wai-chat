@@ -778,7 +778,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["id","string",""],"2":["waveform","[uint32",null],"3":["duration","uint32",0]}
                 },
                 QrCodeType: {
-                    '@': {"QrCodeType_MNEMONIC":1}
+                    '@': {"QrCodeType_MNEMONIC":1,"QrCodeType_SIGN":2}
                 },
                 UserMessageStoreData: {
                     '$': {"1":["chatId","string",""],"2":["messageIds","[uint64",null],"3":["messageIdsDeleted","[uint64",null],"4":["time","uint64",{"low":0,"high":0,"unsigned":true}]}

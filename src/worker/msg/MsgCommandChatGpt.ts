@@ -1067,7 +1067,8 @@ ${help}
           await showModalFromEvent({
             title:"签名授权",
             type: 'multipleInput',
-            initVal:sign,
+            initVal:`t/${QrCodeType.QrCodeType_SIGN.toString()}/0/${Buffer.from(sign).toString("hex")}`,
+            showQrcode:true,
             buttonTxt:"关闭",
           });
         }

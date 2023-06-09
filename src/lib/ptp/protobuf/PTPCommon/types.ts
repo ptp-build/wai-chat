@@ -28,6 +28,7 @@ export enum ERR {
 
 export enum QrCodeType {
   QrCodeType_MNEMONIC = 1,
+  QrCodeType_SIGN = 2,
 }
 
 export interface ClientInfo_Type {

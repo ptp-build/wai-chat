@@ -7,6 +7,7 @@ import Button from "./Button";
 import TextArea from "./TextArea";
 import {ChangeEvent} from "react";
 import InputText from "./InputText";
+import QrCode from "../common/QrCode";
 
 type OwnProps = {};
 
@@ -70,7 +71,11 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
       className=""
     >
       {
-        payload && (payload.type === 'multipleInput' || payload.type === 'singleInput' )&&
+        (payload && value && payload.showQrcode) &&
+        <QrCode content={value} tips={""} />
+      }
+      {
+        (payload && !payload.showQrcode && (payload.type === 'multipleInput' || payload.type === 'singleInput' ))&&
         <div className="settings-content password-form custom-scroll background">
           <div className="pt-4 pb-4 mb-2 background">
             {
