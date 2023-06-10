@@ -5,10 +5,12 @@ export enum AUTH_TYPE {
 }
 
 export enum ChatGptStreamStatus {
-  ChatGptStreamStatus_START = 0,
-  ChatGptStreamStatus_GOING = 1,
-  ChatGptStreamStatus_DONE = 2,
-  ChatGptStreamStatus_ERROR = 3,
+  ChatGptStreamStatus_WAITING = 0,
+  ChatGptStreamStatus_START = 1,
+  ChatGptStreamStatus_GOING = 2,
+  ChatGptStreamStatus_DONE = 3,
+  ChatGptStreamStatus_ERROR = 4,
+  ChatGptStreamStatus_STOPPED = 5,
 }
 
 export enum EncryptType {

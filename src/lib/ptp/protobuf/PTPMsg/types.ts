@@ -60,6 +60,7 @@ export interface SendBotMsgRes_Type {
   msgId?: number;
   streamStatus?: PTPCommon.ChatGptStreamStatus;
   message?: PTPCommon.PbMsg_Type;
+  msgDate?: number;
 }
 export interface SendMsgRes_Type {
   replyText?: string;

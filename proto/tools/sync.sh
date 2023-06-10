@@ -84,5 +84,6 @@ sync_dir() {
 }
 
 sync_dir $PROJECT_DIR/../wai-chat-bot/src/lib/ptp/protobuf/
-sync_dir $PROJECT_DIR/../wai-chat-bot-rust/src/lib/ptp/protobuf/
+sync_dir $PROJECT_DIR/../wai-bot-desktop/src/lib/ptp/protobuf/
+sync_dir $PROJECT_DIR/../wai-chat-bot-electron/src/lib/ptp/protobuf/
 

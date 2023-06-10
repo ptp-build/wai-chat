@@ -25,6 +25,8 @@ message SendBotMsgRes{
   optional uint32 msgId = 3;
   optional Common.ChatGptStreamStatus streamStatus = 4;
   optional Common.PbMsg message = 5;
+  optional uint32 msgDate = 6;
+
 }
 
 

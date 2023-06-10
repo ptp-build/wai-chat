@@ -667,7 +667,7 @@ var $conv_message = $createConverter([
                     '@': {"AUTH_TYPE_USERNAME":0,"AUTH_TYPE_EMAIL":1,"AUTH_TYPE_MOBILE":2}
                 },
                 ChatGptStreamStatus: {
-                    '@': {"ChatGptStreamStatus_START":0,"ChatGptStreamStatus_GOING":1,"ChatGptStreamStatus_DONE":2,"ChatGptStreamStatus_ERROR":3}
+                    '@': {"ChatGptStreamStatus_WAITING":0,"ChatGptStreamStatus_START":1,"ChatGptStreamStatus_GOING":2,"ChatGptStreamStatus_DONE":3,"ChatGptStreamStatus_ERROR":4,"ChatGptStreamStatus_STOPPED":5}
                 },
                 ClientInfo: {
                     '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
@@ -839,7 +839,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["chatId","string",""],"2":["botApi","string",""],"3":["text","string",""],"4":["chatGpt","string",""],"5":["msgId","uint32",0],"6":["msgDate","uint32",0],"7":["msgAskId","uint32",0],"8":["msgAskDate","uint32",0],"9":["senderId","string",""],"10":["toUid","string",""],"11":["streamStatus","uint32",0]}
                 },
                 SendBotMsgRes: {
-                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null]}
+                    '$': {"1":["reply","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["streamStatus","uint32",0],"5":["message","default.PTP.Common.PbMsg",null],"6":["msgDate","uint32",0]}
                 },
                 SendMsgRes: {
                     '$': {"1":["replyText","string",""],"2":["chatId","string",""],"3":["msgId","uint32",0],"4":["senderId","string",""],"6":["date","uint32",0],"7":["inlineButtons","string",""],"8":["replyToMsgId","uint64",{"low":0,"high":0,"unsigned":true}]}

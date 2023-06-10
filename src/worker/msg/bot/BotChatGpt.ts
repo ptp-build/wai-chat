@@ -110,7 +110,7 @@ export default class BotChatGpt {
         // @ts-ignore
         botApi = CHATGPT_PROXY_API;
       }
-
+      // debugger
       const res = await callApiWithPdu(new SendBotMsgReq({
         botApi,
         chatId: this.botId,
@@ -127,7 +127,7 @@ export default class BotChatGpt {
           messages: this.prepareSendMessages(this.outGoingMsg.content.text?.text!, assistantMsg),
         }),
       }).pack());
-
+      // debugger
       ChatMsg.apiUpdate({
         "@type": "updateGlobalUpdate",
         data: {

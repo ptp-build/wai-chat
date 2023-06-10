@@ -210,6 +210,7 @@ export default class MsgDispatcher {
           if (this.getMsgText() && this.getBotInfo()?.aiBot) {
             if (enableAi) {
               this.outGoingMsg = await this.sendOutgoingMsg();
+              // debugger
               await new BotChatGpt(this.getChatId()).process(this.outGoingMsg);
               return this.outGoingMsg
             }

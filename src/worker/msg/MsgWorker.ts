@@ -14,34 +14,10 @@ import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
 import {ChatGptStreamStatus, PbMsg_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {sendWithCallback} from "../../api/gramjs/methods";
 import {PbMsg} from "../../lib/ptp/protobuf/PTPCommon";
+import {MsgStreamHandler} from "./MsgStreamHandler";
 
 let messageIds: number[] = [];
 
-class Msg {
-  static text: string = "";
-
-  static async run(chatId: string, msgId: number, reply: string, streamStatus: ChatGptStreamStatus) {
-    if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_START) {
-      Msg.text = "...";
-    }
-    if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_GOING) {
-      Msg.text += reply;
-    }
-    if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_DONE) {
-      Msg.text = reply;
-    }
-    if (streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_ERROR) {
-      Msg.text = reply;
-    }
-    await new ChatMsg(chatId!).update(msgId, {
-      content: {
-        text: {
-          text: Msg.text
-        }
-      }
-    });
-  }
-}
 
 export default class MsgWorker {
   private botInfo?: ApiBotInfo;
@@ -96,10 +72,6 @@ export default class MsgWorker {
     });
   }
 
-  static async handleStreamMsg(chatId: string, msgId: number, reply: string, streamStatus: ChatGptStreamStatus) {
-    await Msg.run(chatId, msgId, reply, streamStatus);
-  }
-
   static async handleSendMsgRes(pdu: Pdu) {
     const {
       replyText,
@@ -127,6 +99,7 @@ export default class MsgWorker {
     const {
       reply,
       msgId,
+      msgDate,
       streamStatus,
       message,
       chatId
@@ -135,7 +108,7 @@ export default class MsgWorker {
     if (reply) {
       if (msgId) {
         if (streamStatus !== undefined && chatId) {
-          await MsgWorker.handleStreamMsg(chatId, msgId, reply, streamStatus);
+          await MsgStreamHandler.getInstance(chatId, msgId, msgDate!,reply, streamStatus).process();
         } else {
           await new ChatMsg(chatId!).update(msgId, {
             content: {
