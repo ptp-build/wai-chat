@@ -28,6 +28,15 @@ export enum ERR {
   ERR_NOT_FOUND = 4,
 }
 
+export enum MsgAction {
+  MsgAction_WaiChatGptBotWorkerInit = 0,
+  MsgAction_WaiChatGptPromptsInputReady = 1,
+  MsgAction_WaiChatGptOnRecvMsg = 2,
+  MsgAction_WaiChatGptClickLogin = 3,
+  MsgAction_WaiChatGptInputUsername = 4,
+  MsgAction_WaiChatGptInputPassword = 5,
+}
+
 export enum QrCodeType {
   QrCodeType_MNEMONIC = 1,
   QrCodeType_SIGN = 2,

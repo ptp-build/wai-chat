@@ -8,6 +8,7 @@ try{
 }catch (e){
   adr = "0"
 }
+export const IS_Https = location.href.startsWith("https://")
 export const GLOBAL_STATE_CACHE_KEY = 'tt-global-state-'+adr;
 
 export const CLOUD_MESSAGE_ENABLE = false

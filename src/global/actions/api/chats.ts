@@ -55,7 +55,7 @@ import {
   selectIsChatPinned,
   selectLastServiceNotification,
   selectSupportChat,
-  selectTabState, selectTheme,
+  selectTabState,
   selectThread,
   selectThreadInfo,
   selectThreadOriginChat,
@@ -113,7 +113,7 @@ import MsgCommand from "../../../worker/msg/MsgCommand";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import Account from "../../../worker/share/Account";
-import MobileBridge, {getInitTheme, getWebPlatform} from "../../../worker/msg/MobileBridge";
+import {getWebPlatform} from "../../../worker/msg/MobileBridge";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -756,7 +756,7 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser,user
 }
 addActionHandler('createChat', async (global, actions, payload)=> {
   const {
-    title,about, enableAi,username,tabId = getCurrentTabId(),
+    title,id,about,enableAi,username,tabId = getCurrentTabId(),
   } = payload;
 
 
@@ -769,7 +769,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
 
   try{
     const user = ChatMsg.buildDefaultBotUser({
-      userId:"",
+      userId: id || "",
       avatarHash:"",
       firstName: title,
       photos:[],
@@ -791,7 +791,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
       },
     }, tabId);
     setGlobal(global)
-  }catch (e:Error){
+  }catch (e:any){
     console.error(e)
     let error = '创建失败,请稍后再试';
     if(e.message === "请求错误" || e.message === "用户名已存在"){
@@ -809,6 +809,7 @@ addActionHandler('createChat', async (global, actions, payload)=> {
     setGlobal(global);
   }
 })
+
 addActionHandler('createGroupChat', async (global, actions, payload): Promise<void> => {
   const {
     title, memberIds, photo, tabId = getCurrentTabId(),
@@ -2205,7 +2206,6 @@ const initChats = async (firstLoad?:boolean)=>{
   global = getGlobal()
   await MsgCommand.downloadUser(global.currentUserId!,true);
   new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
-
   if(platform === 'web' && document.documentElement.clientWidth > 900){
     setTimeout(async ()=>{
       if(firstLoad){

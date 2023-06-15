@@ -260,7 +260,6 @@ export default class BotWebSocket {
     return BotWebSocket.getInstance(Account.getCurrentAccountId())
   }
 
-
   waitForMsgCallback(
     seq_num: number,
     timeout: number = 5000,

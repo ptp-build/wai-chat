@@ -37,7 +37,7 @@ module.exports = (_env, { mode = 'production' }) => {
     target: 'web',
 
     devServer: {
-      port: 1234,
+      port: 3080,
       host: '0.0.0.0',
       allowedHosts: 'all',
       hot: true,

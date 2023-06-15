@@ -102,9 +102,9 @@ export class MsgStreamHandler {
     if(this.streamStatus === ChatGptStreamStatus.ChatGptStreamStatus_DONE){
       MsgStreamHandler.removeInstance(this.chatId,this.msgId,this.msgDate);
       this.loadingStop = true
-      console.log("===> done",this.reply)
+      // console.log("===> done",this.reply)
       this.store.clear()
-      return await this.sendReply(this.reply)
+      return await this.sendReply(this.reply.substring( this.reply.indexOf("_") + 1))
     }
   }
   async sendReply(text:string){

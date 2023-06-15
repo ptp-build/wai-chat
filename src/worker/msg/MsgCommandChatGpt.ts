@@ -10,7 +10,7 @@ import {
   ChatModelConfig,
   DEFAULT_LANG_MNEMONIC,
   SERVER_USER_ID_START,
-  STOP_HANDLE_MESSAGE,
+  STOP_HANDLE_MESSAGE, UserIdFirstBot,
   WaterMark
 } from "../setting";
 import {callApiWithPdu, sleep} from "./utils";
@@ -25,7 +25,7 @@ import {
   QrCodeType
 } from "../../lib/ptp/protobuf/PTPCommon/types";
 import {requestUsage} from "../../lib/ptp/functions/requests";
-import {DEBUG} from "../../config";
+import {DEBUG, IS_Https} from "../../config";
 import ChatMsg from "./ChatMsg";
 import {generateImageFromDiv} from "../share/utils/canvas";
 import {
@@ -43,6 +43,8 @@ import Mnemonic, {MnemonicLangEnum} from "../../lib/ptp/wallet/Mnemonic";
 import {PbQrCode} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {aesDecrypt} from "../../util/passcode";
+import {WaiBotWorker} from "./bot/WaiBotWorker";
+import {getWebPlatform} from "./MobileBridge";
 
 export default class MsgCommandChatGpt {
   private chatId: string;
@@ -70,22 +72,35 @@ export default class MsgCommandChatGpt {
     const chatId = this.chatId;
     const isMyBot = MsgCommandChatGpt.isMyBot(this.chatId);
     const disableClearHistory = this.getAiBotConfig('disableClearHistory');
+    const enableAi = this.getAiBotConfig('enableAi');
     const address = Account.getCurrentAccount()
       ?.getSessionAddress();
     const res = [
       [
         ...MsgCommand.buildInlineCallbackButton(chatId, "setting/doSwitchAccount", `切换账户 ( ${address?.substring(0, 4)}***${address?.substring(address?.length - 4)} )`, 'callback'),
       ],
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId, outGoingMsgId + '/setting/ai/toggleClearHistory', disableClearHistory ? "允许清除历史记录" : "关闭清除历史记录"),
-        ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/clearHistory', "清除历史记录")),
-      ],
+
       // isEnableAi ?
       // [
       //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/image', "导出 Image"),
       //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/export/markdown', "导出 Markdown"),
       // ]:[],
     ];
+
+    if (isMyBot && !enableAi && this.chatId !== UserIdFirstBot) {
+      res.push(
+        [
+          ...MsgCommand.buildInlineCallbackButton(chatId, outGoingMsgId + '/setting/ai/toggleClearHistory', disableClearHistory ? "允许清除历史记录" : "关闭清除历史记录"),
+          ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/clearHistory', "清除历史记录")),
+        ],
+      )
+    }else{
+      res.push(
+        [
+          ...(disableClearHistory ? [] : MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/clearHistory', "清除历史记录")),
+        ],
+      )
+    }
 
     if (isMyBot) {
       const t = MsgCommand.buildInlineOpenProfileBtn(chatId, "修改机器人");
@@ -96,17 +111,18 @@ export default class MsgCommandChatGpt {
       //   ...MsgCommand.buildInlineCallbackButton(this.chatId, "setting/shareBot", "分享机器人")
       // ]);
     }
-
-    res.push(
-      [
-        ...MsgCommand.buildInlineCallbackButton(chatId, '/setting/copyBot', "复制机器人"),
-      ],
-    );
-    if(isMyBot){
-
+    if(this.chatId !== UserIdFirstBot && enableAi){
       res.push(
         [
-          ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance', "高级"),
+          ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/copyBot', "复制机器人"),
+        ],
+      );
+    }
+
+    if(WaiBotWorker.getWorker()){
+      res.push(
+        [
+          ...MsgCommand.buildInlineCallbackButton(chatId, `ipcRender/getButtons/${this.chatId}`, "本地机器人"),
         ],
       );
     }
@@ -246,12 +262,22 @@ export default class MsgCommandChatGpt {
     })
       .join("\n");
 
+
+    let tips = IS_Https && !(getWebPlatform() === "android" || getWebPlatform() === "ios") ?
+      "\n- 🎤 长按消息输入框可识别语音进行输入" :
+      ""
+
+
+
+    if(WaiBotWorker.getWorker()){
+      tips += `\n- 本地机器人 \n 发送 /setting 点击 本地机器人 点击创建`
+    }
+
     return await this.chatMsg.setText(`\n通过以下指令来控制我:
 
 ${help}
 
-- ↩️ 使用 control + enter 换行
-- 🎤 长按消息输入框可识别语音进行输入
+- ↩️ 使用 Control + Enter 换行${tips}
     `)
       .setInlineButtons([
         MsgCommand.buildInlineCallbackButton(this.chatId, `${this.outGoingMsgId}/setting/cancel`, '取消')
@@ -610,10 +636,9 @@ ${help}
       ]
     ];
   }
-
   getAdvanceInlineButtons(messageId: number) {
     const chatId = this.chatId;
-    const enableAi = this.getAiBotConfig("enableAi")
+    // const enableAi = this.getAiBotConfig("enableAi")
     const buttons =  [
       // [
       //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/ai/setApi', botApi ? "修改Api" : "设置Api"),
@@ -622,16 +647,16 @@ ${help}
       // ],
     ];
 
-    if(!enableAi && MsgCommandChatGpt.isMyBot(this.chatId)){
-      buttons.push([
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/dd', "关联钉钉机器人"),
-        ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/tg', "关联Telegram机器人"),
-      ])
-    }
+    // if(!enableAi && MsgCommandChatGpt.isMyBot(this.chatId)){
+    //   buttons.push([
+    //     ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/dd', "关联钉钉机器人"),
+    //     ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/link/tg', "关联Telegram机器人"),
+    //   ])
+    // }
 
-    buttons.push([
-      ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/sign', "签名授权"),
-    ])
+    // buttons.push([
+    //   ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/advance/sign', "签名授权"),
+    // ])
     buttons.push([
       ...MsgCommand.buildInlineBackButton(chatId, messageId, 'setting/ai/back', "< 返回"),
     ])
@@ -1071,6 +1096,7 @@ ${help}
             showQrcode:true,
             buttonTxt:"关闭",
           });
+
         }
         return
       case `${chatId}/ai/send/template`:

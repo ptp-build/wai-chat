@@ -6,6 +6,8 @@ export { default as GenMsgIdReq } from './GenMsgIdReq';
 export { default as GenMsgIdRes } from './GenMsgIdRes';
 export { default as MsgListReq } from './MsgListReq';
 export { default as MsgListRes } from './MsgListRes';
+export { default as MsgReq } from './MsgReq';
+export { default as MsgRes } from './MsgRes';
 export { default as RemoveMessagesReq } from './RemoveMessagesReq';
 export { default as RemoveMessagesRes } from './RemoveMessagesRes';
 export { default as SendBotMsgReq } from './SendBotMsgReq';

@@ -25,6 +25,8 @@ import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
 import {Decoder} from "@nuintun/qrcode";
 import {handleUpdateUser} from "../../global/actions/apiUpdaters/users";
 import {UserIdFirstBot} from "../setting";
+import {WaiBotWorker} from "./bot/WaiBotWorker";
+import {WaiBotWorkerLocal} from "./bot/WaiBotWorkerLocal";
 
 export default class MsgCommand {
   private chatId: string;
@@ -339,7 +341,20 @@ export default class MsgCommand {
     if (data.startsWith("server/api/")) {
       await this.handleCallbackButton(data);
     }
-    console.log(chatId, data);
+
+    if (
+      data.replace(`${this.chatId}/`,"").startsWith("ipcMain/") ||
+      data.replace(`${this.chatId}/`,"").startsWith("ipcRender/")) {
+      await new WaiBotWorker(this.chatId,messageId).handleCallbackButton(data);
+    }
+    if (data.startsWith("local/")){
+      await new WaiBotWorkerLocal(this.chatId,messageId).handleCallbackButton(data);
+    }
+
+    if (data.startsWith(`${this.chatId}/actions/openChatId/`)){
+      const chatId = data.replace(`${this.chatId}/actions/openChatId/`,"")
+      getActions().openChat({id:chatId,shouldReplaceHistory:true})
+    }
   }
 
   async handleBuildInPay(chatId: string, data: string) {

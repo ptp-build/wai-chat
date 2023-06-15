@@ -34,6 +34,15 @@ export interface MsgListRes_Type {
   chatId: string;
   msgList?: PTPCommon.MsgRow_Type[];
 }
+export interface MsgReq_Type {
+  action: PTPCommon.MsgAction;
+  payload?: string;
+}
+export interface MsgRes_Type {
+  text: PTPCommon.MsgAction;
+  payload?: string;
+  err?: PTPCommon.ERR;
+}
 export interface RemoveMessagesReq_Type {
   messageIds?: number[];
   chatId: string;
