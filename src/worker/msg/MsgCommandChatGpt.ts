@@ -111,7 +111,7 @@ export default class MsgCommandChatGpt {
       //   ...MsgCommand.buildInlineCallbackButton(this.chatId, "setting/shareBot", "分享机器人")
       // ]);
     }
-    if(this.chatId !== UserIdFirstBot && enableAi){
+    if(this.chatId !== UserIdFirstBot && enableAi && !WaiBotWorker.getWorker()){
       res.push(
         [
           ...MsgCommand.buildInlineCallbackButton(chatId, 'setting/copyBot', "复制机器人"),
