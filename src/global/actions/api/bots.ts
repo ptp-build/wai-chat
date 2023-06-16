@@ -54,6 +54,7 @@ addActionHandler('clickBotInlineButton', (global, actions, payload): ActionRetur
       if (!chat) {
         return;
       }
+
       new MsgCommand(chat.id).answerCallbackButton(global,messageId,button.data);
       // void answerCallbackButton(global, actions, chat, messageId, button.data, undefined, tabId);
       break;

@@ -282,6 +282,7 @@ export default class MsgCommand {
   }
 
   async answerCallbackButton(global: GlobalState, messageId: number, data: string) {
+    console.log("[answerCallbackButton]",data)
     const {chatId} = this;
     if (data.endsWith("/setting/cancel")) {
       const msgId1 = data.split("/")[data.split("/").length - 3];

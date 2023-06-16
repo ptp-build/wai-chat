@@ -125,11 +125,6 @@ export default class MsgCommandChatGpt {
           ...MsgCommand.buildInlineCallbackButton(chatId, `ipcRender/getButtons/${this.chatId}`, "本地机器人"),
         ],
       );
-      res.push(
-        [
-          ...MsgCommand.buildInlineCallbackButton(chatId, `local/setUpProxy`, "设置代理"),
-        ],
-      );
     }
 
     res.push([

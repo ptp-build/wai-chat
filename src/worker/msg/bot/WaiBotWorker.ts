@@ -9,7 +9,7 @@ export type BotWorkerAccountType = {
   botId:string,
   type:"chatGpt",
   proxy:string,
-  authUser:string,
+  chatGptAuthUser:string,
   accountSign:string,
   appWidth:number,
   appHeight:number,
@@ -60,6 +60,7 @@ export class WaiBotWorker{
       }
 
       if (text) {
+        console.log(inlineButtons)
         return await this.chatMsg.update(msg.id, {
           content: {
             text: {
