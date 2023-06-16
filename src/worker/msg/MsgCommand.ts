@@ -347,7 +347,7 @@ export default class MsgCommand {
       data.replace(`${this.chatId}/`,"").startsWith("ipcRender/")) {
       await new WaiBotWorker(this.chatId,messageId).handleCallbackButton(data);
     }
-    if (data.startsWith("local/")){
+    if (data.startsWith("local/") || data.startsWith(this.chatId + "/local/")){
       await new WaiBotWorkerLocal(this.chatId,messageId).handleCallbackButton(data);
     }
 

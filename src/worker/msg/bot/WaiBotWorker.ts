@@ -8,6 +8,8 @@ export type BotWorkerAccountType = {
   accountId:number,
   botId:string,
   type:"chatGpt",
+  proxy:string,
+  authUser:string,
   accountSign:string,
   appWidth:number,
   appHeight:number,
