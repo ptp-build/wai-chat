@@ -28,6 +28,9 @@ import {UserIdFirstBot} from "../setting";
 import {WaiBotWorker} from "./bot/WaiBotWorker";
 import {WaiBotWorkerLocal} from "./bot/WaiBotWorkerLocal";
 
+export const encodeCallBackButtonPayload = (data:string,payload:any) => `${data}/${Buffer.from(JSON.stringify(payload))
+  .toString("hex")}`;
+
 export default class MsgCommand {
   private chatId: string;
   private chatMsg: ChatMsg;

@@ -35,6 +35,9 @@ export enum MsgAction {
   MsgAction_WaiChatGptClickLogin = 3,
   MsgAction_WaiChatGptInputUsername = 4,
   MsgAction_WaiChatGptInputPassword = 5,
+  MsgAction_WaiChatGptCfChallenge = 6,
+  MsgAction_WaiChatGptUserAskMsg = 6001,
+  MsgAction_WaiChatGptBotAckMsg = 6002,
 }
 
 export enum QrCodeType {
@@ -46,6 +49,7 @@ export interface ClientInfo_Type {
   deviceModel: string;
   systemVersion: string;
   appVersion: string;
+  isBotWorker?: boolean;
 }
 
 export interface FileInfo_Type {
@@ -331,6 +335,18 @@ export interface PbVoice_Type {
   id: string;
   waveform?: number[];
   duration?: number;
+}
+
+export interface UserAskChatGptMsg_Type {
+  chatGptBotId: string;
+  text: string;
+  chatId: string;
+  msgId: number;
+  msgDate: number;
+  msgAskId: number;
+  msgAskDate: number;
+  senderId: string;
+  streamStatus: ChatGptStreamStatus;
 }
 
 export interface UserMessageStoreData_Type {

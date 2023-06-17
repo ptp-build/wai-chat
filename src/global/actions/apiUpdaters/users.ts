@@ -17,13 +17,14 @@ import type {ActionReturnType, GlobalState, RequiredGlobalState} from '../../typ
 import {callApiWithPdu} from "../../../worker/msg/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import {UserStoreData_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
-import {DEBUG} from "../../../config";
+import {DEBUG, MSG_SERVER} from "../../../config";
 import {currentTs1000} from "../../../worker/share/utils/utils";
 import MsgCommand from "../../../worker/msg/MsgCommand";
 import {UserIdFirstBot} from "../../../worker/setting";
 import {DownloadUserReq, DownloadUserRes} from "../../../lib/ptp/protobuf/PTPUser";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
+import {WaiBotWorker} from "../../../worker/msg/bot/WaiBotWorker";
 
 const STATUS_UPDATE_THROTTLE = 3000;
 
@@ -151,6 +152,9 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         case "updateBots":
           return handleUpdateBots(global,data.payload.user);
         case "onLogged":
+          if(WaiBotWorker.getWorker()){
+            WaiBotWorker.onLogin()
+          }
           callApiWithPdu(new SyncReq({}).pack()).catch(console.error)
           break
         case "updateUserStoreData":

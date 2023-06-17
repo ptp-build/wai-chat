@@ -9,7 +9,7 @@ import {
   LOCK_SCREEN_ANIMATION_DURATION_MS,
   MEDIA_CACHE_NAME,
   MEDIA_CACHE_NAME_AVATARS,
-  MEDIA_PROGRESSIVE_CACHE_NAME,
+  MEDIA_PROGRESSIVE_CACHE_NAME, MSG_SERVER,
 } from '../../../config';
 import {IS_MOV_SUPPORTED, IS_WEBM_SUPPORTED, MAX_BUFFER_SIZE, PLATFORM_ENV,} from '../../../util/environment';
 import {unsubscribe} from '../../../util/notifications';
@@ -35,7 +35,7 @@ import ChatMsg from "../../../worker/msg/ChatMsg";
 import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
 import {currentTs} from "../../../worker/share/utils/utils";
 import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
-import {ThemeKey} from "../../../types";
+import {WaiBotWorker} from "../../../worker/msg/bot/WaiBotWorker";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -44,7 +44,7 @@ addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   };
 });
 
-function randomDigitNumber(length:string) {
+function randomDigitNumber(length:number) {
   let num = '';
   for(let i = 0; i < length; i++){
     num += Math.floor(Math.random() * 10);

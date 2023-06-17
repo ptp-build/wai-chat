@@ -670,7 +670,7 @@ var $conv_message = $createConverter([
                     '@': {"ChatGptStreamStatus_WAITING":0,"ChatGptStreamStatus_START":1,"ChatGptStreamStatus_GOING":2,"ChatGptStreamStatus_DONE":3,"ChatGptStreamStatus_ERROR":4,"ChatGptStreamStatus_STOPPED":5}
                 },
                 ClientInfo: {
-                    '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""]}
+                    '$': {"1":["deviceModel","string",""],"2":["systemVersion","string",""],"3":["appVersion","string",""],"4":["isBotWorker","bool",false]}
                 },
                 EncryptType: {
                     '@': {"EncryptType_Wallet":0,"EncryptType_Group":1,"EncryptType_Message":2,"EncryptType_Media":3}
@@ -685,7 +685,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["messageId","uint32",0],"2":["buf","bytes",[]]}
                 },
                 MsgAction: {
-                    '@': {"MsgAction_WaiChatGptBotWorkerInit":0,"MsgAction_WaiChatGptPromptsInputReady":1,"MsgAction_WaiChatGptOnRecvMsg":2,"MsgAction_WaiChatGptClickLogin":3,"MsgAction_WaiChatGptInputUsername":4,"MsgAction_WaiChatGptInputPassword":5}
+                    '@': {"MsgAction_WaiChatGptBotWorkerInit":0,"MsgAction_WaiChatGptPromptsInputReady":1,"MsgAction_WaiChatGptOnRecvMsg":2,"MsgAction_WaiChatGptClickLogin":3,"MsgAction_WaiChatGptInputUsername":4,"MsgAction_WaiChatGptInputPassword":5,"MsgAction_WaiChatGptCfChallenge":6,"MsgAction_WaiChatGptUserAskMsg":6001,"MsgAction_WaiChatGptBotAckMsg":6002}
                 },
                 MsgRow: {
                     '$': {"1":["text","string",""],"2":["msgId","uint32",0],"3":["chatId","string",""],"4":["senderId","string",""],"5":["msgDate","uint32",0]}
@@ -783,6 +783,9 @@ var $conv_message = $createConverter([
                 QrCodeType: {
                     '@': {"QrCodeType_MNEMONIC":1,"QrCodeType_SIGN":2}
                 },
+                UserAskChatGptMsg: {
+                    '$': {"1":["chatGptBotId","string",""],"2":["text","string",""],"3":["chatId","string",""],"4":["msgId","uint32",0],"5":["msgDate","uint32",0],"6":["msgAskId","uint32",0],"7":["msgAskDate","uint32",0],"8":["senderId","string",""],"9":["streamStatus","uint32",0]}
+                },
                 UserMessageStoreData: {
                     '$': {"1":["chatId","string",""],"2":["messageIds","[uint64",null],"3":["messageIdsDeleted","[uint64",null],"4":["time","uint64",{"low":0,"high":0,"unsigned":true}]}
                 },
@@ -836,7 +839,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["action","uint32",0],"2":["payload","string",""]}
                 },
                 MsgRes: {
-                    '$': {"1":["text","uint32",0],"2":["payload","string",""],"100":["err","uint32",0]}
+                    '$': {"1":["action","uint32",0],"2":["payload","string",""],"100":["err","uint32",0]}
                 },
                 RemoveMessagesReq: {
                     '$': {"1":["messageIds","[uint32",null],"2":["chatId","string",""]}

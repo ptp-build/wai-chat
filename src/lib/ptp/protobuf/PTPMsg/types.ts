@@ -39,7 +39,7 @@ export interface MsgReq_Type {
   payload?: string;
 }
 export interface MsgRes_Type {
-  text: PTPCommon.MsgAction;
+  action: PTPCommon.MsgAction;
   payload?: string;
   err?: PTPCommon.ERR;
 }

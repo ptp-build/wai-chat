@@ -57,10 +57,16 @@ export default class BotWebSocket {
     this.wsUrl = wsUrl;
   }
 
+  getWsUrl() {
+    return this.wsUrl;
+  }
   setSession(session: string) {
     this.session = session;
   }
 
+  getSession() {
+    return this.session;
+  }
   getState() {
     return this.state;
   }

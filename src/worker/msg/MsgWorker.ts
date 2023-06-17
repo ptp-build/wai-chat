@@ -11,7 +11,7 @@ import Account from "../share/Account";
 import {ActionCommands} from "../../lib/ptp/protobuf/ActionCommands";
 import ChatMsg from "./ChatMsg";
 import {SyncRes, TopCatsRes} from "../../lib/ptp/protobuf/PTPSync";
-import {ChatGptStreamStatus, PbMsg_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
+import {PbMsg_Type} from "../../lib/ptp/protobuf/PTPCommon/types";
 import {sendWithCallback} from "../../api/gramjs/methods";
 import {PbMsg} from "../../lib/ptp/protobuf/PTPCommon";
 import {MsgStreamHandler} from "./MsgStreamHandler";

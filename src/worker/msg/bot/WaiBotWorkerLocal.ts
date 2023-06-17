@@ -7,6 +7,8 @@ import {currentTs1000} from "../../share/utils/utils";
 import {WaiBotWorker} from "./WaiBotWorker";
 import {UserIdFirstBot} from "../../setting";
 import {showModalFromEvent} from "../../share/utils/modal";
+import {encodeCallBackButtonPayload} from "../MsgCommand";
+import {getUserId} from "../../../global/actions/api/chats";
 
 export class WaiBotWorkerLocal{
   private chatId: string;
@@ -19,9 +21,7 @@ export class WaiBotWorkerLocal{
 
   }
   async setUpChatGptAuthUser(){
-    let workers_accounts = WaiBotWorker.getWorkersAccounts()
-    const accounts = Object.values(workers_accounts)
-    const account = accounts.find(account=>account.botId === this.chatId)
+    const account = WaiBotWorker.getWorkersAccount(this.chatId)
     const initVal = account ? account.proxy : window.localStorage.getItem("chatGptAuthUser") || ""
 
     const {value} = await showModalFromEvent({
@@ -31,7 +31,7 @@ export class WaiBotWorkerLocal{
     });
     if(initVal !== value){
       if(account){
-        WaiBotWorker.updateWorkersAccount(account.accountId,{
+        WaiBotWorker.updateWorkersAccount(account.botId,{
           ...account,
           chatGptAuthUser:value||""
         })
@@ -42,18 +42,16 @@ export class WaiBotWorkerLocal{
   }
 
   async setUpProxy(){
-    let workers_accounts = WaiBotWorker.getWorkersAccounts()
-    const accounts = Object.values(workers_accounts)
-    const account = accounts.find(account=>account.botId === this.chatId)
+    const account = WaiBotWorker.getWorkersAccount(this.chatId)
     const initVal = account ? account.proxy : window.localStorage.getItem("proxy") || ""
     const {value} = await showModalFromEvent({
       initVal,
       title: "设置代理",
-      placeholder: "如: socks5://1.1.1.1:2000@username:password"
+      placeholder: "如: socks5://ip:port@user:pwd"
     });
     if(initVal !== value){
       if(account){
-        WaiBotWorker.updateWorkersAccount(account.accountId,{
+        WaiBotWorker.updateWorkersAccount(account.botId,{
           ...account,
           proxy:value||""
         })
@@ -62,67 +60,47 @@ export class WaiBotWorkerLocal{
       }
     }
   }
+  async clearAllWindow(){
+    WaiBotWorker.clearWorkersAccounts()
+  }
   async createChatGptBotWorker(){
     let workers_accounts = WaiBotWorker.getWorkersAccounts()
     const accounts = Object.values(workers_accounts)
-    const account = accounts.find(account=>account.botId === this.chatId)
+    const account = WaiBotWorker.getWorkersAccount(this.chatId)
     const accountNum = accounts.length
 
-    let accountSign;
-    let accountId;
     let proxy;
     let chatGptAuthUser;
+    let botId;
+    let isCreate = false;
     if(account){
-      accountSign = account.accountSign
-      accountId = account.accountId
+      botId = account.botId
       chatGptAuthUser = account.chatGptAuthUser || ""
       proxy = account.proxy || ""
     }else{
+      isCreate = true;
+      botId = this.chatId === UserIdFirstBot ? await getUserId() : this.chatId
       chatGptAuthUser = window.localStorage.getItem("chatGptAuthUser") || ""
       proxy = window.localStorage.getItem("proxy") || ""
     }
 
-    if(this.chatId === UserIdFirstBot){
-      const {password} = await getPasswordFromEvent(
-        undefined,true,
-        "mnemonicPasswordVerify",
-        false,
-        {
-          title:"账户助记词密码"
-        }
-      )
-      if(!password){
-        return
-      }
-      const verifyRes = await Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password!)
-      if(!verifyRes){
-        MsgDispatcher.showNotification("密码不正确")
-        return
-      }else{
-
-        const ts = currentTs1000();
-        accountId =  currentTs1000();
-        const resSign = await Account.getCurrentAccount()?.signMessage(`${ts}`,hashSha256(password!))
-        accountSign = `${resSign!.sign.toString("hex")}_${ts}_${accountId}`
-      }
-    }
-
-    const eventData = JSON.stringify({
+    const eventData = {
       ...account,
-      proxy,
-      chatGptAuthUser,
+      botId,
+      isCreate,
       accountNum,
-      accountSign,
-      accountId,
-    })
-    await new WaiBotWorker(this.chatId,this.messageId).handleCallbackButton("ipcMain/createChatGptBotWorker/"+Buffer.from(eventData).toString("hex"));
-
-
+      chatGptAuthUser,
+      proxy
+    }
+    await new WaiBotWorker(this.chatId,this.messageId).handleCallbackButton(encodeCallBackButtonPayload("ipcMain/createChatGptBotWorker",eventData));
   }
   async handleCallbackButton(data: string,outgoingMsgId:number = 0) {
     switch (data){
       case "local/setUpChatGptAuthUser":
         await this.setUpChatGptAuthUser();
+        break
+      case "local/local":
+        await this.clearAllWindow();
         break
       case "local/setUpProxy":
         await this.setUpProxy();
