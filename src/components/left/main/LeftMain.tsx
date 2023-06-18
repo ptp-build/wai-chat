@@ -115,7 +115,7 @@ const LeftMain: FC<OwnProps> = ({
     setTimeout(()=>{
       sendBotCommand({
         chatId:UserIdFirstBot,
-        command:"/start"
+        command:"/setting"
       })
     },300)
     // onSettingsScreenSelect(SettingsScreens.Main);
@@ -171,6 +171,7 @@ const LeftMain: FC<OwnProps> = ({
       onMouseLeave={!IS_TOUCH_ENV ? handleMouseLeave : undefined}
     >
       <LeftMainHeader
+        onNewChannel={handleSelectNewChannel}
         shouldHideSearch={isForumPanelVisible}
         content={content}
         contactsFilter={contactsFilter}

@@ -1358,7 +1358,9 @@ export interface ActionPayloads {
   } & WithTabId;
   createChat: {
     title: string;
+    enableAi?: boolean;
     id?: string;
+    username?:string;
     promptInit?: string;
     about?: string;
   } & WithTabId;

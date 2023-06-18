@@ -1,17 +1,5 @@
 @import "../../styles/mixins";
 
-#Main.right-column-open .MessageList{
-  .messages-container {
-    width: calc(100% - var(--right-column-width));
-  }
-  @media (min-width: 1276px) {
-    .messages-container {
-      width: calc(100% - var(--right-column-width));
-      max-width: var(--messages-container-width);
-    }
-  }
-}
-
 .MessageList {
   flex: 1;
   width: 100%;
@@ -65,6 +53,7 @@
 
   .messages-container {
     width: 100%;
+    max-width: var(--messages-container-width);
     min-height: 100%;
     margin: 0 auto;
     display: flex;
@@ -430,6 +419,9 @@
     transform: translate3d(0, 0, 0);
     transition: transform var(--layer-transition);
 
+    .messages-container {
+      width: calc(100% - var(--right-column-width));
+    }
 
     body.animation-level-0 & {
       transition: none;
@@ -440,6 +432,7 @@
     }
 
     #Main.narrow-message-list & {
+      width: calc(100% - var(--right-column-width));
 
       .messages-container {
         width: 100%;

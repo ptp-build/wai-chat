@@ -47,7 +47,7 @@ onmessage = async (message: OriginMessageEvent) => {
         }
         if(!BYPASS_API.includes(name)){
           if(DEBUG){
-            console.log(`xxx callApi('${name}'`)
+            //console.log(`xxx callApi('${name}'`)
           }
           return;
         }

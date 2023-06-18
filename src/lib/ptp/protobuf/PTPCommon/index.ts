@@ -1,6 +1,7 @@
 export { default as ClientInfo } from './ClientInfo';
 export { default as FileInfo } from './FileInfo';
 export { default as MessageStoreRow } from './MessageStoreRow';
+export { default as MsgRow } from './MsgRow';
 export { default as PbAction } from './PbAction';
 export { default as PbAiBot } from './PbAiBot';
 export { default as PbAudio } from './PbAudio';
@@ -31,6 +32,7 @@ export { default as PbThumbnail } from './PbThumbnail';
 export { default as PbUser } from './PbUser';
 export { default as PbUsernames } from './PbUsernames';
 export { default as PbVoice } from './PbVoice';
+export { default as UserAskChatGptMsg } from './UserAskChatGptMsg';
 export { default as UserMessageStoreData } from './UserMessageStoreData';
 export { default as UserStoreData } from './UserStoreData';
 export { default as UserStoreRow } from './UserStoreRow';

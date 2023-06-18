@@ -1,64 +1,62 @@
-import { addActionHandler, getGlobal, setGlobal } from '../../index';
+import {addActionHandler, getGlobal, setGlobal} from '../../index';
 
-import type { ApiMessage } from '../../../api/types';
-import { MAIN_THREAD_ID } from '../../../api/types';
-import { FocusDirection } from '../../../types';
-import type {
-  TabState, GlobalState, ActionReturnType,
-} from '../../types';
+import type {ApiMessage} from '../../../api/types';
+import {MAIN_THREAD_ID} from '../../../api/types';
+import {FocusDirection} from '../../../types';
+import type {ActionReturnType, GlobalState, TabState,} from '../../types';
 
 import {
   ANIMATION_END_DELAY,
   APP_VERSION,
-  RELEASE_DATETIME,
   FAST_SMOOTH_MAX_DURATION,
+  RELEASE_DATETIME,
   SERVICE_NOTIFICATIONS_USER_ID,
 } from '../../../config';
-import { IS_TOUCH_ENV } from '../../../util/environment';
+import {IS_TOUCH_ENV} from '../../../util/environment';
 import {
   enterMessageSelectMode,
-  toggleMessageSelection,
   exitMessageSelectMode,
-  replaceThreadParam,
   replaceTabThreadParam,
+  replaceThreadParam,
+  toggleMessageSelectAll,
+  toggleMessageSelection,
   updateFocusDirection,
-  updateFocusedMessage, updateFocusedMessageReached, toggleMessageSelectAll,
+  updateFocusedMessage,
+  updateFocusedMessageReached,
 } from '../../reducers';
 import {
-  selectCurrentChat,
-  selectViewportIds,
-  selectIsRightColumnShown,
-  selectCurrentMessageList,
-  selectChat,
-  selectThreadInfo,
-  selectChatMessages,
   selectAllowedMessageActions,
-  selectMessageIdsByGroupId,
+  selectChat,
+  selectChatMessage,
+  selectChatMessages,
+  selectChatScheduledMessages,
+  selectCurrentChat,
+  selectCurrentMessageList,
   selectForwardedMessageIdsByGroupId,
+  selectIsRightColumnShown,
   selectIsViewportNewest,
+  selectMessageIdsByGroupId,
   selectReplyingToId,
   selectReplyStack,
+  selectRequestedTranslationLanguage,
   selectSender,
-  selectChatScheduledMessages,
   selectTabState,
-  selectRequestedTranslationLanguage, selectChatMessage,
+  selectThreadInfo,
+  selectViewportIds,
 } from '../../selectors';
-import { compact, findLast } from '../../../util/iteratees';
-import { getServerTime } from '../../../util/serverTime';
+import {compact, findLast} from '../../../util/iteratees';
+import {getServerTime} from '../../../util/serverTime';
 
 import versionNotification from '../../../versionNotification.txt';
 import parseMessageInput from '../../../util/parseMessageInput';
-import { getMessageSummaryText, getSenderTitle } from '../../helpers';
+import {getMessageSummaryText, getSenderTitle} from '../../helpers';
 import * as langProvider from '../../../util/langProvider';
-import { copyHtmlToClipboard } from '../../../util/clipboard';
-import { renderMessageSummaryHtml } from '../../helpers/renderMessageSummaryHtml';
-import { updateTabState } from '../../reducers/tabs';
-import { getCurrentTabId } from '../../../util/establishMultitabRole';
-import { getIsMobile } from '../../../hooks/useAppLayout';
-import {MessageStoreRow_Type, PbMsg_Type} from "../../../lib/ptp/protobuf/PTPCommon/types";
-import {currentTs} from "../../../worker/share/utils/utils";
-import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
-import {PbMsg} from "../../../lib/ptp/protobuf/PTPCommon";
+import {copyHtmlToClipboard} from '../../../util/clipboard';
+import {renderMessageSummaryHtml} from '../../helpers/renderMessageSummaryHtml';
+import {updateTabState} from '../../reducers/tabs';
+import {getCurrentTabId} from '../../../util/establishMultitabRole';
+import {getIsMobile} from '../../../hooks/useAppLayout';
+import {uploadMsgList} from "../../../worker/msg/msgHelper";
 
 const FOCUS_DURATION = 1500;
 const FOCUS_NO_HIGHLIGHT_DURATION = FAST_SMOOTH_MAX_DURATION + ANIMATION_END_DELAY;
@@ -892,7 +890,7 @@ addActionHandler('saveMsgToCloud', async (global, actions, payload): ActionRetur
     .map((id) => chatMessages[id!])
     .sort((message1, message2) => message1.id - message2.id);
 
-  await MsgCommandSetting.uploadMsgList(chatId,messages)
+  await uploadMsgList(chatId,messages)
 });
 
 addActionHandler('copyMessagesByIds', (global, actions, payload): ActionReturnType => {

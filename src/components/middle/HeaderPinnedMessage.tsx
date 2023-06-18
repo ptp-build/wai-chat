@@ -24,6 +24,7 @@ import Button from '../ui/Button';
 import PinnedMessageNavigation from './PinnedMessageNavigation';
 import MessageSummary from '../common/MessageSummary';
 import MediaSpoiler from '../common/MediaSpoiler';
+import {stopOpenChat} from "../../global/actions/api/bots";
 
 type OwnProps = {
   message: ApiMessage;

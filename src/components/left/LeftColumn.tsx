@@ -7,7 +7,7 @@ import type { FC } from '../../lib/teact/teact';
 import type { GlobalState } from '../../global/types';
 import { LeftColumnContent, SettingsScreens } from '../../types';
 
-import { IS_MAC_OS, IS_PWA, LAYERS_ANIMATION_NAME } from '../../util/environment';
+import {IS_ANDROID, IS_IOS, IS_MAC_OS, IS_PWA, LAYERS_ANIMATION_NAME} from '../../util/environment';
 import captureEscKeyListener from '../../util/captureEscKeyListener';
 import { selectTabState, selectCurrentChat, selectIsForumPanelOpen } from '../../global/selectors';
 import useFoldersReducer from '../../hooks/reducers/useFoldersReducer';
@@ -22,6 +22,7 @@ import NewChat from './newChat/NewChat.async';
 import ArchivedChats from './ArchivedChats.async';
 
 import './LeftColumn.scss';
+import useAppLayout from "../../hooks/useAppLayout";
 
 type StateProps = {
   chatCreationProgress?:ChatCreationProgress;
@@ -419,15 +420,20 @@ const LeftColumn: FC<StateProps> = ({
   } = useResize(resizeRef, (n) => setLeftColumnWidth({
     leftColumnWidth: n,
   }), resetLeftColumnWidth, leftColumnWidth, '--left-column-width');
-
   const handleSettingsScreenSelect = useCallback((screen: SettingsScreens) => {
     setContent_(LeftColumnContent.Settings);
     setSettingsScreen(screen);
   }, []);
+  const { isMobile,isDesktop } = useAppLayout();
 
+  let LeftColumnClassName = ""
+  if(leftColumnWidth && leftColumnWidth <= 88 && isDesktop){
+    LeftColumnClassName = "min-left-column"
+  }
   return (
     <div
       id="LeftColumn"
+      className={LeftColumnClassName}
       ref={resizeRef}
     >
       <Transition

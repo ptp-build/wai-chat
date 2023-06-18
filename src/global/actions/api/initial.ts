@@ -9,7 +9,7 @@ import {
   LOCK_SCREEN_ANIMATION_DURATION_MS,
   MEDIA_CACHE_NAME,
   MEDIA_CACHE_NAME_AVATARS,
-  MEDIA_PROGRESSIVE_CACHE_NAME,
+  MEDIA_PROGRESSIVE_CACHE_NAME, MSG_SERVER,
 } from '../../../config';
 import {IS_MOV_SUPPORTED, IS_WEBM_SUPPORTED, MAX_BUFFER_SIZE, PLATFORM_ENV,} from '../../../util/environment';
 import {unsubscribe} from '../../../util/notifications';
@@ -30,14 +30,12 @@ import type {ActionReturnType} from '../../types';
 import {buildCollectionByKey} from '../../../util/iteratees';
 import Account from "../../../worker/share/Account";
 import LocalStorage from "../../../worker/share/db/LocalStorage";
-import Mnemonic from "../../../lib/ptp/wallet/Mnemonic";
-import {hashSha256} from "../../../worker/share/utils/helpers";
 import {callApiWithPdu} from "../../../worker/msg/utils";
-import {AuthNativeReq} from "../../../lib/ptp/protobuf/PTPAuth";
-import {getPasswordFromEvent} from "../../../worker/share/utils/password";
-import MsgCommandSetting from "../../../worker/msg/MsgCommandSetting";
 import ChatMsg from "../../../worker/msg/ChatMsg";
-import { GenMsgIdReq, GenMsgIdRes } from '../../../lib/ptp/protobuf/PTPMsg';
+import {GenMsgIdReq, GenMsgIdRes} from '../../../lib/ptp/protobuf/PTPMsg';
+import {currentTs} from "../../../worker/share/utils/utils";
+import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
+import {WaiBotWorker} from "../../../worker/msg/bot/WaiBotWorker";
 
 addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
   return {
@@ -45,6 +43,14 @@ addActionHandler('updateGlobal', (global,action,payload): ActionReturnType => {
     ...payload,
   };
 });
+
+function randomDigitNumber(length:number) {
+  let num = '';
+  for(let i = 0; i < length; i++){
+    num += Math.floor(Math.random() * 10);
+  }
+  return num;
+}
 
 addActionHandler('initApi', async (global, actions): Promise<void> => {
   if (!IS_TEST) {
@@ -56,7 +62,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
   Account.setClientKv(new LocalStorage())
   const accountId = Account.getCurrentAccountId();
   let account = Account.getInstance(accountId);
-  const entropy = await account.getEntropy();
+  let entropy = await account.getEntropy();
   const session = account.getSession()
   ChatMsg.setApiUpdate(actions.apiUpdate,async(isLocal?:boolean)=>{
       const res = await callApiWithPdu(new GenMsgIdReq({isLocal:!!isLocal}).pack())
@@ -64,6 +70,13 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       return messageId
   });
 
+  if(!session){
+    const password = randomDigitNumber(6)
+    window.sessionStorage.setItem("password",password)
+    await new MsgCommandChatGpt("").doSwitchAccount(getGlobal(),password,undefined)
+    window.sessionStorage.setItem("sessionCreatedAt",currentTs().toString())
+    return
+  }
   void initApi(actions.apiUpdate, {
     userAgent: navigator.userAgent,
     platform: PLATFORM_ENV,
@@ -77,15 +90,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
     mockScenario: initialLocationHash?.mockScenario,
     accountId,entropy,session
   });
-  setTimeout(async ()=>{
-    if(!session){
-      const {password} = await getPasswordFromEvent(undefined,true,'showMnemonic',true)
-      if(password){
-        await new MsgCommandSetting("").enableSync(getGlobal(),password,undefined)
-        return
-      }
-    }
-  },1000)
+
 });
 
 addActionHandler('setAuthPhoneNumber', (global, actions, payload): ActionReturnType => {

@@ -29,6 +29,7 @@ import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {blobToDataUri, fetchBlob, imgToBlob} from "../../../util/files";
 import {resizeImage} from "../../../util/imageResize";
+import MsgCommand from "../../../worker/msg/MsgCommand";
 
 addActionHandler('updateProfile', async (global, actions, payload): Promise<void> => {
   const {
@@ -117,6 +118,7 @@ addActionHandler('updateProfile', async (global, actions, payload): Promise<void
     },
   }, tabId);
   setGlobal(global);
+  MsgCommand.uploadUser(getGlobal(),currentUserId).catch(console.error)
 });
 
 addActionHandler('updateProfilePhoto', async (global, actions, payload): Promise<void> => {

@@ -55,6 +55,7 @@ addActionHandler('loadFullUser', async (global, actions, payload): Promise<void>
 addActionHandler('loadUser', async (global, actions, payload): Promise<void> => {
   const { userId } = payload!;
   const user = selectUser(global, userId);
+  MsgCommand.downloadUser(userId).catch(console.error)
   if (!user) {
     return;
   }

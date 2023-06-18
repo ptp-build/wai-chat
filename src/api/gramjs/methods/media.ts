@@ -9,7 +9,7 @@ import {
   MEDIA_CACHE_DISABLED,
   MEDIA_CACHE_NAME,
   MEDIA_CACHE_NAME_AVATARS,
-  MEDIA_CACHE_NAME_WAI,
+  MEDIA_CACHE_NAME_WAI, MEDIA_DOWNLOAD_API,
 } from '../../../config';
 import localDb from '../localDb';
 import * as cacheApi from '../../../util/cacheApi';
@@ -120,7 +120,7 @@ export default async function downloadMedia(
       if(!blob){
         let finalBuf = Buffer.alloc(0);
         while (true){
-          const res = await fetch(`${CLOUD_MESSAGE_API}/proto`,{
+          const res = await fetch(`${MEDIA_DOWNLOAD_API}/proto`,{
             method: 'POST',
             body: Buffer.from(downloadReq.pack().getPbData())
           })

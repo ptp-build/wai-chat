@@ -4,7 +4,7 @@ import {getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
 import Account from '../../share/Account';
 import {AuthLoginReq} from "../../../lib/ptp/protobuf/PTPAuth";
 
-export enum BotWebSocketNotifyAction{
+export enum BotWebSocketNotifyAction {
   onConnectionStateChanged,
   onData,
 }
@@ -23,7 +23,7 @@ export enum BotWebSocketState {
   logged,
 }
 
-export type MsgHandleType = (msgConnId:number,notifies:BotWebSocketNotify[])=>void
+export type MsgHandleType = (msgConnId: number, notifies: BotWebSocketNotify[]) => void
 
 let reconnect_cnt = 0;
 let seq_num = 10;
@@ -42,6 +42,7 @@ export default class BotWebSocket {
   private msgConnId: number;
   private wsUrl?: string;
   private session?: string;
+
   constructor(msgConnId: number) {
     currentMsgConn = this;
     this.msgConnId = msgConnId;
@@ -51,22 +52,33 @@ export default class BotWebSocket {
     this.__rev_msg_map = {};
     this.__sending_msg_map = {};
   }
-  setWsUrl(wsUrl:string) {
+
+  setWsUrl(wsUrl: string) {
     this.wsUrl = wsUrl;
   }
-  setSession(session:string) {
+
+  getWsUrl() {
+    return this.wsUrl;
+  }
+  setSession(session: string) {
     this.session = session;
+  }
+
+  getSession() {
+    return this.session;
   }
   getState() {
     return this.state;
   }
-  getMsgConnId(){
+
+  getMsgConnId() {
     return this.msgConnId;
   }
 
   getAutoConnect() {
     return this.autoConnect;
   }
+
   setAutoConnect(autoConnect: boolean) {
     this.autoConnect = autoConnect;
   }
@@ -77,8 +89,9 @@ export default class BotWebSocket {
       this.client.close();
     }
   }
+
   connect() {
-    if (!this.wsUrl ) {
+    if (!this.wsUrl) {
       console.error('no ws url');
       return;
     }
@@ -90,7 +103,7 @@ export default class BotWebSocket {
       return;
     }
     try {
-      console.log('connecting', this.msgConnId,this.wsUrl);
+      console.log('connecting', this.msgConnId, this.wsUrl);
       this.notifyState(BotWebSocketState.connecting);
       this.client = new WebSocket(`${this.wsUrl}`);
       this.client.binaryType = 'arraybuffer';
@@ -119,7 +132,8 @@ export default class BotWebSocket {
         } else {
           startTime += timeout_;
           // eslint-disable-next-line promise/catch-or-return
-          this.waitForMsgServerState(state, timeout, startTime).then(resolve);
+          this.waitForMsgServerState(state, timeout, startTime)
+            .then(resolve);
         }
       }, timeout_);
     });
@@ -134,7 +148,8 @@ export default class BotWebSocket {
         } else {
           startTime += timeout_;
           // eslint-disable-next-line promise/catch-or-return
-          this.waitTime(timeout, startTime).then(resolve);
+          this.waitTime(timeout, startTime)
+            .then(resolve);
         }
       }, timeout_);
     });
@@ -145,41 +160,44 @@ export default class BotWebSocket {
   }
 
   onConnected() {
-    reconnect_cnt = 0
-    console.log("[onConnected account]",this.getMsgConnId())
+    reconnect_cnt = 0;
+    console.log("[onConnected account]", this.getMsgConnId());
     this.notifyState(BotWebSocketState.connected);
-    this.login().catch(console.error)
+    this.login()
+      .catch(console.error);
   }
-  async login(){
+
+  async login() {
     await this.sendPduWithCallback(new AuthLoginReq({
-      clientInfo:Account.getCurrentAccount()!.getClientInfo(),
-      sign:Account.getCurrentAccount()?.getSession()!
-    }).pack())
-    console.log("[onLogin] ok")
+      clientInfo: Account.getCurrentAccount()!.getClientInfo(),
+      sign: Account.getCurrentAccount()
+        ?.getSession()!
+    }).pack());
+    console.log("[onLogin] ok");
     this.notifyState(BotWebSocketState.logged);
   }
-  notify(notifyList:BotWebSocketNotify[]) {
+
+  notify(notifyList: BotWebSocketNotify[]) {
     if (this.__msgHandler) {
-      this.__msgHandler(this.msgConnId,notifyList);
+      this.__msgHandler(this.msgConnId, notifyList);
     }
   }
+
   onData(e: { data: Buffer }) {
-    if(e.data && e.data.byteLength && e.data.byteLength > 16){
+    if (e.data && e.data.byteLength && e.data.byteLength > 16) {
       let pdu = new Pdu(Buffer.from(e.data));
       const seq_num = pdu.getSeqNum();
-      if(DEBUG){
-        console.log("[onData]",seq_num,pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
+      if (pdu.getCommandId() === 5001) {
+        console.log("[heartbeat]")
+        return;
       }
-      if(pdu.getCommandId() === 5001){
-        return
+      if (DEBUG) {
+        console.log("[onData]", seq_num, pdu.getCommandId(), getActionCommandsName(pdu.getCommandId()));
       }
-      if(DEBUG){
-        console.log("[onData]",seq_num,pdu.getCommandId(),getActionCommandsName(pdu.getCommandId()))
-      }
-      if(this.__sending_msg_map[seq_num]){
-        this.__rev_msg_map[seq_num] = pdu
+      if (this.__sending_msg_map[seq_num]) {
+        this.__rev_msg_map[seq_num] = pdu;
         delete this.__sending_msg_map[seq_num];
-      }else{
+      } else {
         if (this.__msgHandler) {
           this.notify([
             {
@@ -192,6 +210,7 @@ export default class BotWebSocket {
     }
 
   }
+
   notifyState(state: BotWebSocketState) {
     this.state = state;
     this.notify([
@@ -203,6 +222,7 @@ export default class BotWebSocket {
       },
     ]);
   }
+
   onClose() {
     if (this.sendMsgTimer) {
       clearTimeout(this.sendMsgTimer);
@@ -227,7 +247,7 @@ export default class BotWebSocket {
           } else {
             reconnect_cnt += 2;
           }
-          console.log("[reconnect_cnt]",reconnect_cnt)
+          console.log("[reconnect_cnt]", reconnect_cnt);
           this.connect();
         }
       }, 1000 * (reconnect_cnt + 1));
@@ -239,6 +259,11 @@ export default class BotWebSocket {
       clients[msgConnId] = new BotWebSocket(msgConnId);
     }
     return clients[msgConnId];
+  }
+
+
+  static getCurrentInstance(): BotWebSocket {
+    return BotWebSocket.getInstance(Account.getCurrentAccountId())
   }
 
   waitForMsgCallback(
@@ -268,26 +293,26 @@ export default class BotWebSocket {
     });
   }
 
-  send(data:Buffer|Uint8Array){
+  send(data: Buffer | Uint8Array) {
     this.client.send(data);
   }
 
   sendPduWithCallback(
-    pdu:Pdu,
+    pdu: Pdu,
     timeout: number = 10000
   ) {
     seq_num += 1;
-    if(seq_num > 100000){
-      seq_num = 10
+    if (seq_num > 100000) {
+      seq_num = 10;
     }
-    pdu.updateSeqNo(seq_num)
-    if(DEBUG){
-      console.log("sendPduWithCallback",getActionCommandsName(pdu.getCommandId()),"seq_num:",seq_num,pdu.getSeqNum())
+    pdu.updateSeqNo(seq_num);
+    if (DEBUG) {
+      console.log("sendPduWithCallback", getActionCommandsName(pdu.getCommandId()), "seq_num:", seq_num, pdu.getSeqNum());
     }
     return new Promise<Pdu>((resolve, reject) => {
       if (this.isConnect()) {
         this.__sending_msg_map[pdu.getSeqNum()] = true;
-        this.send(pdu.getPbData())
+        this.send(pdu.getPbData());
         this.waitForMsgCallback(pdu.getSeqNum(), timeout)
           .then(resolve)
           .catch(reject);
@@ -301,14 +326,16 @@ export default class BotWebSocket {
   isLogged() {
     return [BotWebSocketState.logged].includes(this.state);
   }
+
   isConnect() {
     return [BotWebSocketState.connected, BotWebSocketState.logged].includes(
       this.state
     );
   }
-  async destroy(){
-    this.client.close()
-    this.setAutoConnect(false)
-    await this.waitForMsgServerState(BotWebSocketState.closed)
+
+  async destroy() {
+    this.client.close();
+    this.setAutoConnect(false);
+    await this.waitForMsgServerState(BotWebSocketState.closed);
   }
 }

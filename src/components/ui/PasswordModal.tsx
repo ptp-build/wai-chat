@@ -7,35 +7,46 @@ import PasswordMonkey from "../common/PasswordMonkey";
 import PasswordForm from "../common/PasswordForm";
 import {passwordCheck} from "../../worker/share/utils/helpers";
 import InputText from "./InputText";
+import {PasswordFromEventOptions} from "../../worker/share/utils/password";
+import Mnemonic, {MnemonicLangEnum} from "../../lib/ptp/wallet/Mnemonic";
+import {DEFAULT_LANG_MNEMONIC} from "../../worker/setting";
 
 type OwnProps = {};
 
 let onConfirm: Function | null = null
 
-export type PasswordHelperType = undefined | "showMnemonic" | "messageEncryptPassword"
+export type PasswordHelperType = "" | "showMnemonic" | "messageEncryptPassword"  | "mnemonicPassword"  | "mnemonicPasswordVerify"
 
 const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
 
   const [open, setOpen] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>("Password");
   const [noBackdropClose, setNoBackdropClose] = useState<boolean>(false);
+  const [backGroundBlack, setBackGroundBlack] = useState<boolean>(false);
 
   const [showHitInput, setShowHitInput] = useState<boolean>(false);
-  const [passwordHelper, setPasswordHelper] = useState<PasswordHelperType>(undefined);
+  const [passwordHelper, setPasswordHelper] = useState<PasswordHelperType>("");
+  const [mnemonicError, setMnemonicError] = useState<string>("");
   const [validationError, setValidationError] = useState<string>('');
+  const [mnemonic, setMnemonic] = useState<string>('');
   const [hint, setHint] = useState<string>('');
   const [shouldShowPassword, setShouldShowPassword] = useState(false);
   const lang = useLang();
 
   const handleSubmit = useCallback((password) => {
+    if("mnemonicPassword" === passwordHelper && mnemonic.trim().split(" ").length !== 12 ||  !new Mnemonic(mnemonic.trim(),DEFAULT_LANG_MNEMONIC as MnemonicLangEnum).checkMnemonic()){
+      setMnemonicError("助记词不合法")
+      return false
+    }
     if (!passwordCheck(password)) {
       setValidationError(lang("PasswordTipsCheck"))
       return
     }
     if (onConfirm) {
-      onConfirm({password, hint});
+      onConfirm({password, hint,mnemonic});
       setOpen(false)
     }
-  }, [hint]);
+  }, [hint,passwordHelper,mnemonic]);
 
   useEffect(() => {
     const evt = (e: Event) => {
@@ -51,6 +62,18 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
         setHint(e.detail.hint)
         // @ts-ignore
         setShowHitInput(!e.detail.hideHitInput);
+        // @ts-ignore
+        const options:PasswordFromEventOptions = e.detail.options as PasswordFromEventOptions || {}
+        const {title,mnemonic,backGroundBlack} = options
+        if(title){
+          setTitle(title)
+        }
+        if(backGroundBlack !== undefined){
+          setBackGroundBlack(true)
+        }
+        if(mnemonic){
+          setMnemonic(mnemonic)
+        }
       }
     }
     document.addEventListener('password', evt);
@@ -77,8 +100,8 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
         }
         setOpen(false)
       }}
-      title="Password"
-      className=""
+      title={title}
+      className={`password-modal${backGroundBlack ? " bg-black":""}`}
     >
       <div className="settings-content password-form custom-scroll background">
         <div className="settings-content-header no-border">
@@ -98,6 +121,21 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
               autoComplete="given-name"
             />
           }
+          {
+            ["mnemonicPassword"].includes(passwordHelper) &&
+            <InputText
+              error={mnemonicError}
+              id="pwd-mnemonic"
+              type={"text"}
+              label={"助记词"}
+              onFocus={()=>setMnemonicError("")}
+              onChange={(e) => {
+                setMnemonicError("")
+                setMnemonic(e.target.value)
+              }}
+              value={mnemonic}
+            />
+          }
           <PasswordForm
             error={validationError}
             hint={(!showHitInput && hint) ? hint : lang("PasswordTipsLocalPlaceholder")}
@@ -112,7 +150,7 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
           />
         </div>
         {
-          passwordHelper === "messageEncryptPassword" &&
+          ["messageEncryptPassword"].includes(passwordHelper) &&
           <div className="help_text pt-2 pb-4 pr-2">
             <ul>
               <li>{lang("PasswordTipsLocalStorage")}</li>
@@ -121,10 +159,11 @@ const PasswordModal: FC<OwnProps> = ({}: OwnProps) => {
           </div>
         }
         {
-          passwordHelper === "showMnemonic" &&
+          ["showMnemonic","mnemonicPassword"].includes(passwordHelper) &&
           <div className="help_text pt-2 pb-4 pr-2">
             <ul>
-              <li>{lang("密码不会存储服务器,跟账户助记词直接相关，请牢记密码和妥善保管助记词")}</li>
+              <li>{lang("密码不会存储服务器，请牢记密码")}</li>
+              <li>{lang("助记词代表账户，可用于跨设备登录，请妥善保管保存助记词")}</li>
             </ul>
           </div>
         }

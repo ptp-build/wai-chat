@@ -1,20 +1,46 @@
 // DO NOT EDIT
 import type * as PTPCommon from '../PTPCommon/types';
 
+export interface CallbackButtonReq_Type {
+  chatId: string;
+  data: string;
+}
+export interface CallbackButtonRes_Type {
+  text: string;
+  inlineButtons?: string;
+  chatId: string;
+  err?: PTPCommon.ERR;
+}
 export interface DownloadMsgReq_Type {
   chatId: string;
-  time?: number;
+  msgIds?: number[];
 }
 export interface DownloadMsgRes_Type {
-  messages?: Buffer[];
-  userMessageStoreData?: PTPCommon.UserMessageStoreData_Type;
-  err?: PTPCommon.ERR;
+  chatId: string;
+  msgList?: PTPCommon.PbMsg_Type[];
 }
 export interface GenMsgIdReq_Type {
   isLocal: boolean;
 }
 export interface GenMsgIdRes_Type {
   messageId: number;
+  err?: PTPCommon.ERR;
+}
+export interface MsgListReq_Type {
+  chatId: string;
+  msgIds?: number[];
+}
+export interface MsgListRes_Type {
+  chatId: string;
+  msgList?: PTPCommon.MsgRow_Type[];
+}
+export interface MsgReq_Type {
+  action: PTPCommon.MsgAction;
+  payload?: string;
+}
+export interface MsgRes_Type {
+  action: PTPCommon.MsgAction;
+  payload?: string;
   err?: PTPCommon.ERR;
 }
 export interface RemoveMessagesReq_Type {
@@ -30,6 +56,12 @@ export interface SendBotMsgReq_Type {
   text?: string;
   chatGpt?: string;
   msgId?: number;
+  msgDate?: number;
+  msgAskId?: number;
+  msgAskDate?: number;
+  senderId?: string;
+  toUid?: string;
+  streamStatus?: PTPCommon.ChatGptStreamStatus;
 }
 export interface SendBotMsgRes_Type {
   reply?: string;
@@ -37,9 +69,21 @@ export interface SendBotMsgRes_Type {
   msgId?: number;
   streamStatus?: PTPCommon.ChatGptStreamStatus;
   message?: PTPCommon.PbMsg_Type;
+  msgDate?: number;
+}
+export interface SendMsgRes_Type {
+  replyText?: string;
+  chatId: string;
+  msgId?: number;
+  senderId: string;
+  date: number;
+  inlineButtons?: string;
+  replyToMsgId?: number;
+}
+export interface SendTextMsgReq_Type {
+  msg: Buffer;
 }
 export interface UpdateCmdReq_Type {
-  botApi?: string;
   chatId: string;
 }
 export interface UpdateCmdRes_Type {

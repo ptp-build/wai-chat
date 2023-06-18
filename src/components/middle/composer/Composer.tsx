@@ -38,7 +38,7 @@ import {
   REPLIES_USER_ID,
   SEND_MESSAGE_ACTION_INTERVAL,
 } from '../../../config';
-import {IS_IOS, IS_VOICE_RECORDING_SUPPORTED} from '../../../util/environment';
+import {IS_ANDROID, IS_IOS, IS_VOICE_RECORDING_SUPPORTED} from '../../../util/environment';
 import {MEMO_EMPTY_ARRAY} from '../../../util/memo';
 import {
   selectCanScheduleUntilOnline,
@@ -785,11 +785,6 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
 
     let currentAttachments = attachments;
-    // if(speechRecognizing){
-    //   recognition.stop();
-    //   setSpeechRecognizing(false);
-    //   return
-    // }
     if (activeVoiceRecording) {
       const record = await stopRecordingVoice();
       if (record) {
@@ -1154,13 +1149,6 @@ const Composer: FC<OwnProps & StateProps> = ({
             showAllowedMessageTypesNotification({ chatId });
           }
         } else {
-          // recognition.start().then((res:string)=>{
-          //   setHtml(res);
-          // }).catch((e)=>{
-          //   console.error(e)
-          //   // setSpeechRecognizing(false);
-          // });
-          // setSpeechRecognizing(true);
           startRecordingVoice();
         }
         break;
@@ -1376,7 +1364,7 @@ const Composer: FC<OwnProps & StateProps> = ({
               />
             </Button>
           )}
-          {(!isComposerBlocked || canSendGifs || canSendStickers) && (
+          {((!isComposerBlocked || canSendGifs || canSendStickers) && !IS_ANDROID ) && (
             <SymbolMenuButton
               chatId={chatId}
               threadId={threadId}
@@ -1485,6 +1473,7 @@ const Composer: FC<OwnProps & StateProps> = ({
               onClose={closeBotCommandMenu}
             />
           )}
+
           <CustomEmojiTooltip
             chatId={chatId}
             isOpen={isCustomEmojiTooltipOpen}
@@ -1517,8 +1506,6 @@ const Composer: FC<OwnProps & StateProps> = ({
           color="danger"
           className="cancel"
           onClick={ ()=>{
-            // recognition.stop();
-            // setSpeechRecognizing(false)
             stopRecordingVoice()
           } }
           ariaLabel="Cancel voice recording"

@@ -1,6 +1,6 @@
 import type React from '../../../../lib/teact/teact';
 import { useCallback } from '../../../../lib/teact/teact';
-import { getActions } from '../../../../global';
+import {getActions, getGlobal} from '../../../../global';
 
 import type { IAlbum } from '../../../../types';
 import { MediaViewerOrigin } from '../../../../types';
@@ -45,7 +45,7 @@ export default function useInnerHandlers(
   }, [avatarPeer, openChat]);
 
   const handleSenderClick = useCallback(() => {
-    if(senderPeer?.id === "1"){
+    if(senderPeer?.id === "1" || senderPeer?.id === getGlobal().currentUserId){
       return;
     }
     if (!senderPeer) {

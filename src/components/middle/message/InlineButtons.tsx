@@ -10,6 +10,7 @@ import useLang from '../../../hooks/useLang';
 import Button from '../../ui/Button';
 
 import './InlineButtons.scss';
+import {stopOpenChat} from "../../../global/actions/api/bots";
 
 type OwnProps = {
   message: ApiMessage;
@@ -59,6 +60,7 @@ const InlineButtons: FC<OwnProps> = ({ message, onClick }) => {
               disabled={button.type === 'unsupported'}
               // eslint-disable-next-line react/jsx-no-bind
               onClick={(e) => {
+                stopOpenChat()
                 onClick({ messageId: message.id, button })
               }}
             >

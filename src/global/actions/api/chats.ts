@@ -9,7 +9,6 @@ import type {ActionReturnType, GlobalState, TabArgs,} from '../../types';
 import {
   ALL_FOLDER_ID,
   ARCHIVED_FOLDER_ID,
-  CLOUD_MESSAGE_API,
   DEBUG,
   MEDIA_CACHE_NAME_WAI,
   RE_TG_LINK,
@@ -84,14 +83,13 @@ import {selectCurrentLimit} from '../../selectors/limits';
 import {updateTabState} from '../../reducers/tabs';
 import {getCurrentTabId} from '../../../util/establishMultitabRole';
 import {
+  ChatModelConfig,
   CurrentUserInfo,
   DEFAULT_AVATARS,
-  DEFAULT_CREATE_USER_BIO,
   DEFAULT_PROMPT,
   DEFAULT_WAI_USER_BIO,
   LoadAllChats,
-  SERVER_BOT_USER_ID_START,
-  TopCats,
+  PASSWORD_MSG_HELPER,
   UserIdFirstBot
 } from "../../../worker/setting";
 import * as cacheApi from '../../../util/cacheApi';
@@ -102,13 +100,20 @@ import ChatMsg from "../../../worker/msg/ChatMsg";
 
 import {resizeImage} from '../../../util/imageResize';
 import {callApiWithPdu} from "../../../worker/msg/utils";
-import {DownloadUserReq, DownloadUserRes, GenUserIdReq, GenUserIdRes} from "../../../lib/ptp/protobuf/PTPUser";
+import {
+  CreateUserReq,
+  DownloadUserReq,
+  DownloadUserRes,
+  GenUserIdReq,
+  GenUserIdRes
+} from "../../../lib/ptp/protobuf/PTPUser";
 import {currentTs, currentTs1000} from "../../../worker/share/utils/utils";
 import {SyncReq} from "../../../lib/ptp/protobuf/PTPSync";
 import MsgCommand from "../../../worker/msg/MsgCommand";
-import MsgCommandChatGpt from "../../../worker/msg/MsgCommandChatGpt";
 import {PbUser} from "../../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
+import Account from "../../../worker/share/Account";
+import {getWebPlatform} from "../../../worker/msg/MobileBridge";
 
 const TOP_CHAT_MESSAGES_PRELOAD_INTERVAL = 100;
 const INFINITE_LOOP_MARKER = 100;
@@ -214,8 +219,6 @@ addActionHandler('openChat', async (global, actions, payload): ActionReturnType 
     //todo
     // actions.requestChatUpdate({ chatId: id });
   }
-
-  MsgCommand.downloadUser(id).catch(console.error)
 
   if (threadId !== MAIN_THREAD_ID) {
     actions.requestThreadInfoUpdate({ chatId: id, threadId });
@@ -630,44 +633,43 @@ const getAvatarPhoto = async (id:string,url:string)=>{
   }
 }
 
-export const getUserId = async (global:GlobalState)=>{
-  let userId: string;
-  let userIds = Object.keys(global.users.byId)
-
-  if(!CLOUD_MESSAGE_API){
-    if(userIds.length > 0){
-      userIds = [...userIds]
-      userIds.filter(id=>Number(id) < Number(SERVER_BOT_USER_ID_START))
-        .sort((a,b)=>parseInt(b) - parseInt(a))
-      userId = (parseInt(userIds[0]) + 1).toString()
-    }else{
-      userId = (parseInt(UserIdFirstBot) + 1).toString()
-    }
-  }else{
-    const res = await callApiWithPdu(new GenUserIdReq().pack())
-    if(!res){
-      throw new Error("Network Error")
-    }
+export const getUserId = async (username?:string)=>{
+  const res = await callApiWithPdu(new GenUserIdReq({username}).pack())
+  if(res && res.pdu){
     const genUserIdRes = GenUserIdRes.parseMsg(res.pdu)
-    userId = genUserIdRes.userId.toString()
+    if(genUserIdRes.userId){
+      const userId = genUserIdRes.userId.toString()
+      return userId.toString()
+    }else{
+      throw new Error("用户名已存在")
+    }
   }
-  return userId.toString()
+  throw new Error("请求失败")
 }
-export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
+export const createBot = async (global:GlobalState,actions:any,user:ApiUser,username?:string)=>{
   if(!user.id){
-    user.id = await getUserId(global)
+    user.id = await getUserId(username)
+    if(!username){
+      // @ts-ignore
+      user.usernames[0].username = `Bot_${user.id}`
+    }else{
+      // @ts-ignore
+      user.usernames[0].username = username
+    }
   }
   const userId = user.id;
   user.updatedAt = currentTs();
   if(user.fullInfo && user.fullInfo.botInfo){
-    user.fullInfo.botInfo.botId = userId;
-    if(user.fullInfo.botInfo.commands){
-      user.fullInfo.botInfo.commands = user.fullInfo.botInfo.commands!.map(cmd=>{
-        cmd.botId = userId
-        return cmd
-      });
-    }
+    // @ts-ignore
+    user.fullInfo.botInfo = ChatMsg.buildUserBotInfo(userId,user.fullInfo!.bio!,{
+      init_system_content:user.fullInfo.botInfo.aiBot?.chatGptConfig?.init_system_content,
+      template:user.fullInfo.botInfo.aiBot?.chatGptConfig?.template,
+      welcome:user.fullInfo.botInfo.aiBot?.chatGptConfig?.welcome,
+      outputText:user.fullInfo.botInfo.aiBot?.chatGptConfig?.outputText,
+      enableAi:user.fullInfo.botInfo.aiBot?.enableAi
+    })
   }
+
   const tabId = getCurrentTabId()
   global = getGlobal();
 
@@ -737,22 +739,24 @@ export const createBot = async (global:GlobalState,actions:any,user:ApiUser)=>{
     userStoreData
   }
   setGlobal(global)
-  if(CLOUD_MESSAGE_API){
-    callApiWithPdu(new SyncReq({userStoreData:getGlobal().userStoreData}).pack()).catch(console.error)
-    MsgCommand.uploadUser(global,userId).catch(console.error)
+
+  callApiWithPdu(new SyncReq({userStoreData:getGlobal().userStoreData}).pack()).catch(console.error)
+  if(username){
+    callApiWithPdu(new CreateUserReq({username}).pack()).catch(console.error)
   }
+
+  MsgCommand.uploadUser(global,userId).catch(console.error)
 
   if(activeChatFolderRow){
     // @ts-ignore
     actions.editChatFolder({ id: activeChatFolderRow.id, folderUpdate: activeChatFolderRow });
   }
   actions.openChat({id: userId,shouldReplaceHistory: true,});
-  new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
   actions.sendBotCommand({chatId:userId,command:"/start",tabId})
 }
 addActionHandler('createChat', async (global, actions, payload)=> {
   const {
-    title,about, tabId = getCurrentTabId(),
+    title,id,about,enableAi,username,tabId = getCurrentTabId(),
   } = payload;
 
 
@@ -765,14 +769,20 @@ addActionHandler('createChat', async (global, actions, payload)=> {
 
   try{
     const user = ChatMsg.buildDefaultBotUser({
-      userId:"",
+      userId: id || "",
       avatarHash:"",
       firstName: title,
       photos:[],
-      bio:about || DEFAULT_CREATE_USER_BIO,
+      bio:about || "",
       init_system_content:DEFAULT_PROMPT,
+      enableAi,
     }) as ApiUser
-    await createBot(global,actions,user);
+    try {
+      await createBot(global,actions,user,username);
+    }catch(e){
+      throw e
+    }
+
     global = getGlobal();
     global = updateTabState(global, {
       chatCreation: {
@@ -781,19 +791,25 @@ addActionHandler('createChat', async (global, actions, payload)=> {
       },
     }, tabId);
     setGlobal(global)
-  }catch (e){
+  }catch (e:any){
     console.error(e)
+    let error = '创建失败,请稍后再试';
+    if(e.message === "请求错误" || e.message === "用户名已存在"){
+      error = e.message
+    }
+
     global = getGlobal();
     global = updateTabState(global, {
       chatCreation: {
         ...selectTabState(global, tabId).chatCreation,
         progress: ChatCreationProgress.Error,
-        error: '创建失败,请稍后再试',
+        error
       },
     }, tabId);
     setGlobal(global);
   }
 })
+
 addActionHandler('createGroupChat', async (global, actions, payload): Promise<void> => {
   const {
     title, memberIds, photo, tabId = getCurrentTabId(),
@@ -2100,6 +2116,21 @@ addActionHandler('toggleTopicPinned', (global, actions, payload): ActionReturnTy
 
 
 const initChats = async (firstLoad?:boolean)=>{
+  let account = Account.getCurrentAccount();
+  if(!account){
+    return;
+  }
+  const session = account!.getSession()
+  if(!session){
+    return;
+  }
+  const password = window.sessionStorage.getItem("password")
+  if(password){
+    window.sessionStorage.removeItem("password")
+  }
+
+  const platform = getWebPlatform()
+
   let global = getGlobal()
   let startChatId = UserIdFirstBot
   const {hash} = window.location
@@ -2119,6 +2150,10 @@ const initChats = async (firstLoad?:boolean)=>{
           global = getGlobal()
           if(err === ERR.NO_ERROR && userBuf){
             const user = PbUser.parseMsg(new Pdu(userBuf)) as ApiUser;
+            //@ts-ignore
+            user.fullInfo.botInfo = ChatMsg.buildUserBotInfo(user.id,user.fullInfo!.bio!,{
+              enableAi:user.fullInfo?.botInfo?.aiBot?.enableAi
+            })
             //@ts-ignore
             chat = ChatMsg.buildDefaultChat(user);
             global = addChats(global,{
@@ -2168,14 +2203,35 @@ const initChats = async (firstLoad?:boolean)=>{
 
   }
   setGlobal(global)
+  global = getGlobal()
+  await MsgCommand.downloadUser(global.currentUserId!,true);
+  new MsgCommand(UserIdFirstBot).reloadCommands(ChatMsg.getCmdList(UserIdFirstBot,true))
+  if(platform === 'web' && document.documentElement.clientWidth > 900){
+    setTimeout(async ()=>{
+      if(firstLoad){
+        getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
+      }
+    },500)
+  }
+
   setTimeout(async ()=>{
     if(firstLoad){
-      getActions().openChat({id: startChatId,shouldReplaceHistory: true,});
-      setTimeout(async ()=>{
-        getActions().sendBotCommand({chatId:startChatId,command:"/start"})
-      },500)
+      getActions().sendBotCommand({chatId:startChatId,command:"/start"})
     }
-  },500)
+  },700)
+  if(firstLoad){
+    if(password){
+      setTimeout(async ()=>{
+        await new ChatMsg(startChatId).setText(`您的账户密码：${password} \n ${PASSWORD_MSG_HELPER}`,[
+          {
+            type:"MessageEntitySpoiler",
+            offset:7,
+            length:6
+          }
+        ]).reply()
+      },1000)
+    }
+  }
 }
 
 export async function loadChats<T extends GlobalState>(
@@ -2194,13 +2250,10 @@ export async function loadChats<T extends GlobalState>(
     if(!global.users.byId[UserIdFirstBot]) {
       global = {
         ...global,
-        topCats:{
-          cats:TopCats.cats
-        }
       }
       setGlobal(global)
       global = getGlobal();
-      const {bots} = TopCats
+      // const {bots} = TopCats
       firstLoad = true;
       result = LoadAllChats;
       for (let i = 0; i < result.users.length; i++) {
@@ -2214,10 +2267,10 @@ export async function loadChats<T extends GlobalState>(
           }
         }
       }
-      for (let i = 0; i < bots.length; i++) {
-        const bot = bots[i]
-        result.users.push(ChatMsg.buildDefaultBotUser(bot))
-      }
+      // for (let i = 0; i < bots.length; i++) {
+      //   const bot = bots[i]
+      //   result.users.push(ChatMsg.buildDefaultBotUser(bot))
+      // }
       for (let i = 0; i < result.chats.length; i++) {
         const chat = result.chats[i];
         if (global.messages.byChatId[chat.id]) {
@@ -2271,7 +2324,19 @@ export async function loadChats<T extends GlobalState>(
       global = updateUser(global,UserIdFirstBot,{
         fullInfo:{
           ...selectUser(global,UserIdFirstBot)!.fullInfo,
-          bio:DEFAULT_WAI_USER_BIO
+          bio:DEFAULT_WAI_USER_BIO,
+          botInfo:{
+            ...selectUser(global,UserIdFirstBot)!.fullInfo!.botInfo,
+            aiBot:{
+              enableAi:true,
+              chatGptConfig:{
+                modelConfig:ChatModelConfig,
+                api_key:"",
+                init_system_content:DEFAULT_PROMPT,
+                max_history_length:0,
+              },
+            },
+          }
         },
         usernames:[
           {

@@ -23,7 +23,7 @@ export const INITIAL_GLOBAL_STATE: GlobalState = {
   twoFaSettings: {},
   serverTimeOffset: 0,
   isUpdateAvailable: false,
-
+  leftColumnWidth:88,
   audioPlayer: {
     lastPlaybackRate: DEFAULT_PLAYBACK_RATE,
   },

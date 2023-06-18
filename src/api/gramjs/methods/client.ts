@@ -23,7 +23,6 @@ import {
   handleAuthNativeReq,
   handleSendBotMsgReq,
   handleStopChatStreamReq,
-  handleUpdateCmdReq
 } from '../../../worker/msg/client';
 import {Pdu} from "../../../lib/ptp/protobuf/BaseMsg";
 import {ActionCommands, getActionCommandsName} from "../../../lib/ptp/protobuf/ActionCommands";
@@ -396,14 +395,15 @@ export async function sendWithCallback(buff:Uint8Array){
   switch (pdu.getCommandId()) {
     case ActionCommands.CID_SendBotMsgReq:
       return await handleSendBotMsgReq(pdu);
-    case ActionCommands.CID_UpdateCmdReq:
-      return await handleUpdateCmdReq(pdu);
     case ActionCommands.CID_StopChatStreamReq:
       return await handleStopChatStreamReq(pdu);
     case ActionCommands.CID_AuthNativeReq:
       return await handleAuthNativeReq(pdu);
     case ActionCommands.CID_GenMsgIdReq:
       return await MsgWorker.genMsgId(pdu);
+    case ActionCommands.CID_SendTextMsgReq:
+      const res = await BotWebSocket.getInstance(account.getAccountId()).sendPduWithCallback(pdu)
+      return res.getPbData()
     case ActionCommands.CID_SyncReq:
     case ActionCommands.CID_TopCatsReq:
       BotWebSocket.getInstance(account.getAccountId()).send(pdu.getPbData())
@@ -412,8 +412,12 @@ export async function sendWithCallback(buff:Uint8Array){
   if(!account.getSession()){
     return
   }
+  let url = `${CLOUD_MESSAGE_API}/proto`;
+  if(DEBUG){
+    url = url+"?CID="+getActionCommandsName(pdu.getCommandId())
+  }
 
-  const res = await fetch(`${CLOUD_MESSAGE_API}/proto`, {
+  const res = await fetch(url, {
     method: "POST",
     body: Buffer.from(pdu.getPbData()),
     headers:{

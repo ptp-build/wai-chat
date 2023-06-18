@@ -54,6 +54,7 @@ addActionHandler('clickBotInlineButton', (global, actions, payload): ActionRetur
       if (!chat) {
         return;
       }
+
       new MsgCommand(chat.id).answerCallbackButton(global,messageId,button.data);
       // void answerCallbackButton(global, actions, chat, messageId, button.data, undefined, tabId);
       break;
@@ -207,6 +208,7 @@ addActionHandler('sendBotCommand', (global, actions, payload): ActionReturnType 
   const { threadId } = currentMessageList;
   actions.setReplyingToId({ messageId: undefined, tabId });
   actions.clearWebPagePreview({ tabId });
+  // @ts-ignore
   actions.focusLastMessage()
   void sendBotCommand(
     chat, threadId, command, selectReplyingToId(global, chat.id, threadId), selectSendAs(global, chat.id),
@@ -946,10 +948,18 @@ async function searchInlineBot<T extends GlobalState>(global: T, {
 
   setGlobal(global);
 }
-
+export function stopOpenChat(){
+  // @ts-ignore
+  window.stopOpenChat = true;
+  setTimeout(()=>{
+    // @ts-ignore
+    window.stopOpenChat = false;
+  },1000)
+}
 async function sendBotCommand(
   chat: ApiChat, threadId = MAIN_THREAD_ID, command: string, replyingTo?: number, sendAs?: ApiChat | ApiUser,
 ) {
+  stopOpenChat()
   const global = getGlobal();
   const user = selectUser(global,chat.id)
   const params = {

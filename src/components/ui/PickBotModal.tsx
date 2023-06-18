@@ -2,7 +2,6 @@ import type {FC} from '../../lib/teact/teact';
 import React, {memo, useCallback, useState,} from '../../lib/teact/teact';
 import {getActions, withGlobal} from "../../global";
 import ChatOrUserPicker from "../common/ChatOrUserPicker";
-import MsgCommandSetting from '../../worker/msg/MsgCommandSetting';
 
 type OwnProps = {};
 type StateProps = {
@@ -15,7 +14,7 @@ const PickBotModal: FC<OwnProps & StateProps> = ({showPickBotModal,botIds}) => {
   const {updateGlobal} = getActions();
 
   const handleSelect = useCallback((userId: string) => {
-    MsgCommandSetting.onSelectSyncBot(userId)
+    // MsgCommandSetting.onSelectSyncBot(userId)
     updateGlobal({
       showPickBotModal:false
     })

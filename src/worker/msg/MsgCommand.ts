@@ -1,342 +1,417 @@
 import MsgDispatcher from "./MsgDispatcher";
-import {selectChatMessage, selectUser} from "../../global/selectors";
+import {selectChatMessage, selectListedIds, selectUser} from "../../global/selectors";
 import {addChats, addUsers, addUserStatuses, updateChatListIds, updateUser} from "../../global/reducers";
 import {getActions, getGlobal, setGlobal} from "../../global";
-import {ApiBotCommand, ApiChat, ApiKeyboardButton, ApiMessage, ApiUser, ApiUserStatus} from "../../api/types";
-import {currentTs1000, showBodyLoading} from "../share/utils/utils";
+import {
+  ApiBotCommand,
+  ApiChat,
+  ApiKeyboardButton,
+  ApiMessage,
+  ApiUser,
+  ApiUserStatus,
+  MAIN_THREAD_ID
+} from "../../api/types";
+import {showBodyLoading} from "../share/utils/utils";
 import {GlobalState} from "../../global/types";
-import MsgCommandSetting from "./MsgCommandSetting";
 import {ControllerPool} from "../../lib/ptp/functions/requests";
 import MsgCommandChatGpt from "./MsgCommandChatGpt";
-import {callApiWithPdu} from "./utils";
+import {callApiWithPdu, sleep} from "./utils";
 import {DownloadUserReq, DownloadUserRes, UploadUserReq} from "../../lib/ptp/protobuf/PTPUser";
-import Account from "../share/Account";
-import {DownloadMsgReq, DownloadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
-import {getPasswordFromEvent} from "../share/utils/password";
-import {hashSha256} from "../share/utils/helpers";
+import {CallbackButtonReq, CallbackButtonRes, DownloadMsgReq, DownloadMsgRes} from "../../lib/ptp/protobuf/PTPMsg";
 import ChatMsg from "./ChatMsg";
 import {createBot} from "../../global/actions/api/chats";
-import {PbMsg, PbUser} from "../../lib/ptp/protobuf/PTPCommon";
+import {PbUser} from "../../lib/ptp/protobuf/PTPCommon";
 import {Pdu} from "../../lib/ptp/protobuf/BaseMsg";
+import {Decoder} from "@nuintun/qrcode";
+import {handleUpdateUser} from "../../global/actions/apiUpdaters/users";
+import {UserIdFirstBot} from "../setting";
+import {WaiBotWorker} from "./bot/WaiBotWorker";
+import {WaiBotWorkerLocal} from "./bot/WaiBotWorkerLocal";
+
+export const encodeCallBackButtonPayload = (data:string,payload:any) => `${data}/${Buffer.from(JSON.stringify(payload))
+  .toString("hex")}`;
 
 export default class MsgCommand {
   private chatId: string;
-  private chatMsg:ChatMsg
-  constructor(chatId:string) {
+  private chatMsg: ChatMsg;
+
+  constructor(chatId: string) {
     this.chatId = chatId;
-    this.chatMsg = new ChatMsg(this.chatId)
+    this.chatMsg = new ChatMsg(this.chatId);
   }
 
-  back(global:GlobalState,messageId:number,data:string,path:string){
-    if(path.startsWith("/")){
-      path = path.substring(1)
+  back(global: GlobalState, messageId: number, data: string, path: string) {
+    if (path.startsWith("/")) {
+      path = path.substring(1);
     }
-    const btn = data.replace(`${this.chatId}/${path}/`,"")
-    const inlineButtons:ApiKeyboardButton[][] = JSON.parse(btn);
-    this.chatMsg.update(messageId,{
+    const btn = data.replace(`${this.chatId}/${path}/`, "");
+    const inlineButtons: ApiKeyboardButton[][] = JSON.parse(btn);
+    this.chatMsg.update(messageId, {
       inlineButtons
-    })
-  }
-  static buildInlineBackButton(chatId:string,messageId:number,path:string,text:string){
-    if(path.startsWith("/")){
-      path = path.substring(1)
-    }
-    return MsgCommand.buildInlineCallbackButton(chatId,path+"/"+JSON.stringify(selectChatMessage(getGlobal(),chatId,messageId)!.inlineButtons),text,"callback")
+    });
   }
 
-  static buildInlineOpenProfileBtn(chatId:string,text:string){
+  static buildInlineBackButton(chatId: string, messageId: number, path: string, text: string) {
+    if (path.startsWith("/")) {
+      path = path.substring(1);
+    }
+    return MsgCommand.buildInlineCallbackButton(chatId, path + "/" + JSON.stringify(selectChatMessage(getGlobal(), chatId, messageId)!.inlineButtons), text, "callback");
+  }
+
+  static buildInlineOpenProfileBtn(chatId: string, text: string) {
     return [
       {
-        type:"userProfile",
+        type: "userProfile",
         text,
-        userId:chatId
+        userId: chatId
       }
-    ]
+    ];
   }
 
-  static buildInlineCallbackButton(chatId:string,path:string,text:string,type:'callback' = 'callback'){
-    if(path.startsWith("/")){
-      path = path.substring(1)
+  static buildInlineCallbackButton(chatId: string, path: string, text: string, type: 'callback' = 'callback') {
+    if (path.startsWith("/")) {
+      path = path.substring(1);
     }
     return [
       {
         type,
         text,
-        data:`${chatId}/${path}`
+        data: `${chatId}/${path}`
       }
-    ]
+    ];
   }
 
-  static buildInlineButton(chatId:string,text:string,type:'requestUploadImage'|'unsupported'){
+  static buildInlineButton(chatId: string, text: string, type: 'requestUploadImage' | 'unsupported') {
     return [
       {
         type,
         text,
       }
-    ]
+    ];
   }
-  async clearHistory(){
-    await this.chatMsg.setText("确定要清除么?").setInlineButtons([
-      [
-        ...MsgCommand.buildInlineCallbackButton(this.chatId,"clearHistory/confirm","确定","callback"),
-        ...MsgCommand.buildInlineCallbackButton(this.chatId,"clearHistory/cancel","返回","callback")
-      ]
-    ]).reply()
+
+  async clearHistory() {
+    await this.chatMsg.setText("确定要清除么?")
+      .setInlineButtons([
+        [
+          ...MsgCommand.buildInlineCallbackButton(this.chatId, "clearHistory/confirm", "确定", "callback"),
+          ...MsgCommand.buildInlineCallbackButton(this.chatId, "clearHistory/cancel", "返回", "callback")
+        ]
+      ])
+      .reply();
     return true;
   }
 
-  async reloadCommands(cmds:ApiBotCommand[]){
+  reloadCommands(cmds: any[]) {
     let global = getGlobal();
-    let user = selectUser(global,this.chatId)
+    let user = selectUser(global, this.chatId);
     const botInfo = user?.fullInfo?.botInfo;
-    if(botInfo){
+    if (botInfo) {
       //@ts-ignore
-      const commands:ApiBotCommand[] = cmds.map(cmd => {
+      const commands: ApiBotCommand[] = cmds.map(cmd => {
         return {
           ...cmd,
           botId: user?.id
         };
       });
-      global = updateUser(global,user?.id!,{
+      global = updateUser(global, user?.id!, {
         ...user,
-        fullInfo:{
+        fullInfo: {
           ...user?.fullInfo,
-          botInfo:{
+          botInfo: {
             ...user?.fullInfo!.botInfo!,
             commands
           }
         }
-      })
-      setGlobal(global)
-      global = getGlobal()
-      user = selectUser(global,this.chatId)
+      });
+      setGlobal(global);
       return true;
     }
   }
-  static async downloadUsers(userIds:string[]){
-    console.log("[downloadUsers]",userIds)
+
+  static async downloadUsers(userIds: string[]) {
+    console.log("[downloadUsers]", userIds);
     for (let i = 0; i < userIds.length; i++) {
-      await MsgCommand.downloadUser(userIds[i])
+      await MsgCommand.downloadUser(userIds[i]);
     }
   }
-  static async downloadUser(userId:string){
-    let global = getGlobal();
 
-    const userLocal = selectUser(global,userId)
+  static async downloadUser(userId: string,isCurrentUser?:boolean) {
+    let global = getGlobal();
+    const userLocal = selectUser(global, userId);
+    const updatedAt = userLocal?.updatedAt ? userLocal.updatedAt : 0;
+    console.log("[downloadUser]", updatedAt, userId, userLocal?.firstName);
     const DownloadUserReqRes = await callApiWithPdu(new DownloadUserReq({
       userId,
-      updatedAt:userLocal?.updatedAt ? userLocal.updatedAt : 0
-    }).pack())
-    if(DownloadUserReqRes){
-      const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes.pdu!)
-      if(downloadUserRes.userBuf){
-        const user = PbUser.parseMsg(new Pdu(Buffer.from(downloadUserRes.userBuf)))
-        if(
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
-          && userLocal.fullInfo.botInfo.aiBot.chatGptConfig && userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key
-        ){
-          user.fullInfo!.botInfo!.aiBot!.chatGptConfig!.api_key = userLocal.fullInfo.botInfo.aiBot.chatGptConfig.api_key
-        }
-        if(
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.aiBot
-          && userLocal.fullInfo.botInfo.aiBot.commandsFromApi
-        ){
-          user.fullInfo!.botInfo!.aiBot!.commandsFromApi = userLocal.fullInfo.botInfo.aiBot.commandsFromApi
-        }
-
-        if(
-          userLocal?.fullInfo && userLocal.fullInfo.botInfo && userLocal.fullInfo.botInfo.commands
-        ){
-          user.fullInfo!.botInfo!.commands = userLocal.fullInfo.botInfo.commands
-        }
-        console.log("[downloadUserRes]",user)
-        const chatIds:string[] = []
-        const users:Record<string, ApiUser> = {}
-        const usersStatus:Record<string, ApiUserStatus> = {}
-        const chats:Record<string, ApiChat> = {}
-        const userId = user.id
+      updatedAt
+    }).pack());
+    if (DownloadUserReqRes) {
+      const downloadUserRes = DownloadUserRes.parseMsg(DownloadUserReqRes.pdu!);
+      if (downloadUserRes.userBuf) {
+        const user = PbUser.parseMsg(new Pdu(Buffer.from(downloadUserRes.userBuf)));
+        console.log("[downloadUserRes]", user);
+        const chatIds: string[] = [];
+        const users: Record<string, ApiUser> = {};
+        const usersStatus: Record<string, ApiUserStatus> = {};
+        const chats: Record<string, ApiChat> = {};
+        const userId = user.id;
         global = getGlobal();
-        if(userLocal){
-          global = updateUser(global,user!.id, user as ApiUser)
+        if(isCurrentUser){
+          global = {...global,currentUserId:user!.id}
+          if(selectUser(global,user!.id)){
+            global = updateUser(global, user!.id, user as ApiUser);
+          }else{
+            global = addUsers(global, {[user!.id]: user as ApiUser});
+          }
           setGlobal(global)
         }else{
-          chatIds.push(userId)
-          users[userId] = user as ApiUser
-          usersStatus[userId] = {
-            type:"userStatusEmpty"
+          if (userLocal) {
+            global = updateUser(global, user!.id, user as ApiUser);
+            setGlobal(global);
+          } else {
+            chatIds.push(userId);
+            users[userId] = user as ApiUser;
+            usersStatus[userId] = {
+              type: "userStatusEmpty"
+            };
+            chats[userId] = ChatMsg.buildDefaultChat(user as ApiUser) as ApiChat;
           }
-          chats[userId] = ChatMsg.buildDefaultChat(user as ApiUser) as ApiChat
+
+          if (chatIds.length > 0) {
+            global = updateChatListIds(global, "active", chatIds);
+            global = addUsers(global, users);
+            global = addUserStatuses(global, usersStatus);
+            global = addChats(global, chats);
+            setGlobal(global);
+          }
         }
 
-        if(chatIds.length > 0){
-          global = updateChatListIds(global, "active", chatIds);
-          global = addUsers(global,users)
-          global = addUserStatuses(global,usersStatus)
-          global = addChats(global,chats)
-          setGlobal(global)
-        }
       }
     }
-    new MsgCommandChatGpt(userId).reloadCommands().catch(console.error)
-    await MsgCommand.downloadSavedMsg(userId)
+    await MsgCommand.downloadSavedMsg(userId);
   }
-  static async uploadUser(global:GlobalState,chatId:string){
-    const user = selectUser(global,chatId);
 
-    if(
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
-      && user.fullInfo.botInfo.aiBot.chatGptConfig && user.fullInfo.botInfo.aiBot.chatGptConfig.api_key
-    ){
-      user.fullInfo.botInfo.aiBot.chatGptConfig.api_key = ""
-    }
-    if(
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.aiBot
-      && user.fullInfo.botInfo.aiBot.commandsFromApi
-    ){
-      user.fullInfo.botInfo.aiBot.commandsFromApi = []
-    }
-
-    if(
-      user?.fullInfo && user.fullInfo.botInfo && user.fullInfo.botInfo.commands
-    ){
-      user.fullInfo.botInfo.commands = []
-    }
-    const userBuf = Buffer.from(new PbUser(user).pack().getPbData())
+  static async uploadUser(global: GlobalState, chatId: string) {
+    const user = selectUser(global, chatId);
+    const userBuf = Buffer.from(new PbUser(user).pack().getPbData());
 
     return await callApiWithPdu(new UploadUserReq({
       userBuf,
-    }).pack())
+    }).pack());
   }
 
-  static async downloadSavedMsg(chatId:string) {
-    let global = getGlobal()
-    const userMessageStoreData = global.userMessageStoreData[chatId]
+  static async downloadSavedMsg(chatId: string) {
+    let global = getGlobal();
+    let msgIds = selectListedIds(global,chatId,MAIN_THREAD_ID) || []
+    console.log("[localMsgIds]",msgIds)
+    // @ts-ignore
     const DownloadMsgReqRes = await callApiWithPdu(new DownloadMsgReq({
       chatId,
-      time:userMessageStoreData?.time || 0
-    }).pack())
-    if(DownloadMsgReqRes && DownloadMsgReqRes.pdu){
-      const downloadMsgRes = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!)
-      console.log("downloadMsgRes",downloadMsgRes)
-      if(downloadMsgRes.messages){
-        for (let i = 0; i < downloadMsgRes.messages.length; i++) {
-          const buf = downloadMsgRes.messages[i];
-          const message = PbMsg.parseMsg(new Pdu(Buffer.from(buf)))
-          if(message){
-            if(message.previousLocalId){
-              delete message.previousLocalId
+      msgIds
+    }).pack());
+    if (DownloadMsgReqRes && DownloadMsgReqRes.pdu) {
+      const {msgList} = DownloadMsgRes.parseMsg(DownloadMsgReqRes?.pdu!);
+      console.log("downloadMsgRes", chatId, "msgIds",msgList);
+      if (msgList) {
+        for (let i = 0; i < msgList?.length; i++) {
+          const msg = msgList[i];
+          let global = getGlobal();
+          console.log("download user",msg)
+          const user = selectUser(global,chatId);
+          const {senderId} = msg
+          if(senderId && !selectUser(global,senderId)){
+            await handleUpdateUser(global,senderId)
+          }
+          global = getGlobal();
+          if (selectChatMessage(global, chatId, msg.id)) {
+            await new ChatMsg(chatId).update(msg.id,msg as ApiMessage);
+          } else {
+            let isOutgoing;
+            if((senderId === "1" || senderId === global.currentUserId) && !user?.fullInfo?.botInfo?.aiBot?.enableAi){
+              if(user?.id !== UserIdFirstBot){
+                isOutgoing = true;
+              }
             }
-            if(selectChatMessage(global,chatId,message!.id)){
-              await new ChatMsg(chatId).update(message!.id,message as ApiMessage)
-            }else{
-              await new ChatMsg(chatId).sendNewMessage(message as ApiMessage)
-            }
+            await new ChatMsg(chatId).sendNewMessage(msg as ApiMessage);
           }
         }
-      }
-      if(downloadMsgRes.userMessageStoreData){
-        global = getGlobal()
-        setGlobal({
-          ...global,
-          userMessageStoreData:{
-            ...global.userMessageStoreData,
-            [chatId]:downloadMsgRes.userMessageStoreData
-          }
-        })
       }
     }
   }
 
-  async copyBot(global:GlobalState,messageId:number){
+  async copyBot(global: GlobalState, messageId: number) {
     try {
-      showBodyLoading(true)
+      showBodyLoading(true);
       const {chatId} = this;
-      let user = selectUser(global,chatId)
-      user = {
-        ...user,
-        id:"",
-        firstName:user?.firstName + "(复制)",
+      let user1 = selectUser(global, chatId);
+      const user = {
+        ...user1,
+        id: "",
+        firstName: user1?.firstName + "(复制)",
       } as ApiUser;
-      MsgDispatcher.showNotification("复制成功")
+      MsgDispatcher.showNotification("复制成功");
       ChatMsg.apiUpdate({
         '@type': 'deleteMessages',
         ids: [messageId],
         chatId,
-      })
-      await createBot(global,getActions(),user);
-    }catch (e){
-      console.error(e)
-      MsgDispatcher.showNotification("复制失败")
-    }finally {
-      showBodyLoading(false)
+      });
+
+      await createBot(global, getActions(), user);
+    } catch (e) {
+      console.error(e);
+      MsgDispatcher.showNotification("复制失败");
+    } finally {
+      showBodyLoading(false);
     }
   }
 
-  async requestUploadImage(global:GlobalState,messageId:number,files:FileList | null){
-    await new MsgCommandSetting(this.chatId).requestUploadImage(global,messageId,files)
+  async requestUploadImage(global: GlobalState, messageId: number, files: FileList | null) {
+    if (files && files.length > 0) {
+      const file = files[0];
+      const qrcode = new Decoder();
+      const blob = new Blob([file], {type: file.type});
+      const blobUrl = URL.createObjectURL(blob);
+      try {
+        const result = await qrcode.scan(blobUrl);
+        if (result && result.data.startsWith('wai://')) {
+          // await this.handleMnemonic(result.data);
+        }
+      } catch (e) {
+      } finally {
+        getActions()
+          .showNotification({message: "解析二维码失败"});
+      }
+    }
   }
 
-  async answerCallbackButton(global:GlobalState,messageId:number,data:string){
-    const {chatId} =this;
-    if(data === "sign://401"){
-      const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
-      if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
-        MsgDispatcher.showNotification("密码不正确")
-        return
-      }else{
-        await this.chatMsg.setInlineButtons([]).setText("请将签名:```\n"+Account.getCurrentAccount()?.getSession()+"```复制给管理员").reply()
+  async answerCallbackButton(global: GlobalState, messageId: number, data: string) {
+    console.log("[answerCallbackButton]",data)
+    const {chatId} = this;
+    if (data.endsWith("/setting/cancel")) {
+      const msgId1 = data.split("/")[data.split("/").length - 3];
+      const cancelMessageIds = [messageId];
+      if (msgId1 !== "0") {
+        cancelMessageIds.push(Number(msgId1));
       }
-    }
-    if(data === chatId + "/setting/signGen"){
-      const {password} = await getPasswordFromEvent(undefined,true,"showMnemonic")
-      if(!Account.getCurrentAccount()?.verifySession(Account.getCurrentAccount()?.getSession()!,password)){
-        MsgDispatcher.showNotification("密码不正确")
-        return
-      }else{
-        const ts = currentTs1000();
-        const resSign = await Account.getCurrentAccount()?.signMessage(`${ts}_${chatId}`,hashSha256(password))
-        await this.chatMsg.setInlineButtons([]).setText( "签名:```\n"+`sk_${resSign!.sign.toString("hex")}_${ts}_${chatId}`+"```").reply()
-      }
-    }
-    if(data.endsWith("/setting/cancel")){
-      const msgId1 = data.split("/")[data.split("/").length - 3]
       ChatMsg.apiUpdate({
         '@type': 'deleteMessages',
-        ids: [messageId,Number(msgId1)],
+        ids: cancelMessageIds,
         chatId,
-      })
+      });
     }
-    await new MsgCommandSetting(chatId).answerCallbackButton(global,messageId,data)
-    await new MsgCommandChatGpt(chatId).answerCallbackButton(global,messageId,data)
+    await new MsgCommandChatGpt(chatId).answerCallbackButton(global, messageId, data);
 
-    if(data.endsWith("clearHistory/confirm")){
+    if (data.endsWith("clearHistory/confirm")) {
       let global = getGlobal();
       const chatMessages = global.messages.byChatId[chatId];
-      const ids = Object.keys(chatMessages.byId).map(Number);
-      getActions().sendBotCommand({chatId,command:"/start"})
+      const ids = Object.keys(chatMessages.byId)
+        .map(Number);
+      getActions()
+        .sendBotCommand({
+          chatId,
+          command: "/start"
+        });
       ChatMsg.apiUpdate({
-        "@type":"deleteMessages",
+        "@type": "deleteMessages",
         chatId,
         ids
-      })
+      });
     }
 
-    if(data.endsWith("clearHistory/cancel")){
+    if (data.endsWith("clearHistory/cancel")) {
       ChatMsg.apiUpdate({
-        "@type":"deleteMessages",
+        "@type": "deleteMessages",
         chatId,
-        ids:[messageId]
-      })
-      return
+        ids: [messageId]
+      });
+      return;
     }
 
-    if(data.startsWith("requestChatStream/stop/")){
-      const [chatId,messageId] = data.replace("requestChatStream/stop/","").split("/").map(Number)
-      ControllerPool.stop(chatId,messageId);
+    if (data.startsWith("requestChatStream/stop/")) {
+      const [chatId, messageId] = data.replace("requestChatStream/stop/", "")
+        .split("/")
+        .map(Number);
+      ControllerPool.stop(chatId, messageId);
     }
-    if(data.startsWith("requestChatStream/stop/")){
-      const [chatId,messageId] = data.replace("requestChatStream/stop/","").split("/").map(Number)
-      ControllerPool.stop(chatId,messageId);
+    if (data.startsWith("requestChatStream/stop/")) {
+      const [chatId, messageId] = data.replace("requestChatStream/stop/", "")
+        .split("/")
+        .map(Number);
+      ControllerPool.stop(chatId, messageId);
+    }
+    if (data.startsWith("build/in/pay")) {
+      await this.handleBuildInPay(chatId, data);
+    }
+    if (data.startsWith("server/api/")) {
+      await this.handleCallbackButton(data);
+    }
+
+    if (
+      data.replace(`${this.chatId}/`,"").startsWith("ipcMain/") ||
+      data.replace(`${this.chatId}/`,"").startsWith("ipcRender/")) {
+      await new WaiBotWorker(this.chatId,messageId).handleCallbackButton(data);
+    }
+    if (data.startsWith("local/") || data.startsWith(this.chatId + "/local/")){
+      await new WaiBotWorkerLocal(this.chatId,messageId).handleCallbackButton(data);
+    }
+
+    if (data.startsWith(`${this.chatId}/actions/openChatId/`)){
+      const chatId = data.replace(`${this.chatId}/actions/openChatId/`,"")
+      getActions().openChat({id:chatId,shouldReplaceHistory:true})
+    }
+  }
+
+  async handleBuildInPay(chatId: string, data: string) {
+    const t = data.replace("build/in/pay/", "");
+    alert(t);
+  }
+
+  async handleCallbackButton(data: string,outgoingMsgId:number = 0) {
+    const {chatId} = this
+    const msg = await this.chatMsg.setText("...")
+      .reply();
+    await sleep(500);
+    let inlineButtonsList = [
+      MsgCommand.buildInlineCallbackButton(chatId, `${outgoingMsgId}/setting/cancel`, "取消")
+    ];
+    try {
+      const res = await callApiWithPdu(new CallbackButtonReq({
+        chatId,
+        data
+      }).pack());
+      if (res && res.pdu) {
+        let {
+          text,
+          inlineButtons
+        } = CallbackButtonRes.parseMsg(res.pdu);
+        if (inlineButtons) {
+          inlineButtonsList = [
+            ...JSON.parse(inlineButtons),
+            ...inlineButtonsList
+          ];
+        }
+        if (text) {
+          return await this.chatMsg.update(msg.id, {
+            content: {
+              text: {
+                text: text!
+              }
+            },
+            inlineButtons: inlineButtonsList
+          });
+        }
+      }
+      throw new Error("请求错误");
+    } catch (e) {
+      console.error(e);
+      await this.chatMsg.update(msg.id, {
+        content: {
+          text: {
+            text: "请求错误"
+          }
+        },
+        inlineButtons: inlineButtonsList
+      });
     }
   }
 }

@@ -396,6 +396,7 @@ export interface ApiMessage {
   senderId?: string;
   replyToChatId?: string;
   replyToMessageId?: number;
+  replyToUserId?: string;
   replyToTopMessageId?: number;
   isTopicReply?: true;
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed';

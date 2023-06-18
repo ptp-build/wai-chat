@@ -21,7 +21,7 @@ import {
   LANG_CACHE_NAME,
   PRODUCTION_HOSTNAME,
 } from '../../../config';
-import {IS_PWA} from '../../../util/environment';
+import {IS_ANDROID, IS_IOS, IS_PWA} from '../../../util/environment';
 import buildClassName from '../../../util/buildClassName';
 import {formatDateToString} from '../../../util/dateFormat';
 import switchTheme from '../../../util/switchTheme';
@@ -54,10 +54,12 @@ import StatusButton from './StatusButton';
 
 import './LeftMainHeader.scss';
 import * as cacheApi from '../../../util/cacheApi';
+import MobileBridge, {getInitTheme, getWebPlatform} from "../../../worker/msg/MobileBridge";
 
 type OwnProps = {
   shouldHideSearch?: boolean;
   content: LeftColumnContent;
+  onNewChannel: () => void;
   contactsFilter: string;
   isClosingSearch?: boolean;
   shouldSkipTransition?: boolean;
@@ -95,6 +97,7 @@ const WEBK_VERSION_URL = 'https://web.telegram.org/k/';
 
 const LeftMainHeader: FC<OwnProps & StateProps> = ({
   shouldHideSearch,
+  onNewChannel,
   content,
   topSearchPlaceHolder,
   contactsFilter,
@@ -142,7 +145,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   } = getActions();
 
   const lang = useLang();
-  const { isMobile } = useAppLayout();
+  const { isMobile,isDesktop } = useAppLayout();
   const hasMenu = content === LeftColumnContent.ChatList;
   const clearedDateSearchParam = { date: undefined };
   const clearedChatSearchParam = { id: undefined };
@@ -228,7 +231,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   const handleDarkModeToggle = useCallback((e: React.SyntheticEvent<HTMLElement>) => {
     e.stopPropagation();
     const newTheme = theme === 'light' ? 'dark' : 'light';
-
+    MobileBridge.postEvent("SET_THEME",{theme:newTheme})
     setSettingOption({ theme: newTheme });
     setSettingOption({ shouldUseSystemTheme: false });
     switchTheme(newTheme, animationLevel === ANIMATION_LEVEL_MAX);
@@ -273,6 +276,12 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     },500)
   }, [openUrl]);
 
+
+  const handleOpenChatgpt = useCallback(async () => {
+    MobileBridge.postEvent("OPEN_BROWSER",{outerBrowser:false,url:"https://chat.openai.com",title:"ChatGpt"})
+
+  }, [openUrl]);
+
   const handleSignOutClick = useCallback(() => {
     openChat({ id: undefined }, { forceOnHeavyAnimation: true });
     window.history.replaceState({}, '', window.location.href.split("#")[0]);
@@ -303,12 +312,20 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     || content === LeftColumnContent.GlobalSearch
     || content === LeftColumnContent.Contacts
   );
-
+  useEffect(()=>{
+    if(getInitTheme() && getWebPlatform() !== 'web'){
+      const theme1 = getInitTheme();
+      if(theme !== theme1){
+        getActions().setSettingOption({theme:theme1});
+      }
+    }
+    MobileBridge.postEvent("WAI_APP_INIT")
+  },[theme])
   useEffect(() => (isSearchFocused ? captureEscKeyListener(() => onReset()) : undefined), [isSearchFocused, onReset]);
 
   const searchInputPlaceholder = content === LeftColumnContent.Contacts
     ? lang('SearchFriends')
-    : lang(topSearchPlaceHolder || '编程 写作 旅游...');
+    : lang('搜索...');
 
   const versionString = IS_BETA ? `${APP_VERSION} Beta (${APP_REVISION})` : (DEBUG ? APP_REVISION : APP_VERSION);
 
@@ -403,12 +420,21 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
       >
         {lang('ReportBug')}
       </MenuItem>
-      <MenuItem
-        icon="stop"
-        onClick={handleClearCache}
-      >
-        清除缓存
-      </MenuItem>
+      {
+        IS_ANDROID &&
+        <MenuItem
+          icon="stop"
+          onClick={handleOpenChatgpt}
+        >
+          ChatGpt
+        </MenuItem>
+      }
+      {/* <MenuItem */}
+      {/*   icon="stop" */}
+      {/*   onClick={handleClearCache} */}
+      {/* > */}
+      {/*   清除缓存 */}
+      {/* </MenuItem> */}
       {/* {IS_BETA && ( */}
       {/*   <MenuItem */}
       {/*     icon="permissions" */}
@@ -529,6 +555,21 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
             <i className="icon-lock" />
           </Button>
         )}
+        {
+          (!isSearchFocused && !(IS_IOS || IS_ANDROID || !isDesktop)) &&
+          <Button
+            round
+            className={"top-add-bot"}
+            ripple={!isMobile}
+            size="smaller"
+            onClick={onNewChannel}
+            color="translucent"
+            ariaLabel="新建机器人"
+          >
+            <i className="icon-add" />
+          </Button>
+        }
+
         <ShowTransition
           isOpen={connectionStatusPosition === 'overlay'}
           isCustom

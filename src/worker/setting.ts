@@ -1,5 +1,6 @@
 import {PbChatGptModelConfig_Type} from "../lib/ptp/protobuf/PTPCommon/types";
 
+export const DEFAULT_LANG_MNEMONIC = "chinese_simplified"
 export const SERVER_USER_ID_START = "20000000"
 export const SERVER_BOT_USER_ID_START = "10000000"
 
@@ -14,12 +15,22 @@ export const DEFAULT_AVATARS:Record<string, string> = {
 
 export const NameFirstBot = "Wai";
 export const DEFAULT_CREATE_USER_BIO = '我是一个AI机器人'
-export const DEFAULT_WAI_USER_BIO = '我是您的Wai助理'
+export const DEFAULT_WAI_USER_BIO = '我是一名基于 Ai 的助手'
 export const DEFAULT_PROMPT = ''
 export const BOT_FOLDER_TITLE = 'Wai'
 export const BOT_FOLDER_ID = 1
 
 export const WaterMark = 'https://wai.chat'
+
+export const PASSWORD_MSG_HELPER = `
+- 账户密码 可结合 助记词 用来跨设备登录
+- 账户密码 可用来加密所需的消息
+- 账户密码 和 助记词 不会存服务端，请牢记 账户密码 和妥善安全保存助记词！！
+
+如何查看助记词：
+- 发送 /setting
+- 点击 切换账户
+`
 
 export const ALL_CHAT_GPT_MODELS = [
   {
@@ -39,7 +50,7 @@ export const ChatModelConfig:PbChatGptModelConfig_Type = {
   presence_penalty: 0,
 }
 
-export const DEFAULT_BOT_COMMANDS = [
+export const DEFAULT_BOT_NO_AI_COMMANDS = [
   {
     "command": "start",
     "description": "开始对话"
@@ -49,55 +60,28 @@ export const DEFAULT_BOT_COMMANDS = [
     "description": "设置面板"
   },
   {
-    "command": "welcome",
-    "description": "欢迎语"
-  },
-  {
     "command": "help",
     "description": "帮助"
   },
+
 ]
 
-export const DEFAULT_CHATGPT_AI_COMMANDS = [
-  {
-    "command": "reset",
-    "description": "重置ai记忆,提问只携带 初始化Prompt"
-  },
-  {
-    "command": "template",
-    "description": "提问示例"
-  },
-  {
-    "command": "templateSubmit",
-    "description": "提问模版"
-  },
-  {
-    "command": "aiModel",
-    "description": "设置AI模型"
-  },
-  {
-    "command": "apiKey",
-    "description": "自定义apiKey"
-  },
-  {
-    "command": "systemPrompt",
-    "description": "系统 Prompt"
-  },
-  {
-    "command": "maxHistoryLength",
-    "description": "每次提问携带历史消息数"
-  },
+export const DEFAULT_BOT_AI_COMMANDS = [
+  ...DEFAULT_BOT_NO_AI_COMMANDS,
+  // {
+  //   "command": "prompts",
+  //   "description": "Prompts 大全"
+  // },
   {
     "command": "usage",
     "description": "账户余额"
   },
+  {
+    "command": "ai",
+    "description": "AI设置"
+  },
 ]
 
-export const DEFAULT_START_TIPS =    `你可以通过发送以下命令来控制我：
-
-/setting - 设置面板
-
-`
 
 export const CurrentUserInfo = {
   "id": "1",
@@ -137,22 +121,22 @@ export let LoadAllChats = {
         "noVoiceMessages": false,
         "bio": DEFAULT_WAI_USER_BIO,
         "botInfo": {
+          aiBot:{
+            enableAi:false,
+            chatGptConfig:{
+              modelConfig:ChatModelConfig,
+              api_key:"",
+              init_system_content:DEFAULT_PROMPT,
+              max_history_length:0,
+            },
+          },
           "botId": UserIdFirstBot,
-          "description": DEFAULT_CREATE_USER_BIO,
+          "description": DEFAULT_WAI_USER_BIO,
           "menuButton": {
             "type": "commands"
           },
-          "commands": DEFAULT_BOT_COMMANDS
+          "commands": DEFAULT_BOT_AI_COMMANDS
         }
-      },
-      bot:{
-        chatGptConfig:{
-          modelConfig:ChatModelConfig,
-          api_key:"",
-          init_system_content:DEFAULT_PROMPT,
-          max_history_length:0,
-        },
-        enableAi:false,
       },
       "accessHash": "",
       "firstName": NameFirstBot,
@@ -228,4 +212,5 @@ export const BYPASS_API = [
 ]
 
 export const STOP_HANDLE_MESSAGE = true
-export const TopCats = require("./assets/topCats-cn.json")
+// export const TopCats = require("./assets/topCats-cn.json")
+export const TopCats = {}

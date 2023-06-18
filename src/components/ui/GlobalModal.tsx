@@ -7,6 +7,7 @@ import Button from "./Button";
 import TextArea from "./TextArea";
 import {ChangeEvent} from "react";
 import InputText from "./InputText";
+import QrCode from "../common/QrCode";
 
 type OwnProps = {};
 
@@ -70,7 +71,11 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
       className=""
     >
       {
-        payload && (payload.type === 'multipleInput' || payload.type === 'singleInput' )&&
+        (payload && value && payload.showQrcode) &&
+        <QrCode content={value} tips={""} />
+      }
+      {
+        (payload && !payload.showQrcode && (payload.type === 'multipleInput' || payload.type === 'singleInput' ))&&
         <div className="settings-content password-form custom-scroll background">
           <div className="pt-4 pb-4 mb-2 background">
             {
@@ -94,7 +99,7 @@ const GlobalModal: FC<OwnProps> = ({}: OwnProps) => {
             }
           </div>
           <Button type="button" onClick={handleSubmit} ripple={true} isLoading={false} disabled={false}>
-            下一步
+            {payload.buttonTxt || "下一步"}
           </Button>
         </div>
       }

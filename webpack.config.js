@@ -37,7 +37,7 @@ module.exports = (_env, { mode = 'production' }) => {
     target: 'web',
 
     devServer: {
-      port: 1234,
+      port: 3080,
       host: '0.0.0.0',
       allowedHosts: 'all',
       hot: true,
@@ -177,6 +177,8 @@ module.exports = (_env, { mode = 'production' }) => {
         CLOUD_MESSAGE_API:"",
         CLOUD_WS_URL: "",
         MSG_SERVER:"",
+        MEDIA_UPLOAD_API:"",
+        MEDIA_DOWNLOAD_API:"",
         NODE_DEBUG:false,
         TEST_USERNAME:APP_ENV === 'production'? "" : "",
         TEST_PWD: APP_ENV === 'production' ? "" :"",

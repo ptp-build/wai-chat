@@ -12,6 +12,7 @@ import Menu from '../../ui/Menu';
 import Button from '../../ui/Button';
 
 import './BotKeyboardMenu.scss';
+import {stopOpenChat} from "../../../global/actions/api/bots";
 
 export type OwnProps = {
   isOpen: boolean;
@@ -56,7 +57,9 @@ const BotKeyboardMenu: FC<OwnProps & StateProps> = ({
                 ripple
                 disabled={button.type === 'unsupported'}
                 // eslint-disable-next-line react/jsx-no-bind
-                onClick={() => clickBotInlineButton({ messageId: message.id, button })}
+                onClick={() => {
+                  clickBotInlineButton({ messageId: message.id, button })
+                }}
               >
                 {button.text}
               </Button>

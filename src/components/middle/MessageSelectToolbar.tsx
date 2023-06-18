@@ -172,9 +172,9 @@ const MessageSelectToolbar: FC<OwnProps & StateProps> = ({
             {/*  renderButton('delete', lang('EditAdminGroupDeleteMessages'), openDeleteModal, true)*/}
             {/*)}*/}
 
-            {(
-              renderButton('download', lang('保存到云端'), handleSaveMsgToCloud,false,true)
-            )}
+            {/* {( */}
+            {/*   renderButton('download', lang('保存到云端'), handleSaveMsgToCloud,false,true) */}
+            {/* )} */}
 
             {renderButton('delete', lang('EditAdminGroupDeleteMessages'), openDeleteModal, true)}
 
