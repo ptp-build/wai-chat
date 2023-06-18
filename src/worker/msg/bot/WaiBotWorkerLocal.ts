@@ -22,7 +22,7 @@ export class WaiBotWorkerLocal{
   }
   async setUpChatGptAuthUser(){
     const account = WaiBotWorker.getWorkersAccount(this.chatId)
-    const initVal = account ? account.proxy : window.localStorage.getItem("chatGptAuthUser") || ""
+    const initVal = account ? account.chatGptAuthUser : window.localStorage.getItem("chatGptAuthUser") || ""
 
     const {value} = await showModalFromEvent({
       initVal,
@@ -62,6 +62,7 @@ export class WaiBotWorkerLocal{
   }
   async clearAllWindow(){
     WaiBotWorker.clearWorkersAccounts()
+    WaiBotWorker.call_handleCallbackButton("ipcMain/closeAllWindow")
   }
   async createChatGptBotWorker(){
     let workers_accounts = WaiBotWorker.getWorkersAccounts()
@@ -73,6 +74,7 @@ export class WaiBotWorkerLocal{
     let chatGptAuthUser;
     let botId;
     let isCreate = false;
+    let isMasterBot = this.chatId === UserIdFirstBot
     if(account){
       botId = account.botId
       chatGptAuthUser = account.chatGptAuthUser || ""
@@ -87,6 +89,7 @@ export class WaiBotWorkerLocal{
     const eventData = {
       ...account,
       botId,
+      isMasterBot,
       isCreate,
       accountNum,
       chatGptAuthUser,
@@ -99,7 +102,7 @@ export class WaiBotWorkerLocal{
       case "local/setUpChatGptAuthUser":
         await this.setUpChatGptAuthUser();
         break
-      case "local/local":
+      case "local/clearAllWindow":
         await this.clearAllWindow();
         break
       case "local/setUpProxy":

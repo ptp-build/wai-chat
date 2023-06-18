@@ -36,6 +36,7 @@ export enum MsgAction {
   MsgAction_WaiChatGptInputUsername = 4,
   MsgAction_WaiChatGptInputPassword = 5,
   MsgAction_WaiChatGptCfChallenge = 6,
+  MsgAction_WaiChatGptHeartBeat = 7,
   MsgAction_WaiChatGptUserAskMsg = 6001,
   MsgAction_WaiChatGptBotAckMsg = 6002,
 }

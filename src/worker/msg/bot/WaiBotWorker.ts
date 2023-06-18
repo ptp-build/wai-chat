@@ -59,9 +59,9 @@ export class WaiBotWorker{
       }  = await WaiBotWorker.call_handleCallbackButton(data);
       if(payload && data.includes("ipcMain/createChatGptBotWorker")){
         const createChatGptBotWorkerRes = await this.handleCreateChatGptBotWorkerRes(payload)
-        text = createChatGptBotWorkerRes.text
+        text = createChatGptBotWorkerRes!.text
         inlineButtonsList = [
-          ...createChatGptBotWorkerRes.inlineButtons,
+          ...createChatGptBotWorkerRes!.inlineButtons,
         ];
       }
       if (inlineButtons) {
@@ -99,23 +99,28 @@ export class WaiBotWorker{
 
   async handleCreateChatGptBotWorkerRes(payload:any){
     const accounts = WaiBotWorker.getWorkersAccounts()
-    if(payload.isCreate){
+    const isCreate = payload.isCreate
+    if(isCreate){
       delete payload.isCreate
       WaiBotWorker.updateWorkersAccount(payload.botId,{
         ...payload,
       })
-      getActions().createChat({
-        id:payload.botId,
-        title:`# ${Object.keys(accounts).length + 1} ChatGptBotWorker`,
-        enableAi:true
-      })
-      return {
-        text:`#ID: ${payload.botId}\n类型: ChatGpt`,
-        inlineButtons:[
-          [
-            ...MsgCommand.buildInlineCallbackButton(this.chatId,`actions/openChatId/${payload.botId}`,"管理Worker")
+    }
+    if(isCreate){
+      if(payload.isMasterBot){
+        getActions().createChat({
+          id:payload.botId,
+          title:`# ${Object.keys(accounts).length + 1} ChatGptBotWorker`,
+          enableAi:true
+        })
+        return {
+          text:`#ID: ${payload.botId}\n类型: ChatGpt`,
+          inlineButtons:[
+            [
+              ...MsgCommand.buildInlineCallbackButton(this.chatId,`actions/openChatId/${payload.botId}`,"管理Worker")
+            ]
           ]
-        ]
+        }
       }
     }else{
       return {

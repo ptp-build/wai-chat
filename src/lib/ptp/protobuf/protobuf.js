@@ -685,7 +685,7 @@ var $conv_message = $createConverter([
                     '$': {"1":["messageId","uint32",0],"2":["buf","bytes",[]]}
                 },
                 MsgAction: {
-                    '@': {"MsgAction_WaiChatGptBotWorkerInit":0,"MsgAction_WaiChatGptPromptsInputReady":1,"MsgAction_WaiChatGptOnRecvMsg":2,"MsgAction_WaiChatGptClickLogin":3,"MsgAction_WaiChatGptInputUsername":4,"MsgAction_WaiChatGptInputPassword":5,"MsgAction_WaiChatGptCfChallenge":6,"MsgAction_WaiChatGptUserAskMsg":6001,"MsgAction_WaiChatGptBotAckMsg":6002}
+                    '@': {"MsgAction_WaiChatGptBotWorkerInit":0,"MsgAction_WaiChatGptPromptsInputReady":1,"MsgAction_WaiChatGptOnRecvMsg":2,"MsgAction_WaiChatGptClickLogin":3,"MsgAction_WaiChatGptInputUsername":4,"MsgAction_WaiChatGptInputPassword":5,"MsgAction_WaiChatGptCfChallenge":6,"MsgAction_WaiChatGptHeartBeat":7,"MsgAction_WaiChatGptUserAskMsg":6001,"MsgAction_WaiChatGptBotAckMsg":6002}
                 },
                 MsgRow: {
                     '$': {"1":["text","string",""],"2":["msgId","uint32",0],"3":["chatId","string",""],"4":["senderId","string",""],"5":["msgDate","uint32",0]}
